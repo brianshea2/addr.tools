@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>challenges.addr.tools</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://www.addr.tools/man.css">
+
+<header><h1>CHALLENGES.ADDR.TOOLS.</h1>       <div>Domain Name System</div>   <div>CHALLENGES.ADDR.TOOLS.</div></header>
+
+<h2>NAME</h2>
+<p>
+  challenges.addr.tools - dns-01 ACME challenge helper zone
+
+<h2>SYNOPSIS</h2>
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl 'https://challenges.addr.tools/?secret=1SuperSecretPassphrase&amp;txt=foo'</kbd>
+    OK
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl -d 'secret=1SuperSecretPassphrase' -d 'txt=foo' https://challenges.addr.tools</kbd>
+    OK
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>sha224=$(echo -n '1SuperSecretPassphrase' | shasum -a 224 | cut -c 1-56)</kbd>
+    <i>$</i> <kbd>dig $sha224.challenges.addr.tools txt +short</kbd>
+    "foo"
+  </samp>
+
+<h2>DESCRIPTION</h2>
+<p>
+  The DNS zone challenges.addr.tools is meant to ease the use of dns-01 ACME challenges in automated or batch TLS
+  certificate issuance from certificate authorities such as Let's Encrypt.
+
+<h2>USAGE</h2>
+<p>
+  Let <var>challenge</var> be a dns-01 ACME challenge validation string, <var>secret</var> be a strong password, and
+  <var>sha224</var> be the SHA-224 hash of <var>secret</var>.
+
+<p>
+  A GET, POST, or PUT request to <code>https://challenges.addr.tools</code> with <code>secret=<var>secret</var></code>
+  and <code>txt=<var>challenge</var></code> specified as URL query parameters or, alternatively for POST and PUT
+  requests, as form values will temporarily add <var>challenge</var> as a TXT record to the domain
+  <code><var>sha224</var>.challenges.addr.tools</code>. Responds with body <code>OK</code> and status code
+  <code>201</code> on success.
+
+<p>
+  A GET, POST, or PUT to <code>https://challenges.addr.tools</code> with only <code>secret=<var>secret</var></code>
+  specified responds with body <code><var>sha224</var>.challenges.addr.tools</code> and makes no update.
+
+<p>
+  <code><var>sha224</var>.challenges.addr.tools</code> is meant to be the target of a CNAME at your "_acme-challenge"
+  subdomain.
+
+<p>
+  Remember to properly encode your <var>secret</var> value in your requests if it contains special characters. See
+  curl's <span class="nowrap">"--data-urlencode"</span> option.
+
+<h2>EXAMPLE</h2>
+<p>
+  Say you want to obtain a wildcard TLS certificate for example.com from Let's Encrypt using Certbot.
+
+<p>
+  First, pick a strong password. We'll use "1SuperSecretPassphrase", but you shouldn't.
+
+<p>
+  Add a CNAME record to point _acme-challenge.example.com to the subdomain of challenges.addr.tools named by calculating
+  the SHA-224 hash of "1SuperSecretPassphrase". This should look similar to:
+
+<table>
+  <tr><th>Name:   <td>_acme-challenge.example.com
+  <tr><th>Type:   <td>CNAME
+  <tr><th>Target: <td class="break">9afcdffa0d7a6d6f0140cadea70a9f62d58a96dd5d50f268086ca968.challenges.addr.tools
+</table>
+
+<p>
+  Now when Let's Encrypt queries _acme-challenge.example.com for the challenge TXT record, they will follow the CNAME to
+  9afcdf…6ca968.challenges.addr.tools. We can give Certbot a command to automatically add the challenge TXT record to
+  that subdomain:
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>certbot certonly \
+    --manual \
+    --manual-auth-hook 'curl "https://challenges.addr.tools/?secret=1SuperSecretPassphrase&amp;txt=$CERTBOT_VALIDATION"' \
+    --preferred-challenges dns \
+    -d example.com \
+    -d '*.example.com'</kbd>
+  </samp>
+
+<h2>SEE ALSO</h2>
+<p>
+  <a href="https://www.addr.tools">addr.tools</a>

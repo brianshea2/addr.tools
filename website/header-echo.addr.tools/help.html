@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>header-echo.addr.tools</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://www.addr.tools/man.css">
+
+<header><h1>HEADER-ECHO.ADDR.TOOLS.</h1>         <div>HTTP Headers</div>     <div>HEADER-ECHO.ADDR.TOOLS.</div></header>
+
+<h2>NAME</h2>
+<p>
+  header-echo.addr.tools - view HTTP request headers, craft HTTP response headers
+
+<h2>SYNOPSIS</h2>
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl -v -H 'Request-Header: foo' 'https://header-echo.addr.tools/?response-header=bar'</kbd>
+    &lt; HTTP/2 200
+    &lt; response-header: bar
+    &lt;
+    GET /?response-header=bar HTTP/2.0
+    Host: header-echo.addr.tools
+    User-Agent: curl/8.2.1
+    Accept: */*
+    Request-Header: foo
+  </samp>
+
+<h2>DESCRIPTION</h2>
+<p>
+  All HTTP and HTTPS requests sent to header-echo.addr.tools (and all subdomains) are answered by echoing the request
+  headers to the response body.
+
+<p>
+  Query string parameters from the request URL are used to generate response headers.
+
+<p>
+  The special query string parameter, status-code, sets the HTTP response status code. This must be an integer from 100
+  to 599.
+
+<h2>EXAMPLES</h2>
+<p>
+  View your client's standard request headers:
+
+<p>
+  <a href="https://header-echo.addr.tools">header-echo.addr.tools</a>
+
+<p>
+  Generate a redirect:
+
+<p>
+  <a class="break" href="https://header-echo.addr.tools/?status-code=302&location=https%3A%2F%2Fexample.com">
+    header-echo.addr.tools/?status-code=302&location=https://example.com
+  </a>
+
+<p>
+  Trigger a login prompt:
+
+<p>
+  <a class="break" href="https://header-echo.addr.tools/?status-code=401&www-authenticate=Basic">
+    header-echo.addr.tools/?status-code=401&www-authenticate=Basic
+  </a>
+
+<h2>SEE ALSO</h2>
+<p>
+  <a href="https://www.addr.tools">addr.tools</a>

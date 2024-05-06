@@ -1,0 +1,128 @@
+import { IPAddr, IPRange } from 'https://www.addr.tools/js/ipaddr'
+import { Mutex }           from 'https://www.addr.tools/js/mutex'
+import { fetchOk }         from 'https://www.addr.tools/js/util'
+class Response {
+  constructor(query, data) {
+    this.query = query
+    this.data = data
+  }
+  findEntityByRole(role) {
+    return this.data?.entities?.find(({ roles }) => roles?.includes(role))
+  }
+  get registrantName() {
+    return this.findEntityByRole('registrant')?.vcardArray?.[1]?.find(([ name ]) => name === 'fn')?.[3]
+  }
+}
+class DomainService {
+  constructor(url) {
+    this.url = url
+    this.mu = new Mutex()
+  }
+  lookup(domain, fetchOpts) {
+    return this.mu.runExclusively(() =>
+      fetchOk(`${this.url}domain/${domain}`, fetchOpts).then(r => r.json())
+    )
+  }
+}
+class IPService {
+  constructor(url) {
+    this.url = url
+    this.mu = new Mutex()
+    this.cache = []
+  }
+  getCached(ip) {
+    return this.cache.find(({ range }) => range.contains(ip))?.data
+  }
+  lookup(ip, fetchOpts) {
+    return this.getCached(ip) ?? this.mu.runExclusively(async () => {
+      let data = this.getCached(ip)
+      if (!data) {
+        data = await fetchOk(`${this.url}ip/${ip}`, fetchOpts).then(r => r.json())
+        if (data.startAddress && data.endAddress) {
+          try {
+            this.cache.push({ data, range: new IPRange(data.startAddress, data.endAddress) })
+          } catch (e) {
+            // ignore invalid startAddress or endAddress
+          }
+        }
+      }
+      return data
+    })
+  }
+}
+class Client {
+  constructor() {
+    this.domainServices = []
+    this.ipServices = []
+  }
+  async bootstrapDNS() {
+    const data = await fetchOk('https://data.iana.org/rdap/dns.json').then(r => r.json())
+    const servicesByURL = {}
+    data.services.forEach(svc => {
+      const url = svc[1].find(str => str.startsWith('https://'))
+      if (url === undefined) {
+        return
+      }
+      if (servicesByURL[url] === undefined) {
+        servicesByURL[url] = new DomainService(url)
+      }
+      this.domainServices.push(...svc[0].map(str => ({
+        tld: '.' + str.toLowerCase(),
+        service: servicesByURL[url]
+      })))
+    })
+    this.domainServices.sort((a, b) => b.tld.length - a.tld.length)
+  }
+  async bootstrapIP() {
+    const data = await Promise.all([
+      fetchOk('https://data.iana.org/rdap/ipv4.json').then(r => r.json()),
+      fetchOk('https://data.iana.org/rdap/ipv6.json').then(r => r.json())
+    ])
+    const servicesByURL = {}
+    data.flatMap(obj => obj.services).forEach(svc => {
+      const url = svc[1].find(str => str.startsWith('https://'))
+      if (url === undefined) {
+        return
+      }
+      if (servicesByURL[url] === undefined) {
+        servicesByURL[url] = new IPService(url)
+      }
+      this.ipServices.push(...svc[0].map(cidr => ({
+        range: new IPRange(cidr),
+        service: servicesByURL[url]
+      })))
+    })
+    this.ipServices.sort((a, b) =>
+      b.range.start.compareTo(a.range.start) ||   // start address descending
+      a.range.end.compareTo(b.range.end)          // end address ascending
+    )
+  }
+  async lookupDomain(domain, fetchOpts) {
+    domain = domain.toLowerCase()
+    if (this.domainServicesReady === undefined) {
+      this.domainServicesReady = this.bootstrapDNS()
+    }
+    await this.domainServicesReady
+    const { service, tld } = this.domainServices.find(({ tld }) => domain.endsWith(tld)) ?? {}
+    if (!service) {
+      throw new Error(`No RDAP service found for ${domain}`)
+    }
+    domain = domain.slice(0, domain.length - tld.length).split('.').at(-1) + tld
+    return new Response(domain, await service.lookup(domain, fetchOpts))
+  }
+  async lookupIP(ip, fetchOpts) {
+    if (!(ip instanceof IPAddr)) {
+      ip = new IPAddr(ip)
+    }
+    if (this.ipServicesReady === undefined) {
+      this.ipServicesReady = this.bootstrapIP()
+    }
+    await this.ipServicesReady
+    const service = this.ipServices.find(({ range }) => range.contains(ip))?.service
+    if (!service) {
+      throw new Error(`No RDAP service found for ${ip}`)
+    }
+    return new Response(ip, await service.lookup(ip, fetchOpts))
+  }
+}
+export { Client }

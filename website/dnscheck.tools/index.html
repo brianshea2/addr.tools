@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A tool to test for DNS leaks, DNSSEC validation, and more">
+<meta name="robots" content="noarchive">
+<title>dnscheck.tools - check your dns resolvers</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/main.css">
+<script type="module" src="/main.js"></script>
+<header>
+  <h1><a href="https://www.dnscheck.tools/">dnscheck.tools</a></h1>
+  <nav>
+    <a class="tab active" id="tab-results" href="#">Results</a>
+    <a class="tab" id="tab-more" href="#more">About</a>
+  </nav>
+</header>
+<div class="content active" id="content-results" data-nosnippet>
+  <div class="content-inner gap-2">
+    <div class="section" id="connection-results">
+      <div class="dialogue">Hello! Your public IP addresses are:</div>
+      <p>detecting...
+    </div>
+    <div class="section" id="resolver-results">
+      <div class="dialogue">Your DNS resolvers are:</div>
+      <p>detecting...
+    </div>
+    <div class="section" id="dnssec-results">
+      <div class="dialogue">Your DNS security:</div>
+      <p>testing...
+    </div>
+    <div class="section">
+      <div class="dialogue">See more tools at <a href="https://www.addr.tools/">addr.tools</a></div>
+    </div>
+  </div>
+</div>
+<div class="content" id="content-more">
+  <div class="content-inner">
+    <div class="section">
+      <h2>ABOUT</h2>
+      <p>
+        dnscheck.tools is a tool to test for <a href="https://en.wikipedia.org/wiki/DNS_leak">DNS leaks</a>,
+        <a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions">DNSSEC</a> validation, and more.
+    </div>
+    <div class="section">
+      <h2>USAGE</h2>
+      <p>
+        Load <a href="https://www.dnscheck.tools/">dnscheck.tools</a> in any web browser to identify your current DNS
+        resolvers and check DNSSEC validation.
+      <h3>DNS TEST QUERIES</h3>
+      <p>
+        dnscheck.tools is also a custom DNS test server! Make test queries like:
+      <p class="break">
+        $ dig <span class="bold">[SUBDOMAIN.]go[-ALG][-NET].dnscheck.tools</span> TXT
+      <h3>SUBDOMAIN</h3>
+      <p>
+        The SUBDOMAIN is composed of DNS response options, separated by a hyphen. Options may include:
+      <ul class="d-flex-col gap-1 indent">
+        <li>any of:
+          <ul class="indent">
+            <li><b><i>&lt;random&gt;</i></b> - a random number, up to 8 hexadecimal digits; useful for cache busting
+            <li><b>compress</b> - force the use of DNS message compression in the response
+            <li><b>[no]truncate</b> - force or disable message truncation for responses over UDP
+            <li><b>watch</b> - mirror corresponding requests to the <a href="/watch">/watch/<i>&lt;random&gt;</i></a>
+              page; requires <i>&lt;random&gt;</i>
+          </ul>
+        <li>up to one of:
+          <ul class="indent">
+            <li><b>padding<i>&lt;n&gt;</i></b> - add <i>&lt;n&gt;</i> bytes of EDNS0 padding, up to 4000, to A, AAAA,
+              and TXT responses
+            <li><b>txtfill<i>&lt;n&gt;</i></b> - add <i>&lt;n&gt;</i> bytes of padding as TXT data, up to 4000, to TXT
+              responses
+          </ul>
+        <li>up to one of:
+          <ul class="indent">
+            <li><b>formerr</b> - respond with "format error"
+            <li><b>servfail</b> - respond with "server failure"
+            <li><b>notimpl</b> - respond with "not implemented"
+            <li><b>refused</b> - respond with "query refused"
+            <li><b>noreply</b> - do not respond
+          </ul>
+        <li>up to one of:
+          <ul class="indent">
+            <li><b>nosig</b> - do not provide any DNSSEC signature in the response
+            <li><b>badsig</b> - provide an invalid DNSSEC signature when signing the response
+            <li><b>expiredsig[<i>&lt;t&gt;</i>]</b> - provide an expired DNSSEC signature when signing the response,
+              <i>&lt;t&gt;</i> seconds in the past (default 1 day)
+          </ul>
+      </ul>
+      <h3>ALG &amp; NET</h3>
+      <p>
+        The zone, <span class="nowrap">go[-ALG][-NET]</span>, sets DNSSEC signing and network options.
+      <ul class="d-flex-col gap-1 indent">
+        <li>ALG may be one of:
+          <ul class="indent">
+            <li><b>alg13</b> - sign the zone using ECDSA P-256 with SHA-256 (default)
+            <li><b>alg14</b> - sign the zone using ECDSA P-384 with SHA-384
+            <li><b>alg15</b> - sign the zone using Ed25519
+            <li><b>unsigned</b> - do not sign the zone
+          </ul>
+        <li>NET may be one of:
+          <ul class="indent">
+            <li><b>ipv4</b> - offer only IPv4 authoritative nameservers
+            <li><b>ipv6</b> - offer only IPv6 authoritative nameservers
+          </ul>
+      </ul>
+      <p>
+        The zone "go" is equivalent to "go-alg13" and has both IPv4 and IPv6 authoritative nameservers.
+      <h3>EXAMPLES</h3>
+      <p>
+        See some information about your DNS resolvers:
+      <p class="break">
+        $ dig go.dnscheck.tools TXT
+      <p>
+        For our Windows friends:
+      <p class="break">
+        &gt; nslookup -q=TXT go.dnscheck.tools
+      <p>
+        Getting cached results? Introduce a random number:
+      <p class="break">
+        $ dig 123456.go.dnscheck.tools TXT
+      <p>
+        Test if your resolvers are validating DNSSEC. This should produce an error:
+      <p class="break">
+        $ dig badsig-123456.go.dnscheck.tools TXT
+      <p>
+        Want to watch a stream of DNS requests coming from your resolvers?
+        Goto dnscheck.tools/watch/123456 and specify the watch option:
+      <p class="break">
+        $ dig watch-123456.go.dnscheck.tools TXT
+    </div>
+    <div class="section">
+      <h2>SEE ALSO</h2>
+      <p>
+        <a href="https://www.addr.tools/">addr.tools</a>
+    </div>
+    <div class="section">
+      <h2>CONTACT</h2>
+      <p>
+        On reddit, <a href="https://www.reddit.com/user/dnschecktool">u/dnschecktool</a>
+    </div>
+    <div class="section">
+      <h2>THIRD-PARTY DATA</h2>
+      <p>
+        IP addresses are grouped by their network registrants as discovered by the
+        <a href="https://www.arin.net/resources/registry/whois/rdap/">Registration Data Access Protocol</a>.
+      <p>
+        Hostnames (pointer records) and authoritative nameservers are discovered by
+        <a href="https://en.wikipedia.org/wiki/Reverse_DNS_lookup">reverse DNS resolution</a>.
+      <p>
+        IP geolocation data is provided by <a href="https://ipinfo.io/">ipinfo.io</a>.
+    </div>
+    <div class="section">
+      <h2>PRIVACY POLICY</h2>
+      <p>
+        No personal data is collected. This site doesn't use cookies. Cheers!
+    </div>
+  </div>
+</div>
+<div class="status active" id="status-results" data-nosnippet>
+  <div>
+    <span id="rtt-status" class="light" title="Average DNS resolution time"></span>
+    <span id="edns-status"></span>
+    <span id="dnssec-status"></span>
+    <span id="ecs-status"></span>
+    <span id="ipv6-status"></span>
+    <span id="tcp-status"></span>
+  </div>
+  <div>
+    <span class="nowrap" title="Total DNS requests received from your resolvers">
+      dns requests: <span id="count" class="light">0</span>
+    </span>
+  </div>
+</div>

@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+:root {
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  --background-color: #fff;
+  --border-color: #555753;
+  --text-color: #2e3436;
+  --text-color-red: #c00;
+  --text-color-orange: #c85000;
+  --text-color-yellow: #c4a000;
+  --text-color-green: #4e9a06;
+  --text-color-blue: #06989a;
+  --text-color-indigo: #3465a4;
+  --text-color-violet: #75507b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #2e3436;
+    --text-color: #d3d7cf;
+    --text-color-red: #ef2929;
+    --text-color-orange: #f6893c;
+    --text-color-yellow: #fce94f;
+    --text-color-green: #8ae234;
+    --text-color-blue: #34e2e2;
+    --text-color-indigo: #729fcf;
+    --text-color-violet: #ad7fa8;
+  }
+}
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1.3;
+  margin: 2em 2em 2em 1em;
+}
+body, code, kbd, samp, var {
+  font-family: 'Roboto Mono', monospace;
+}
+a {
+  color: inherit;
+  text-decoration: underline;
+}
+a:hover, a:hover + .sublinks {
+  font-weight: bold;
+  text-decoration: underline;
+}
+.domain a:not(:hover) {
+  text-decoration: none;
+}
+.domain a > span {
+  text-decoration: underline;
+}
+abbr {
+  text-decoration: none;
+}
+body > div {
+  background-color: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 1em 2em 2em 1em;
+}
+body > div:nth-child(n+2) {
+  margin-top: 2em;
+}
+.title {
+  background-color: inherit;
+  display: inline-block;
+  padding: 0 3px;
+  position: relative;
+  top: -1.65em;
+  left: -3px;
+  white-space: nowrap;
+}
+.pre {
+  white-space: pre;
+}
+.error {
+  color: var(--text-color-orange);
+}
+.value {
+  color: var(--text-color-yellow);
+}
+.value.string {
+  color: var(--text-color-violet);
+}
+.value.number {
+  color: var(--text-color-indigo);
+}
+.value.boolean {
+  color: var(--text-color-green);
+}
+.value .ip {
+  color: var(--text-color-red);
+}
+.value .domain {
+  color: var(--text-color-blue);
+}

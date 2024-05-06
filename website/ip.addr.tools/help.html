@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ip.addr.tools</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://www.addr.tools/man.css">
+
+<header><h1>IP.ADDR.TOOLS.</h1>               <div>Domain Name System</div>           <div>IP.ADDR.TOOLS.</div></header>
+
+<h2>NAME</h2>
+<p>
+  ip.addr.tools - construct domain names that resolve to any given IP address
+
+<h2>SYNOPSIS</h2>
+<p>
+  192-0-2-1.ip.addr.tools resolves to 192.0.2.1
+
+<p>
+  anything.203.0.113.1.ip.addr.tools resolves to 203.0.113.1
+
+<p>
+  2001-db8--1.ip.addr.tools resolves to 2001:db8::1
+
+<p>
+  this.too.2001-db8--1.ip.addr.tools resolves to 2001:db8::1
+
+<p>
+  http[s]://self[6].ip.addr.tools redirects, resolves to your public IP
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>nsupdate -v</kbd>
+    <i>&gt;</i> <kbd>update add _acme-challenge.192-168-1-1.ip.addr.tools 180 TXT challengeText</kbd>
+    <i>&gt;</i> <kbd>send</kbd>
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>dig _acme-challenge.192-168-1-1.ip.addr.tools txt +short</kbd>
+    "challengeText"
+  </samp>
+
+<h2>DESCRIPTION</h2>
+<p>
+  For any IPv4 address a.b.c.d, the names and all subdomains of a-b-c-d.ip.addr.tools and a.b.c.d.ip.addr.tools will
+  resolve to that IPv4 address.
+
+<p>
+  Similarly for any IPv6 address, the name and all subdomains of the name produced by replacing every colon with a
+  hyphen in that address, and appending ".ip.addr.tools", will resolve to that IPv6 address.
+
+<p>
+  self.ip.addr.tools and self6.ip.addr.tools are helper HTTP(S) services that redirect to the domain names which resolve
+  to your public IPv4 and IPv6 addresses, respectively.
+
+<h2>TLS CERTIFICATES</h2>
+<p>
+  It is possible to obtain TLS certificates for these domain names from certificate authorities supporting the ACME
+  protocol, such as Let's Encrypt.
+
+<p>
+  RFC 2136 dynamic updates can be used to complete a dns-01 challenge. These updates are limited to adding and deleting
+  TXT records to "_acme-challenge" subdomains. Anyone can make such updates to names which resolve to private IP
+  addresses. In order to make an update to a name which resolves to a public IP address, the request must use TCP and
+  come from the IP address corresponding to the name being updated. In other words, you can't make updates to domain
+  names which resolve to public IP addresses other than your own.
+
+<p>
+  When making an update to the name which resolves to your public IPv4 address, make sure the request is made over IPv4.
+  The same goes for IPv6. The nsupdate utility provides "-4" and "-6" options to force IPv4 or IPv6, and "-v" to force
+  TCP.
+
+<p>
+  TXT records added via RFC 2136 updates are automatically removed after a few minutes.
+
+<p>
+  TSIG is not required. However, if your RFC 2136 client requires TSIG, use the algorithm, key name and secret provided
+  below.
+
+<table>
+  <tr><th>Server:             <td>addr.tools
+  <tr><th>Zone:               <td>ip.addr.tools
+  <tr><th>TSIG key algorithm: <td>HMAC-SHA1
+  <tr><th>TSIG key name:      <td>ip.addr.tools.
+  <tr><th>TSIG secret:        <td class="break">ipL40QrEy8cSwmP6OqCihGlYNmE=
+</table>
+
+<p>
+  Certificates have been successfully issued using Certbot with the certbot-dns-rfc2136 plugin.
+
+<h2>SEE ALSO</h2>
+<p>
+  <a href="https://www.addr.tools">addr.tools</a>

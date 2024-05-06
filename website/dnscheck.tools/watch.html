@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Watch incoming DNS requests in real time!">
+<meta name="robots" content="noarchive">
+<title>dnscheck.tools/watch - watch incoming dns requests</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/main.css">
+<script type="module" src="/watch.js"></script>
+<header>
+  <h1><a href="https://www.dnscheck.tools/">dnscheck.tools</a></h1>/<h2><a href="/watch">watch</a></h2>/<h3 id="clientid"></h3>
+</header>
+<div class="content active" id="content">
+  <div class="content-inner" id="requests"></div>
+</div>
+<div class="status active">
+  <div>received: <span id="count">0</span> | status: <span id="ws-status">...</span> <span id="timer"></span></div>
+</div>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dyn.addr.tools</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://www.addr.tools/man.css">
+
+<header><h1>DYN.ADDR.TOOLS.</h1>              <div>Domain Name System</div>          <div>DYN.ADDR.TOOLS.</div></header>
+
+<h2>NAME</h2>
+<p>
+  dyn.addr.tools - simple dynamic DNS for your own domains, no account required
+
+<h2>SYNOPSIS</h2>
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl 'https://dyn.addr.tools/?secret=1SuperSecretPassphrase&amp;ip=self'</kbd>
+    OK
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl -d 'secret=1SuperSecretPassphrase' -d 'ip=192.0.2.1' https://dyn.addr.tools</kbd>
+    OK
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>sha224=$(echo -n '1SuperSecretPassphrase' | shasum -a 224 | cut -c 1-56)</kbd>
+    <i>$</i> <kbd>dig $sha224.dyn.addr.tools +short</kbd>
+    192.0.2.1
+  </samp>
+
+<h2>DESCRIPTION</h2>
+<p>
+  dyn.addr.tools is a dynamic DNS service with a simple HTTP interface meant to point subdomains (via CNAME) to
+  non-static IP addresses.
+
+<h2>USAGE</h2>
+<p>
+  Let <var>ipaddr</var> be an IPv4 or IPv6 address, <var>secret</var> be a strong password, and <var>sha224</var> be the
+  SHA-224 hash of <var>secret</var>.
+
+<p>
+  To update the domain <code><var>sha224</var>.dyn.addr.tools</code> to resolve to <var>ipaddr</var>, make a GET, POST,
+  or PUT request to <code>https://dyn.addr.tools</code> with <code>secret=<var>secret</var></code> and
+  <code>ip=<var>ipaddr</var></code> specified as URL query parameters or, alternatively for POST and PUT requests, as
+  form values. Responds with body <code>OK</code> and status code <code>200</code> on success.
+
+<p>
+  <var>ipaddr</var> may be the word "self" to use the requester's public IPv4 or IPv6 address. Use host
+  ipv4.dyn.addr.tools or ipv6.dyn.addr.tools to force IPv4 or IPv6.
+
+<p>
+  A GET, POST, or PUT to <code>https://dyn.addr.tools</code> with only <code>secret=<var>secret</var></code> specified
+  responds with body <code><var>sha224</var>.dyn.addr.tools</code> and makes no update.
+
+<p>
+  A DELETE to <code>https://dyn.addr.tools</code> with <code>secret=<var>secret</var></code> specified removes both IPv4
+  and IPv6 addresses. Responds with status code <code>204</code> on successful removal of all addresses (which may be
+  zero).
+
+<p>
+  <code><var>sha224</var>.dyn.addr.tools</code> is meant to be the target of a CNAME at your own subdomain.
+
+<p>
+  At least one update must be made every 90 days to remain active. IPv4 and IPv6 updates are tracked independently.
+
+<p>
+  Remember to properly encode your <var>secret</var> value in your requests if it contains special characters. See
+  curl's <span class="nowrap">"--data-urlencode"</span> option.
+
+<h2>EXAMPLE</h2>
+<p>
+  Say you want to keep home.example.com updated with your public IPv4 address.
+
+<p>
+  First, pick a strong password. We'll use "1SuperSecretPassphrase", but you shouldn't.
+
+<p>
+  Add a CNAME record to point home.example.com to the subdomain of dyn.addr.tools named by calculating the SHA-224 hash
+  of "1SuperSecretPassphrase". This should look similar to:
+
+<table>
+  <tr><th>Name:   <td>home.example.com
+  <tr><th>Type:   <td>CNAME
+  <tr><th>Target: <td class="break">9afcdffa0d7a6d6f0140cadea70a9f62d58a96dd5d50f268086ca968.dyn.addr.tools
+</table>
+
+<p>
+  Update the subdomain to resolve to your public IPv4 address:
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl 'https://ipv4.dyn.addr.tools/?secret=1SuperSecretPassphrase&amp;ip=self'</kbd>
+  </samp>
+
+<p>
+  Use a program, cron job, etc., to make a similar update request when the IP changes and at least once every 90 days.
+
+<p>
+  For example, you can use pfSense to keep your IP updated by adding a new Dynamic DNS Client (under Services) with
+  these settings:
+
+<table>
+  <tr><th>Service Type:  <td>Custom
+  <tr><th>Update URL:    <td class="break">https://ipv4.dyn.addr.tools/?secret=1SuperSecretPassphrase&amp;ip=self
+  <tr><th>Result Match:  <td>OK
+  <tr><th>Max Cache Age: <td>90
+</table>
+
+<h2>SEE ALSO</h2>
+<p>
+  <a href="https://www.addr.tools">addr.tools</a>

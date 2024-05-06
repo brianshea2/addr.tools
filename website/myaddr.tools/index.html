@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A minimalist dynamic DNS service">
+<title>myaddr.tools</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<script>
+  const theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  document.documentElement.setAttribute('data-bs-theme', theme)
+</script>
+<nav class="navbar sticky-top bg-body-tertiary">
+  <div class="container">
+    <a class="navbar-brand" href="https://myaddr.tools">myaddr.tools</a>
+    <a class="btn btn-primary" href="/claim">Claim your name</a>
+  </div>
+</nav>
+<div class="container my-3">
+  <h1 class="display-4">myaddr.tools</h1>
+  <p class="lead">A minimalist dynamic DNS service</p>
+  <h2>Features</h2>
+  <ul>
+    <li>No ads, no tracking, no nonsense</li>
+    <li>Get a name in seconds, no account required</li>
+    <li>Easy, forgiving HTTP-based API</li>
+    <li>
+      Multiple domains (all resolve the same):
+      <ul>
+        <li><code><var>your-name</var>.myaddr.tools</code></li>
+        <li><code><var>your-name</var>.myaddr.dev</code> (on the <a href="https://hstspreload.org">HSTS preload list</a>)</li>
+        <li><code><var>your-name</var>.myaddr.io</code></li>
+        <li>and all subdomains of above</li>
+      </ul>
+    </li>
+    <li>ACME <code>dns-01</code> challenge support for TLS certificates from CAs like <a href="https://letsencrypt.org">Let's Encrypt</a></li>
+  </ul>
+  <h2>Getting Started</h2>
+  <p>First, <a href="/claim">claim your name</a>. If the name is available, you will be given a private key.</p>
+  <p>This private key gives whoever holds it control over that name. If you lose the private key, you lose the name.</p>
+  <p>With your private key, you can call the Update API to manage your DNS records.</p>
+  <h2>API</h2>
+  <h3 class="h4">Update</h3>
+  <p class="lead">Manage DNS records</p>
+  <p>URL: <code>https://myaddr.tools/update</code><p>
+  <p class="mb-2">The <code>/update</code> endpoint is forgiving, meaning it:</p>
+  <ul>
+    <li>treats <code>GET</code>, <code>POST</code>, and <code>PUT</code> requests as equivalent update requests</li>
+    <li>reads parameters from the URL query string and from <code>POST</code> and <code>PUT</code> bodies</li>
+    <li><code>POST</code> and <code>PUT</code> bodies can be <code>application/x-www-form-urlencoded</code> or <code>application/json</code></li>
+    <li>responds with body <code>OK</code> and status code <code>200</code> on success</li>
+    <li>responds with a helpful error message and <code>4xx</code> otherwise</li>
+  </ul>
+  <h4 class="h6">Add or Update an IP Address</h4>
+  <p>
+    To add or update an IP address, send a <code>GET</code>, <code>POST</code>, or <code>PUT</code> request to <code>/update</code>.
+    Specify <code>key</code> and <code>ip</code> parameters.
+  </p>
+  <p>
+    Set <code>ip</code> to any valid IPv4 or IPv6 address, or set <code>ip=self</code> to use the requester's IP address.
+    Use host <code>ipv4.myaddr.tools</code> or <code>ipv6.myaddr.tools</code> to force IPv4 or IPv6.
+  </p>
+  <p>Adding an IPv4 address will replace any existing IPv4 address, and similar for IPv6.</p>
+  <h4 class="h6">Add an ACME Challenge</h4>
+  <p>
+    To add an ACME <code>dns-01</code> challenge, send a <code>GET</code>, <code>POST</code>, or <code>PUT</code> request to <code>/update</code>.
+    Specify <code>key</code> and <code>acme_challenge</code> parameters.
+  </p>
+  <p>
+    The <code>acme_challenge</code> value will be served as a TXT record on all <code>_acme-challenge</code> subdomains.
+    Challenge TXT records are automatically removed after a few minutes.
+  </p>
+  <h4 class="h6">Delete IP Addresses</h4>
+  <p>
+    A <code>DELETE</code> request to <code>/update</code> with <code>key</code> removes both IPv4 and IPv6 addresses.
+    Always responds with status code <code>204</code>.
+  </p>
+  <h3 class="h4">Registration</h3>
+  <p class="lead">Manage your registration</p>
+  <p>URL: <code>https://myaddr.tools/reg</code><p>
+  <h4 class="h6">Delete your Registration</h4>
+  <p>
+    To immediately and permanently delete your registration and release your name, send a <code>DELETE</code> request to <code>/reg</code>.
+    Specify <code>key</code>.
+  </p>
+  <h2>Things to Know</h2>
+  <ul>
+    <li>You must update each IP address (IPv4 and IPv6) at least once every <strong>90 days</strong> for that IP to remain active.</li>
+    <li>IPv4 and IPv6 updates are tracked independently.</li>
+    <li>If no updates are made to your name for <strong>120 days</strong>, your registration is deleted and your name released.</li>
+  </ul>
+  <h2>Privacy Policy</h2>
+  <p>No personal data is collected.</p>
+  <p class="small">Powered by <a href="https://www.addr.tools">addr.tools</a></p>
+</div>

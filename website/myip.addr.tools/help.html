@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myip.addr.tools</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://www.addr.tools/man.css">
+<script>
+  window.addEventListener("load", () => {
+    const handleResponse = elemId => async response => {
+      if (response.ok) {
+        const responseText = await response.text()
+        document.getElementById(elemId).innerHTML = responseText.trim()
+      }
+    }
+    fetch("https://myip.addr.tools").then(handleResponse("myip"), () => {})
+    fetch("https://myipv4.addr.tools").then(handleResponse("myipv4"), () => {})
+    fetch("https://myipv6.addr.tools").then(handleResponse("myipv6"), () => {})
+    fetch("https://myip.addr.tools/json").then(handleResponse("json"), () => {})
+  })
+</script>
+
+<header><h1>MYIP.ADDR.TOOLS.</h1>              <div>Internet Protocol</div>         <div>MYIP.ADDR.TOOLS.</div></header>
+
+<h2>NAME</h2>
+<p>
+  myip.addr.tools - get your public IP address
+
+<h2>SYNOPSIS</h2>
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl <a href="https://myip.addr.tools">myip.addr.tools</a></kbd>
+    <span id="myip">2001:db8::c0:ffee</span>
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl <a href="https://myipv4.addr.tools">myipv4.addr.tools</a></kbd>
+    <span id="myipv4">192.0.2.1</span>
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl <a href="https://myipv6.addr.tools">myipv6.addr.tools</a></kbd>
+    <span id="myipv6">2001:db8::c0:ffee</span>
+  </samp>
+
+<p>
+  <samp class="pre-line break">
+    <i>$</i> <kbd>curl <a href="https://myip.addr.tools/json">myip.addr.tools/json</a></kbd>
+    <span id="json">{"ip":"2001:db8::c0:ffee"}</span>
+  </samp>
+
+<h2>DESCRIPTION</h2>
+<p>
+  Returns your public IP address. That's it.
+
+<h2>FORMATS</h2>
+<p>
+  By default, your IP is returned with a trailing newline character. Change this by specifying a format:
+
+<table>
+  <tr>
+    <td><a href="https://myip.addr.tools/plain">/plain</a>
+    <td>no trailing newline
+  <tr>
+    <td><a href="https://myip.addr.tools/json">/json</a>
+    <td>a JSON object
+  <tr>
+    <td><a href="https://myip.addr.tools/json?key=foo">/json?key=foo</a>
+    <td>a JSON object with custom key
+  <tr>
+    <td><a href="https://myip.addr.tools/pfsense">/pfsense</a>
+    <td>a pfSense IP Check Service
+</table>
+
+<h2>SEE ALSO</h2>
+<p>
+  <a href="https://www.addr.tools">addr.tools</a>

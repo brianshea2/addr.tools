@@ -1,0 +1,381 @@
+import { IPAddr }               from 'https://www.addr.tools/js/ipaddr'
+import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
+import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
+
+// handle tabs
+const updateTab = tab => {
+  if (tab === undefined) {
+    tab = window.location.hash === '#more' ? 'more' : 'results'
+  }
+  history.replaceState(null, '', window.location.pathname + (tab === 'results' ? '' : `#${tab}`))
+  document.querySelectorAll('.active').forEach(el => el.classList.remove('active'))
+  document.getElementById(`tab-${tab}`)?.classList.add('active')
+  document.getElementById(`content-${tab}`)?.classList.add('active')
+  document.getElementById(`status-${tab}`)?.classList.add('active')
+}
+updateTab()
+window.addEventListener('hashchange', () => updateTab())
+document.querySelectorAll('a.tab').forEach(el => {
+  const tab = el.id.slice(4) // 'tab-'
+  el.addEventListener('click', e => {
+    e.preventDefault()
+    updateTab(tab)
+  })
+})
+
+// state
+const clientId       = Math.floor(Math.random() * 0xffffffff).toString(16)
+const rdapClient     = new RDAPClient()
+const geoLookups     = {}               // geolocation lookup promises by IP string
+const ipData         = {}               // combined IP data promises
+const clientIPs      = {}               // detected HTTP client source IPs
+const resolvers      = {}               // detected DNS resolvers
+const dnssecTests    = []               // DNSSEC test results
+const rtts           = []               // DNS round trip times
+const udpSizes       = []               // EDNS advertised UDP buffer sizes
+const clientSubnets  = []               // EDNS advertised client subnets
+let count            = 0                // number of DNS requests received
+let ipLongestLength  = 0                // longest IP length (used for css var --ip-min-width)
+let ptrLongestLength = 0                // longest PTR/NS length (used for css var --ptr-min-width)
+let geoLongestLength = 0                // longest geo length (used for css var --geo-min-width)
+let seenIPv6         = false            // whether any DNS requests have been seen over IPv6
+
+// commonly used elements
+const rootEl           = document.documentElement
+const connectionDiv    = document.getElementById('connection-results')
+const resolversDiv     = document.getElementById('resolver-results')
+const dnssecDiv        = document.getElementById('dnssec-results')
+const rttStatusSpan    = document.getElementById('rtt-status')
+const ednsStatusSpan   = document.getElementById('edns-status')
+const dnssecStatusSpan = document.getElementById('dnssec-status')
+const ecsStatusSpan    = document.getElementById('ecs-status')
+const ipv6StatusSpan   = document.getElementById('ipv6-status')
+const tcpStatusSpan    = document.getElementById('tcp-status')
+const countSpan        = document.getElementById('count')
+
+// generates some DNS requests from the browser to the given subdomain
+const makeQuery = (subdomain, abortSignal) => {
+  const abortController = new AbortController()
+  const { signal } = abortController
+  if (abortSignal.aborted) {
+    abortController.abort()
+  } else {
+    abortSignal.addEventListener('abort', () => abortController.abort(), { signal })
+    setTimeout(() => abortController.abort(), 5000)
+  }
+  return fetch(`https://${subdomain}.dnscheck.tools/`, { signal }).then(r => r.ok, () => false)
+}
+
+// returns promise of RDAP registrant name or other identifier for given IPAddr
+const getReg = ip => rdapClient.lookupIP(ip).then(
+  r => r.registrantName?.replace(/(?:\s+|,\s*)(?:llc|l\.l\.c\.|ltd\.?|inc\.?)$/i, '') || r.data.name || r.data.handle
+)
+
+// returns cached promise of geolocation for given IPAddr
+const getGeo = ip => {
+  // all ipv6 of the same /64 should have the same geolocation
+  const str = `${ip.is4() ? ip : new IPAddr(ip & 0xffffffffffffffff0000000000000000n)}`
+  if (geoLookups[str] === undefined) {
+    geoLookups[str] = fetchOk(`https://www.addr.tools/geo/${str}`).then(r => r.text())
+  }
+  return geoLookups[str]
+}
+
+// returns promise of PTR name, SOA NS for given IPAddr
+const getPtr = ip => fetchOk(`https://www.addr.tools/dns/${ip.reverseZone()}/ptr`).then(r => r.json()).then(
+  ({ Answer, Authority }) => ({
+    ptr: Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1),
+    ns: Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1),
+  })
+)
+
+// returns cached promise of combined geo, ptr, and rdap reg data for given IP string
+const getIPData = str => {
+  const ip = new IPAddr(str)
+  if (ipData[str] === undefined) {
+    ipData[str] = Promise.all([
+      getReg(ip).then(reg => ({ reg }), () => ({})),
+      getGeo(ip).then(geo => ({ geo }), () => ({})),
+      getPtr(ip).catch(() => ({})),
+    ]).then(data => Object.assign({ str, ip }, ...data))
+  }
+  return ipData[str]
+}
+
+// generates HTML for an IP list item
+const ipItem = ({ str, ptr, ns, geo }) => {
+  let html = `<li><span><a href="https://info.addr.tools/${str}" target="_blank">${str}</a></span>`
+  if (ptr) {
+    html += ` <span class="blue"><span title="Reverse DNS (PTR record)">ptr: ${encode(ptr)}</span></span>`
+  } else if (ns) {
+    html += ` <span class="violet"><span title="Authoritative nameserver over the reverse zone">ns: ${encode(ns)}</span></span>`
+  } else {
+    html += '<span></span>'
+  }
+  if (geo) {
+    html += ` <span class="indigo"><span>${encode(geo)}</span></span>`
+  } else {
+    html += '<span></span>'
+  }
+  html += '</li>'
+  return html
+}
+
+// generates HTML for an IP list given an array of IP data objects
+const ipList = objs => {
+  let html = ''
+  const pending = objs.filter(({ pending }) => pending)
+  if (pending.length) {
+    html += '<div class="subtitle bold"><i>Pending</i></div>' +
+      `<ul class="ip-list">${pending.map(ipItem).join('')}</ul>`
+  }
+  const byReg = {}
+  objs.filter(({ pending }) => !pending).forEach(obj => {
+    if (byReg[obj.reg || ''] === undefined) {
+      byReg[obj.reg || ''] = [ obj ]
+    } else {
+      byReg[obj.reg || ''].push(obj)
+    }
+  })
+  Object.keys(byReg).sort((a, b) => a.localeCompare(b)).forEach(reg => {
+    html += `<div class="subtitle bold">${reg ? encode(reg) : '<i>Unknown</i>'}</div>` +
+      `<ul class="ip-list">${byReg[reg].sort((a, b) => a.ip.compareTo(b.ip)).map(ipItem).join('')}</ul>`
+  })
+  return html
+}
+
+// updates style vars --ip-min-width, --ptr-min-width, --geo-min-width given an array of IP data objects
+const updateMinWidths = objs => {
+  const thisLongestIP = Math.max(...objs.map(({ str }) => str.length))
+  if (thisLongestIP > ipLongestLength) {
+    ipLongestLength = thisLongestIP
+    rootEl.style.setProperty('--ip-min-width', `${ipLongestLength}ch`)
+  }
+  const thisLongestPTR = Math.max(...objs.map(({ ptr, ns }) => ptr ? ptr.length + 5 : ns ? ns.length + 4 : 0))
+  if (thisLongestPTR > ptrLongestLength) {
+    ptrLongestLength = thisLongestPTR
+    rootEl.style.setProperty('--ptr-min-width', `${ptrLongestLength}ch`)
+  }
+  const thisLongestGEO = Math.max(...objs.map(({ geo }) => geo ? geo.length : 0))
+  if (thisLongestGEO > geoLongestLength) {
+    geoLongestLength = thisLongestGEO
+    rootEl.style.setProperty('--geo-min-width', `${geoLongestLength}ch`)
+  }
+}
+
+// draws the client IPs (top) section
+const drawIPs = () => {
+  const objs = Object.values(clientIPs)
+  connectionDiv.innerHTML = connectionDiv.firstElementChild.outerHTML + ipList(objs)
+  updateMinWidths(objs)
+}
+
+// draws the DNS resolvers (middle) section
+const drawResolvers = () => {
+  const objs = Object.values(resolvers)
+  resolversDiv.innerHTML = resolversDiv.firstElementChild.outerHTML + ipList(objs)
+  updateMinWidths(objs)
+}
+
+// draws the DNSSEC test results (bottom) section
+const drawDNSSEC = () => {
+  let title, statusTooltip, statusClass
+  if ([ 1, 2, 3, 5, 6, 7 ].some(i => dnssecTests[i])) {
+    // one or more ecdsa failing domains connected
+    title = '<div class="dialogue">Oh no! Your DNS responses are not authenticated with DNSSEC:</div>'
+    statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are not authenticated'
+    statusClass = 'red'
+  } else if (dnssecTests.length !== 12 || dnssecTests.some(t => t === undefined)) {
+    // tests are still running
+    title = dnssecDiv.firstElementChild.outerHTML
+  } else if ([ 0, 4, 8 ].every(i => dnssecTests[i])) {
+    if ([ 9, 10, 11 ].every(i => !dnssecTests[i])) {
+      // all good!
+      title = '<div class="dialogue">Great! Your DNS responses are authenticated with DNSSEC:</div>'
+      statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated'
+      statusClass = 'green'
+    } else {
+      // one or more ed25519 failing domains connected
+      title = '<div class="dialogue">Okay! Your DNS responses are authenticated, except when using newer DNSSEC algorithms:</div>'
+      statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated (except Ed25519)'
+      statusClass = 'yellow'
+    }
+  } else {
+    // inconclusive
+    title = '<div class="dialogue">Hmm... There was an issue checking your DNS security:</div>'
+    statusTooltip = 'DNS Security Extensions\n\nAn error occurred'
+    statusClass = 'yellow'
+  }
+  if (statusClass) {
+    dnssecStatusSpan.innerHTML = `<span class="${statusClass}" title="${statusTooltip}">DNSSEC</span>`
+  }
+  dnssecDiv.innerHTML = title +
+    '<div><table class="dnssec"><thead><tr>' +
+    '<th></th>' +
+    '<th>ECDSA <span class="nowrap">P-256</span></th>' +
+    '<th>ECDSA <span class="nowrap">P-384</span></th>' +
+    '<th>Ed25519</th>' +
+    '</tr></thead><tbody>' +
+    [ 'Good', 'Bad', 'Expired', 'Missing' ].map(
+      (label, i) => '<tr>' +
+        `<th>${label} signature</th>` +
+        [ 0, 4, 8 ].map(
+          offset => {
+            const got = dnssecTests[offset + i]
+            if (got === undefined) {
+              return '<td>&#8230;</td>'
+            }
+            const exp = i === 0 // only the 'Good' tests should make a successful connection
+            return got === exp ?
+              `<td><span class="green" title="Pass (${got ? 'connected' : 'not connected'})">&#10003;</span></td>` :
+              `<td><span class="${offset === 8 && !exp ? 'yellow' : 'red'}" title="Fail (${got ? 'connected' : 'not connected'})">&#10005;</span></td>`
+          }
+        ).join('') +
+        '</tr>'
+    ).join('') +
+    '</tbody></table></div>'
+}
+
+// detects HTTP client's IPv4 and IPv6 addresses
+const testIPs = () => Promise.all([ 'myipv4', 'myipv6' ].map(
+  sub => fetchOk(`https://${sub}.addr.tools/plain`).then(r => r.text()).then(
+    str => {
+      clientIPs[str] = { str, pending: true }
+      drawIPs()
+      getIPData(str).then(data => {
+        clientIPs[str] = data
+        drawIPs()
+      })
+    },
+    () => {} // ignore errors
+  )
+))
+
+// detects DNS resolvers and DNSSEC validation
+const testDNS = () => new Promise(done => {
+  // listen for DNS requests via WebSocket
+  const socket = new WebSocket(`wss://${window.location.host}/watch/${clientId}`)
+
+  // abort all requests on close
+  const abortController = new AbortController()
+
+  // on open
+  socket.addEventListener('open', async () => {
+    console.log('WebSocket opened')
+    // test DNSSEC validation (and generate some DNS requests)
+    for (const alg of [ 'alg13', 'alg14', 'alg15' ]) {
+      for (const sigOpt of [ '', 'badsig-', 'expiredsig-', 'nosig-' ]) {
+        const got = await makeQuery(`${sigOpt}watch-${clientId}.go-${alg}`, abortController.signal)
+        dnssecTests.push(got)
+        drawDNSSEC()
+      }
+    }
+    // test IPv6 support
+    if (!seenIPv6) {
+      seenIPv6 = await makeQuery(`watch-${clientId}.go-ipv6`, abortController.signal)
+      if (!seenIPv6) {
+        ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach IPv6 nameservers">IPv6</span>'
+      }
+    }
+    // test TCP fallback
+    const usesTCP = await makeQuery(`truncate-watch-${clientId}.go`, abortController.signal)
+    if (!usesTCP) {
+      tcpStatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers do not retry over TCP">TCP</span>'
+    }
+    // finished
+    countSpan.classList.remove('light')
+    setTimeout(
+      () => {
+        if (socket.readyState === 1) {
+          socket.close(1000)
+        }
+      },
+      10000
+    )
+    done()
+  })
+
+  // on message
+  socket.addEventListener('message', ({ data }) => {
+    // parse data
+    const request = JSON.parse(data)
+    console.log(`[DNS] request from ${request.remoteIp}/${request.proto}:`, request)
+    // increment count
+    countSpan.innerHTML = ++count
+    // add resolver if new
+    if (resolvers[request.remoteIp] === undefined) {
+      resolvers[request.remoteIp] = {
+        str: request.remoteIp,
+        pending: true,
+        requests: [],
+      }
+      drawResolvers()
+      getIPData(request.remoteIp).then(data => {
+        const { requests } = resolvers[request.remoteIp]
+        resolvers[request.remoteIp] = { ...data, requests }
+        drawResolvers()
+      })
+    }
+    // add request
+    resolvers[request.remoteIp].requests.push(request)
+    // discover EDNS support, add UDP buffer size
+    if (request.isEdns0 && !udpSizes.includes(request.udpSize)) {
+      udpSizes.push(request.udpSize)
+      udpSizes.sort((a, b) => a - b)
+      ednsStatusSpan.innerHTML = `<span class="${udpSizes[0] < 1200 ? 'yellow' : 'green'}" ` +
+        `title="Extension Mechanisms for DNS\n\nAdvertised UDP buffer sizes: ${udpSizes.join(', ')}">EDNS</span>`
+    }
+    if (count === 1 && udpSizes.length === 0) {
+      ednsStatusSpan.innerHTML = '<span class="red" title="Extension Mechanisms for DNS\n\nNot advertised">EDNS</span>'
+    }
+    // discover ECS
+    if (request.clientSubnet && !clientSubnets.includes(request.clientSubnet)) {
+      clientSubnets.push(request.clientSubnet)
+      clientSubnets.sort((a, b) => a.length - b.length)
+      ecsStatusSpan.innerHTML = '<span class="green" ' +
+        `title="EDNS Client Subnet\n\nYour DNS resolvers are advertising your subnets as:\n\n${clientSubnets.join('\n')}">ECS</span>`
+    }
+    // discover IPv6 support
+    if (!seenIPv6 && request.remoteIp.includes(':')) {
+      seenIPv6 = true
+      ipv6StatusSpan.innerHTML = '<span class="green" title="Your DNS resolvers connect to nameservers over IPv6">IPv6</span>'
+    }
+  })
+
+  // on close
+  socket.addEventListener('close', e => {
+    abortController.abort()
+    console.log('WebSocket closed', e)
+    console.log('resolvers:', resolvers)
+    if (count === 0) {
+      resolversDiv.innerHTML = resolversDiv.firstElementChild.outerHTML +
+        '<p><span class="red">an error occurred.</span> ' +
+        '<span class="link" onclick="window.location.reload()">reload</span> to try again.'
+    }
+  })
+})
+
+// detects DNS average round trip time
+const testRTT = async () => {
+  const tlds = [
+    'com', 'net', 'org',
+    'br', 'ca', 'co', 'de', 'eu', 'fr',
+    'in', 'io', 'jp', 'nl', 'uk', 'us',
+    'app', 'biz', 'dev', 'info', 'xyz',
+  ]
+  let rand, start, avg
+  for (const tld of [ ...tlds, ...tlds ]) {
+    rand = Math.random().toString(36).slice(2)
+    start = Date.now()
+    await fetch(`https://nxdomain-${rand}.${tld}/`).catch(() => {})
+    rtts.push(Date.now() - start)
+    avg = Math.round(rtts.reduce((sum, x) => sum + x) / rtts.length)
+    rttStatusSpan.innerHTML = `<span class="${avg <= 150 ? 'green' : avg <= 500 ? 'yellow' : 'red'}">${avg}ms</span>`
+  }
+  rttStatusSpan.classList.remove('light')
+}
+
+// let's go!!!
+testIPs()
+await testDNS()
+testRTT()

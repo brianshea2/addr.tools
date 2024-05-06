@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myaddr.tools | Claim your name</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+<script>
+  const theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  document.documentElement.setAttribute('data-bs-theme', theme)
+  window.addEventListener('load', () => {
+    const claimForm = document.getElementById('claim-form')
+    const nameInput = document.getElementById('name-input')
+    const submitButton = document.getElementById('submit-button')
+    const turnstileWidgetId = turnstile.render('#turnstile-widget', { sitekey: '0x4AAAAAAAM8zIuLgefJRkGL' })
+    const handleError = e => {
+      console.error(e)
+      submitButton.remove()
+      const alertBody = document.getElementById('alert-body')
+      alertBody.classList.remove('d-none')
+      alertBody.firstElementChild.innerHTML = 'Hmmm... an error occurred. Reload to try again.'
+    }
+    const handleSuccess = async response => {
+      if (response.ok) {
+        try {
+          const data = await response.json()
+          document.getElementById('key-input').value = data.key
+          document.getElementById('claim-card').classList.add('d-none')
+          document.getElementById('success-card').classList.remove('d-none')
+        } catch (e) {
+          handleError(e)
+        }
+      } else if (response.status === 409) {
+        claimForm.classList.remove('was-validated')
+        nameInput.disabled = false
+        submitButton.disabled = false
+        submitButton.innerHTML = 'Claim'
+        document.getElementById('name-invalid-feedback').classList.add('d-none')
+        document.getElementById('name-taken-feedback').classList.remove('d-none')
+        nameInput.classList.add('is-invalid')
+        nameInput.addEventListener('input', () => {
+          nameInput.classList.remove('is-invalid')
+          document.getElementById('name-taken-feedback').classList.add('d-none')
+          document.getElementById('name-invalid-feedback').classList.remove('d-none')
+        }, { once: true })
+        turnstile.reset(turnstileWidgetId)
+      } else {
+        handleError('unhandled response status')
+      }
+    }
+    claimForm.addEventListener('submit', async e => {
+      e.preventDefault()
+      claimForm.classList.add('was-validated')
+      if (turnstile.isExpired(turnstileWidgetId)) {
+        turnstile.reset(turnstileWidgetId)
+      }
+      const turnstileToken = turnstile.getResponse(turnstileWidgetId)
+      if (claimForm.checkValidity() && turnstileToken) {
+        nameInput.disabled = true
+        submitButton.disabled = true
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'
+        fetch('/reg', {
+          method: 'POST',
+          body: new URLSearchParams({
+            name: nameInput.value,
+            challenge: turnstileToken
+          })
+        }).then(handleSuccess, handleError)
+      }
+    })
+    const copyButton = document.getElementById('copy-button')
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(document.getElementById('key-input').value)
+        copyButton.innerHTML = 'Copied!'
+        setTimeout(() => { copyButton.innerHTML = 'Copy' }, 800)
+      } catch (e) {
+        console.error(e)
+      }
+    })
+    nameInput.focus()
+  })
+</script>
+<div class="d-flex flex-column" style="min-height: 85vh;">
+  <nav class="navbar bg-body-tertiary">
+    <div class="container">
+      <a class="navbar-brand" href="https://myaddr.tools">myaddr.tools</a>
+    </div>
+  </nav>
+  <div class="container d-flex align-items-center justify-content-center flex-grow-1 py-3">
+    <div class="card w-100" style="max-width: 40rem;" id="claim-card">
+      <div class="card-body">
+        <p class="h4 card-title">Claim your name!</p>
+        <p class="h5 card-subtitle text-body-secondary">Step 1 of 2</p>
+      </div>
+      <div class="d-none card-body" id="alert-body">
+        <div class="alert alert-danger card-text"></div>
+      </div>
+      <div class="card-body">
+        <form id="claim-form" autocomplete="off" novalidate>
+          <div class="mb-3">
+            <label for="name-input" class="form-label">Your domain name</label>
+            <div class="input-group has-validation">
+              <input type="text" class="form-control" id="name-input" required pattern="[a-zA-Z][a-zA-Z0-9\-]{4,38}[a-zA-Z0-9]">
+              <span class="input-group-text">.myaddr.{tools,dev,io}</span>
+              <div class="invalid-feedback">
+                <div id="name-invalid-feedback">
+                  Names must:
+                  <ul>
+                    <li>be 6 to 40 characters long</li>
+                    <li>start with a letter</li>
+                    <li>end with a letter or number</li>
+                    <li>consist of only letters, numbers, and hyphens</li>
+                  </ul>
+                </div>
+                <div class="d-none" id="name-taken-feedback">
+                  Sorry, this name is taken. Please choose another.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div id="turnstile-widget"></div>
+          </div>
+          <div>
+            <button class="btn btn-primary" style="width: 6rem;" type="submit" id="submit-button">Claim</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="d-none card w-100" style="max-width: 40rem;" id="success-card">
+      <div class="card-body">
+        <p class="h4 card-title text-success">You got it!</p>
+        <p class="h5 card-subtitle text-body-secondary">Step 2 of 2</p>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-warning card-text">
+          The private key below allows anyone who has it to make updates to your domain. Keep it safe!
+        </div>
+      </div>
+      <div class="card-body">
+        <label for="key-input" class="form-label">Your private key</label>
+        <div class="input-group">
+          <input type="text" class="form-control" id="key-input" readonly>
+          <button class="btn btn-outline-secondary" style="width: 6rem;" type="button" id="copy-button">Copy</button>
+        </div>
+        <div class="form-text">
+          Save your private key now. Once you leave this page, it is not possible to recover.
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="card-text lead">
+          It's time to make your first update!
+        </p>
+        <p class="card-text">
+          Your domain registration is pending until you make your first update, such as adding an IP address.
+          Your registration will expire if you do not make your first update within <span class="text-warning">1 hour</span>.
+        </p>
+        <p class="card-text">
+          IP address records must be updated at least once every <span class="text-warning">90 days</span> to remain active.
+          Your registration will expire if no updates are made for <span class="text-warning">120 days</span>.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

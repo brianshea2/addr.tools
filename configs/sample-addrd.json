@@ -1,0 +1,78 @@
+{
+    "HTTPSocketPath": "/data/addrd/addrd.sock",
+    "RequestLogPath": "/data/addrd/log/dns.log",
+    "DatabasePath": "/data/addrd/db.json",
+    "TLSCertPath": "",
+    "TLSKeyPath": "",
+    "ResponseAddrs": [
+        "192.0.2.1",
+        "2001:db8::1"
+    ],
+    "InternalChallengeTarget": "_acme-challenge.addr.tools.",
+    "LookupUpstream": "[2606:4700:4700::1111]:53",
+    "MyaddrTurnstileSecret": "",
+    "DnscheckZones": [
+        {
+            "Zone": "go.dnscheck.tools.",
+            "Ns": ["dnscheck.tools."],
+            "Ksk": {
+                "Algorithm": 13,
+                "PublicKey": ""
+            },
+            "Zsk": {
+                "Algorithm": 13,
+                "PublicKey": ""
+            },
+            "KeySig": {
+                "Algorithm": 13,
+                "Expiration": 0,
+                "Inception": 0,
+                "KeyTag": 0,
+                "Signature": ""
+            },
+            "PrivateKey": ""
+        },
+        {
+            "Zone": "go-unsigned.dnscheck.tools.",
+            "Ns": ["dnscheck.tools."]
+        }
+    ],
+    "ChallengesZone": {
+        "Zone": "challenges.addr.tools.",
+        "Ns": ["addr.tools."]
+    },
+    "DynZone": {
+        "Zone": "dyn.addr.tools.",
+        "Ns": ["addr.tools."]
+    },
+    "IPZone": {
+        "Zone": "ip.addr.tools.",
+        "Ns": ["addr.tools."]
+    },
+    "MyaddrZones": [
+        {
+            "Zone": "myaddr.tools.",
+            "Ns": [
+                "dns.myaddr.tools.",
+                "dns.myaddr.dev.",
+                "dns.myaddr.io."
+            ]
+        },
+        {
+            "Zone": "myaddr.dev.",
+            "Ns": [
+                "dns.myaddr.dev.",
+                "dns.myaddr.io.",
+                "dns.myaddr.tools."
+            ]
+        },
+        {
+            "Zone": "myaddr.io.",
+            "Ns": [
+                "dns.myaddr.io.",
+                "dns.myaddr.tools.",
+                "dns.myaddr.dev."
+            ]
+        }
+    ]
+}

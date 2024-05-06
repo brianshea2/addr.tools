@@ -1,0 +1,6 @@
+/data/addrd/log/dns.log {
+    rotate 14
+    daily
+    copytruncate
+    compress
+}
