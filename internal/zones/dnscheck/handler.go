@@ -401,5 +401,16 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				Txt: []string{txt},
 			})
 		}
+	case dns.TypeMX:
+		resp.Answer = append(resp.Answer, &dns.MX{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeMX,
+				Class:  dns.ClassINET,
+				Ttl:    1,
+			},
+			Preference: 0,
+			Mx:         ".",
+		})
 	}
 }
