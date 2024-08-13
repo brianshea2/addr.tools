@@ -217,18 +217,19 @@ const drawDNSSEC = () => {
     '<th>Ed25519</th>' +
     '</tr></thead><tbody>' +
     [ 'Good', 'Bad', 'Expired', 'Missing' ].map(
-      (label, i) => '<tr>' +
+      (label, sigIndex) => '<tr>' +
         `<th>${label} signature</th>` +
         [ 0, 4, 8 ].map(
-          offset => {
-            const got = dnssecTests[offset + i]
+          algOffset => {
+            const got = dnssecTests[algOffset + sigIndex]
             if (got === undefined) {
               return '<td>&#8230;</td>'
             }
-            const exp = i === 0 // only the 'Good' tests should make a successful connection
+            const exp = sigIndex === 0 // only the 'Good' tests should make a successful connection
+            const act = got ? 'connected' : 'not connected'
             return got === exp ?
-              `<td><span class="green" title="Pass (${got ? 'connected' : 'not connected'})">&#10003;</span></td>` :
-              `<td><span class="${offset === 8 && !exp ? 'yellow' : 'red'}" title="Fail (${got ? 'connected' : 'not connected'})">&#10005;</span></td>`
+              `<td><span class="green" title="Pass (${act})">&#10003;</span></td>` :
+              `<td><span class="${algOffset === 8 && !exp ? 'yellow' : 'red'}" title="Fail (${act})">&#10005;</span></td>`
           }
         ).join('') +
         '</tr>'
@@ -265,17 +266,17 @@ const testDNS = () => new Promise(done => {
     // test DNSSEC validation (and generate some DNS requests)
     for (const alg of [ 'alg13', 'alg14', 'alg15' ]) {
       for (const sigOpt of [ '', 'badsig-', 'expiredsig-', 'nosig-' ]) {
-        const got = await makeQuery(`${sigOpt}watch-${clientId}.go-${alg}`, abortController.signal)
-        dnssecTests.push(got)
+        const got = await Promise.all([
+          makeQuery(`${sigOpt}watch-${clientId}.go-${alg}-ipv4`, abortController.signal),
+          makeQuery(`${sigOpt}watch-${clientId}.go-${alg}-ipv6`, abortController.signal),
+        ])
+        dnssecTests.push(got.some(r => r))
         drawDNSSEC()
       }
     }
     // test IPv6 support
     if (!seenIPv6) {
-      seenIPv6 = await makeQuery(`watch-${clientId}.go-ipv6`, abortController.signal)
-      if (!seenIPv6) {
-        ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach IPv6 nameservers">IPv6</span>'
-      }
+      ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach IPv6 nameservers">IPv6</span>'
     }
     // test TCP fallback
     const usesTCP = await makeQuery(`truncate-watch-${clientId}.go`, abortController.signal)
