@@ -144,8 +144,8 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			w.WriteMsg(resp)
 		}
 	}()
-	// error response requested
-	if name != nil && name.Rcode != 0 {
+	// error response requested (NXDOMAIN handled below)
+	if name != nil && name.Rcode != 0 && name.Rcode != dns.RcodeNameError {
 		resp.Rcode = name.Rcode
 		return
 	}
@@ -225,6 +225,11 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				ExtraText: "invalid subdomain options",
 			})
 		}
+		resp.Rcode = dns.RcodeNameError
+		return
+	}
+	// NXDOMAIN response requested
+	if name.Rcode == dns.RcodeNameError {
 		resp.Rcode = dns.RcodeNameError
 		return
 	}

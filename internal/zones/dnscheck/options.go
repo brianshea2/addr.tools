@@ -73,6 +73,11 @@ func (o *Options) ParseOptions(s string) bool {
 				return false
 			}
 			o.Rcode = dns.RcodeServerFailure
+		case t == "nxdomain":
+			if o.Rcode != 0 || o.NoReply {
+				return false
+			}
+			o.Rcode = dns.RcodeNameError
 		case t == "notimpl":
 			if o.Rcode != 0 || o.NoReply {
 				return false
