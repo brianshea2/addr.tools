@@ -1,6 +1,10 @@
 package dnscheck
 
-import "github.com/brianshea2/addr.tools/internal/dnsutil"
+import (
+	"strings"
+
+	"github.com/brianshea2/addr.tools/internal/dnsutil"
+)
 
 type NameProperties struct {
 	IsApex          bool
@@ -19,6 +23,12 @@ func (h *DnscheckHandler) ParseName(name string) *NameProperties {
 	name = name[:end]
 	if dnsutil.EqualNames(name, "_acme-challenge") {
 		return &NameProperties{IsAcmeChallenge: true}
+	}
+	if start := strings.LastIndexByte(name, '.'); start > -1 {
+		if start == len(name)-1 {
+			return nil
+		}
+		name = name[start+1:]
 	}
 	n := new(NameProperties)
 	if !n.ParseOptions(name) {
