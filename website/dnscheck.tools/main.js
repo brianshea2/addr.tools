@@ -263,16 +263,12 @@ const testDNS = () => new Promise(done => {
   // on open
   socket.addEventListener('open', async () => {
     console.log('WebSocket opened')
-    // test DNSSEC validation (and generate some DNS requests)
-    for (const alg of [ 'alg13', 'alg14', 'alg15' ]) {
-      for (const sigOpt of [ '', 'badsig-', 'expiredsig-', 'nosig-' ]) {
-        const got = await Promise.all([
-          makeQuery(`${sigOpt}watch-${clientId}.go-${alg}-ipv4`, abortController.signal),
-          makeQuery(`${sigOpt}watch-${clientId}.go-${alg}-ipv6`, abortController.signal),
-        ])
-        dnssecTests.push(got.some(r => r))
-        drawDNSSEC()
-      }
+    // generate some DNS requests
+    for (let i = 0; i < 10; i++) {
+      await Promise.all([
+        makeQuery(`${Math.random().toString(36).slice(2)}.nxdomain-watch-${clientId}.go-unsigned-ipv4`, abortController.signal),
+        makeQuery(`${Math.random().toString(36).slice(2)}.nxdomain-watch-${clientId}.go-unsigned-ipv6`, abortController.signal),
+      ])
     }
     // test IPv6 support
     if (!seenIPv6) {
@@ -282,6 +278,14 @@ const testDNS = () => new Promise(done => {
     const usesTCP = await makeQuery(`truncate-watch-${clientId}.go`, abortController.signal)
     if (!usesTCP) {
       tcpStatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers do not retry over TCP">TCP</span>'
+    }
+    // test DNSSEC validation
+    for (const alg of [ 'alg13', 'alg14', 'alg15' ]) {
+      for (const sigOpt of [ '', 'badsig-', 'expiredsig-', 'nosig-' ]) {
+        const got = await makeQuery(`${sigOpt}watch-${clientId}.go-${alg}`, abortController.signal)
+        dnssecTests.push(got)
+        drawDNSSEC()
+      }
     }
     // finished
     countSpan.classList.remove('light')
