@@ -33,6 +33,19 @@ func GetName(sub string) string {
 }
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
+	defer func() {
+		if validName && q.Qtype == dns.TypeTXT {
+			rrs = append(rrs, &dns.TXT{
+				Hdr: dns.RR_Header{
+					Name:   q.Name,
+					Rrtype: dns.TypeTXT,
+					Class:  dns.ClassINET,
+					Ttl:    300,
+				},
+				Txt: []string{"v=spf1 -all"},
+			})
+		}
+	}()
 	if len(q.Name) < len(zone) {
 		return
 	}
