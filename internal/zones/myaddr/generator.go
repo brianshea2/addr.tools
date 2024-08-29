@@ -40,7 +40,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 					Name:   q.Name,
 					Rrtype: dns.TypeTXT,
 					Class:  dns.ClassINET,
-					Ttl:    300,
+					Ttl:    1,
 				},
 				Txt: []string{"v=spf1 -all"},
 			})
