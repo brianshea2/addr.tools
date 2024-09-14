@@ -51,9 +51,6 @@ a:hover, a:hover + .sublinks {
 .domain a > span {
   text-decoration: underline;
 }
-abbr {
-  text-decoration: none;
-}
 body > div {
   background-color: inherit;
   border: 1px solid var(--border-color);

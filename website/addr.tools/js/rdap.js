@@ -30,14 +30,14 @@ class IPService {
     this.mu = new Mutex()
     this.cache = []
   }
-  getCached(ip) {
-    return this.cache.find(({ range }) => range.contains(ip))?.data
+  getCached(ipOrRange) {
+    return this.cache.find(({ range }) => range.contains(ipOrRange))?.data
   }
-  lookup(ip, fetchOpts) {
-    return this.getCached(ip) ?? this.mu.runExclusively(async () => {
-      let data = this.getCached(ip)
+  lookup(ipOrRange, fetchOpts) {
+    return this.getCached(ipOrRange) ?? this.mu.runExclusively(async () => {
+      let data = this.getCached(ipOrRange)
       if (!data) {
-        data = await fetchOk(`${this.url}ip/${ip}`, fetchOpts).then(r => r.json())
+        data = await fetchOk(`${this.url}ip/${ipOrRange}`, fetchOpts).then(r => r.json())
         if (data.startAddress && data.endAddress) {
           try {
             this.cache.push({ data, range: new IPRange(data.startAddress, data.endAddress) })
@@ -107,22 +107,21 @@ class Client {
     if (!service) {
       throw new Error(`No RDAP service found for ${domain}`)
     }
-    domain = domain.slice(0, domain.length - tld.length).split('.').at(-1) + tld
     return new Response(domain, await service.lookup(domain, fetchOpts))
   }
-  async lookupIP(ip, fetchOpts) {
-    if (!(ip instanceof IPAddr)) {
-      ip = new IPAddr(ip)
+  async lookupIP(ipOrRange, fetchOpts) {
+    if (!(ipOrRange instanceof IPAddr) && !(ipOrRange instanceof IPRange)) {
+      ipOrRange = ipOrRange.includes('/') ? new IPRange(ipOrRange) : new IPAddr(ipOrRange)
     }
     if (this.ipServicesReady === undefined) {
       this.ipServicesReady = this.bootstrapIP()
     }
     await this.ipServicesReady
-    const service = this.ipServices.find(({ range }) => range.contains(ip))?.service
+    const service = this.ipServices.find(({ range }) => range.contains(ipOrRange))?.service
     if (!service) {
-      throw new Error(`No RDAP service found for ${ip}`)
+      throw new Error(`No RDAP service found for ${ipOrRange}`)
     }
-    return new Response(ip, await service.lookup(ip, fetchOpts))
+    return new Response(ipOrRange, await service.lookup(ipOrRange, fetchOpts))
   }
 }
 export { Client }

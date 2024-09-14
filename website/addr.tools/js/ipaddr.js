@@ -35,8 +35,8 @@ class IPAddr {
       `${this.#octets().reverse().join('.')}.in-addr.arpa` :
       `${this.#hexString().split('').reverse().join('.')}.ip6.arpa`
   }
-  toString() {
-    return this.is4() ?
+  toString(force6) {
+    return !force6 && this.is4() ?
       this.#octets().join('.') :
       this.#hexString().match(/.{4}/g).join(':')
   }
@@ -77,11 +77,31 @@ class IPRange {
       }
     }
   }
-  contains(ip) {
-    return ip >= this.start && ip <= this.end
+  compareTo(other) {
+    return this.start.compareTo(other.start) || this.end.compareTo(other.end)
+  }
+  contains(ipOrRange) {
+    if (ipOrRange instanceof IPRange) {
+      return this.contains(ipOrRange.start) && this.contains(ipOrRange.end)
+    }
+    return ipOrRange >= this.start && ipOrRange <= this.end
   }
   toString() {
-    return `${this.start} - ${this.end}`
+    let hostBits = this.start ^ this.end
+    if ((hostBits + 1n) & hostBits) {
+      const force6 = !this.start.is4() || !this.end.is4()
+      return `${this.start.toString(force6)}-${this.end.toString(force6)}`
+    }
+    let prefixLength = 128
+    while (hostBits >= 0xffn) {
+      hostBits >>= 8n
+      prefixLength -= 8
+    }
+    while (hostBits) {
+      hostBits >>= 1n
+      prefixLength -= 1
+    }
+    return `${this.start}/${this.start.is4() ? prefixLength - 96 : prefixLength}`
   }
   static cidr4Pattern = `${IPAddr.v4Pattern}/(?:3[0-2]|[1-2][0-9]|[0-9])`
   static cidr6Pattern = `${IPAddr.v6Pattern}/(?:12[0-8]|1[0-1][0-9]|[1-9][0-9]|[0-9])`
