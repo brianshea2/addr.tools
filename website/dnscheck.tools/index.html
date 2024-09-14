@@ -21,13 +21,16 @@
       <div class="dialogue">Hello! Your public IP addresses are:</div>
       <p>detecting...
     </div>
+    <div class="section hidden" id="ecs-results">
+      <div class="dialogue">Your DNS resolvers provide partial client IP address information (ECS):</div>
+    </div>
     <div class="section" id="resolver-results">
       <div class="dialogue">Your DNS resolvers are:</div>
       <p>detecting...
     </div>
     <div class="section" id="dnssec-results">
       <div class="dialogue">Your DNS security:</div>
-      <p>testing...
+      <p>pending...
     </div>
     <div class="section">
       <div class="dialogue">See more tools at <a href="https://www.addr.tools/">addr.tools</a></div>
@@ -169,13 +172,12 @@
     <span id="rtt-status" class="light" title="Average DNS resolution time"></span>
     <span id="edns-status"></span>
     <span id="dnssec-status"></span>
-    <span id="ecs-status"></span>
     <span id="ipv6-status"></span>
     <span id="tcp-status"></span>
   </div>
   <div>
-    <span class="nowrap" title="Total DNS requests received from your resolvers">
-      dns requests: <span id="count" class="light">0</span>
+    <span class="nowrap" title="Total DNS requests received and analyzed from your resolvers">
+      dns: <span id="count" class="light">0</span>
     </span>
   </div>
 </div>

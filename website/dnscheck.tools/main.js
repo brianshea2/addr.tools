@@ -1,4 +1,4 @@
-import { IPAddr }               from 'https://www.addr.tools/js/ipaddr'
+import { IPAddr, IPRange }      from 'https://www.addr.tools/js/ipaddr'
 import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
 import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
 
@@ -29,11 +29,11 @@ const rdapClient     = new RDAPClient()
 const geoLookups     = {}               // geolocation lookup promises by IP string
 const ipData         = {}               // combined IP data promises
 const clientIPs      = {}               // detected HTTP client source IPs
+const clientSubnets  = {}               // EDNS advertised client subnets
 const resolvers      = {}               // detected DNS resolvers
 const dnssecTests    = []               // DNSSEC test results
 const rtts           = []               // DNS round trip times
 const udpSizes       = []               // EDNS advertised UDP buffer sizes
-const clientSubnets  = []               // EDNS advertised client subnets
 let count            = 0                // number of DNS requests received
 let ipLongestLength  = 0                // longest IP length (used for css var --ip-min-width)
 let ptrLongestLength = 0                // longest PTR/NS length (used for css var --ptr-min-width)
@@ -43,12 +43,12 @@ let seenIPv6         = false            // whether any DNS requests have been se
 // commonly used elements
 const rootEl           = document.documentElement
 const connectionDiv    = document.getElementById('connection-results')
+const clientSubnetsDiv = document.getElementById('ecs-results')
 const resolversDiv     = document.getElementById('resolver-results')
 const dnssecDiv        = document.getElementById('dnssec-results')
 const rttStatusSpan    = document.getElementById('rtt-status')
 const ednsStatusSpan   = document.getElementById('edns-status')
 const dnssecStatusSpan = document.getElementById('dnssec-status')
-const ecsStatusSpan    = document.getElementById('ecs-status')
 const ipv6StatusSpan   = document.getElementById('ipv6-status')
 const tcpStatusSpan    = document.getElementById('tcp-status')
 const countSpan        = document.getElementById('count')
@@ -66,13 +66,15 @@ const makeQuery = (subdomain, abortSignal) => {
   return fetch(`https://${subdomain}.dnscheck.tools/`, { signal }).then(r => r.ok, () => false)
 }
 
-// returns promise of RDAP registrant name or other identifier for given IPAddr
-const getReg = ip => rdapClient.lookupIP(ip).then(
+// returns promise of RDAP registrant name or other identifier for given IPAddr or IPRange
+const getReg = ipOrRange => rdapClient.lookupIP(ipOrRange).then(
   r => r.registrantName?.replace(/(?:\s+|,\s*)(?:llc|l\.l\.c\.|ltd\.?|inc\.?)$/i, '') || r.data.name || r.data.handle
 )
 
-// returns cached promise of geolocation for given IPAddr
-const getGeo = ip => {
+// returns cached promise of geolocation for given IPAddr or IPRange
+const getGeo = ipOrRange => {
+  // use first IP of range
+  const ip = ipOrRange instanceof IPRange ? ipOrRange.start : ipOrRange
   // all ipv6 of the same /64 should have the same geolocation
   const str = `${ip.is4() ? ip : new IPAddr(ip & 0xffffffffffffffff0000000000000000n)}`
   if (geoLookups[str] === undefined) {
@@ -89,15 +91,18 @@ const getPtr = ip => fetchOk(`https://www.addr.tools/dns/${ip.reverseZone()}/ptr
   })
 )
 
-// returns cached promise of combined geo, ptr, and rdap reg data for given IP string
+// returns cached promise of combined geo, ptr, and rdap reg data for given IP or CIDR string
 const getIPData = str => {
-  const ip = new IPAddr(str)
   if (ipData[str] === undefined) {
-    ipData[str] = Promise.all([
-      getReg(ip).then(reg => ({ reg }), () => ({})),
-      getGeo(ip).then(geo => ({ geo }), () => ({})),
-      getPtr(ip).catch(() => ({})),
-    ]).then(data => Object.assign({ str, ip }, ...data))
+    const ipOrRange = str.includes('/') ? new IPRange(str) : new IPAddr(str)
+    const gets = [
+      getReg(ipOrRange).then(reg => ({ reg }), () => ({})),
+      getGeo(ipOrRange).then(geo => ({ geo }), () => ({})),
+    ]
+    if (ipOrRange instanceof IPAddr) {
+      gets.push(getPtr(ipOrRange).catch(() => ({})))
+    }
+    ipData[str] = Promise.all(gets).then(data => Object.assign({ str, ipOrRange }, ...data))
   }
   return ipData[str]
 }
@@ -139,7 +144,7 @@ const ipList = objs => {
   })
   Object.keys(byReg).sort((a, b) => a.localeCompare(b)).forEach(reg => {
     html += `<div class="subtitle bold">${reg ? encode(reg) : '<i>Unknown</i>'}</div>` +
-      `<ul class="ip-list">${byReg[reg].sort((a, b) => a.ip.compareTo(b.ip)).map(ipItem).join('')}</ul>`
+      `<ul class="ip-list">${byReg[reg].sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   })
   return html
 }
@@ -163,21 +168,29 @@ const updateMinWidths = objs => {
   }
 }
 
-// draws the client IPs (top) section
+// draws the client IPs section
 const drawIPs = () => {
   const objs = Object.values(clientIPs)
   connectionDiv.innerHTML = connectionDiv.firstElementChild.outerHTML + ipList(objs)
   updateMinWidths(objs)
 }
 
-// draws the DNS resolvers (middle) section
+// draws the EDNS Client Subnets section
+const drawClientSubnets = () => {
+  const objs = Object.values(clientSubnets)
+  clientSubnetsDiv.classList.remove('hidden')
+  clientSubnetsDiv.innerHTML = clientSubnetsDiv.firstElementChild.outerHTML + ipList(objs)
+  updateMinWidths(objs)
+}
+
+// draws the DNS resolvers section
 const drawResolvers = () => {
   const objs = Object.values(resolvers)
   resolversDiv.innerHTML = resolversDiv.firstElementChild.outerHTML + ipList(objs)
   updateMinWidths(objs)
 }
 
-// draws the DNSSEC test results (bottom) section
+// draws the DNSSEC test results section
 const drawDNSSEC = () => {
   let title, statusTooltip, statusClass
   if ([ 1, 2, 3, 5, 6, 7 ].some(i => dnssecTests[i])) {
@@ -334,11 +347,16 @@ const testDNS = () => new Promise(done => {
       ednsStatusSpan.innerHTML = '<span class="red" title="Extension Mechanisms for DNS\n\nNot advertised">EDNS</span>'
     }
     // discover ECS
-    if (request.clientSubnet && !clientSubnets.includes(request.clientSubnet)) {
-      clientSubnets.push(request.clientSubnet)
-      clientSubnets.sort((a, b) => a.length - b.length)
-      ecsStatusSpan.innerHTML = '<span class="green" ' +
-        `title="EDNS Client Subnet\n\nYour DNS resolvers are advertising your subnets as:\n\n${clientSubnets.join('\n')}">ECS</span>`
+    if (request.clientSubnet && clientSubnets[request.clientSubnet] === undefined) {
+      clientSubnets[request.clientSubnet] = {
+        str: request.clientSubnet,
+        pending: true,
+      }
+      drawClientSubnets()
+      getIPData(request.clientSubnet).then(data => {
+        clientSubnets[request.clientSubnet] = data
+        drawClientSubnets()
+      })
     }
     // discover IPv6 support
     if (!seenIPv6 && request.remoteIp.includes(':')) {

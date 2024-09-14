@@ -50,6 +50,9 @@ a, span.link {
 :is(a, span.link):hover {
   font-weight: bold;
 }
+div[title], span[title] {
+  cursor: help;
+}
 h1, h2, h3 {
   font-size: 1em;
   font-weight: bold;
@@ -207,10 +210,6 @@ nav {
   flex-grow: 1;
   text-align: right;
 }
-.status :is(div[title], span[title]):hover {
-  cursor: default;
-  font-weight: bold;
-}
 .d-flex-col {
   display: flex;
   flex-direction: column;
@@ -234,6 +233,9 @@ nav {
   display: flex;
   flex-direction: column;
   gap: 1.3em;
+}
+.section.hidden {
+  display: none;
 }
 .section :is(h2, h3, .title, .subtitle) {
   margin-bottom: -1.3em;
@@ -271,9 +273,6 @@ table.dnssec th:nth-child(n+2) {
 table.dnssec tbody th {
   text-align: left;
   white-space: nowrap;
-}
-table.dnssec td {
-  cursor: default;
 }
 @media (min-width: 768px) {
   table.dnssec :is(th, td):nth-child(n+2) {
