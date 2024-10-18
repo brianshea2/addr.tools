@@ -17,6 +17,21 @@ func CheckAndSetEdns(req, resp *dns.Msg) error {
 			return fmt.Errorf("bad edns version: %v", opt.Version())
 		}
 		resp.SetEdns0(MaxUdpMsgSize, opt.Do())
+		// ecs
+		for _, o := range opt.Option {
+			if o.Option() == dns.EDNS0SUBNET {
+				subnet := o.(*dns.EDNS0_SUBNET)
+				respOpt := resp.IsEdns0()
+				respOpt.Option = append(respOpt.Option, &dns.EDNS0_SUBNET{
+					Code:          dns.EDNS0SUBNET,
+					Family:        subnet.Family,
+					Address:       subnet.Address,
+					SourceNetmask: subnet.SourceNetmask,
+					SourceScope:   0,
+				})
+				break
+			}
+		}
 	}
 	return nil
 }
