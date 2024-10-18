@@ -144,11 +144,6 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			w.WriteMsg(resp)
 		}
 	}()
-	// error response requested (NXDOMAIN handled below)
-	if name != nil && name.Rcode != 0 && name.Rcode != dns.RcodeNameError {
-		resp.Rcode = name.Rcode
-		return
-	}
 	// edns
 	err := dnsutil.CheckAndSetEdns(req, resp)
 	if err != nil {
@@ -158,6 +153,11 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	// class IN only
 	if q.Qclass != dns.ClassINET {
 		resp.Rcode = dns.RcodeRefused
+		return
+	}
+	// error response requested (NXDOMAIN handled below)
+	if name != nil && name.Rcode != 0 && name.Rcode != dns.RcodeNameError {
+		resp.Rcode = name.Rcode
 		return
 	}
 	// allowed types only
