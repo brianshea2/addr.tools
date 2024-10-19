@@ -17,7 +17,7 @@ func keygen(zone string, alg uint8) {
 	dnssecProvider, err := dnsutil.GenerateDnssecProvider(
 		dns.CanonicalName(zone),
 		alg,
-		3600,
+		300,
 		now-now%86400,
 		now-now%86400+31536000, // 1 year
 	)
@@ -28,10 +28,9 @@ func keygen(zone string, alg uint8) {
 	ds, _ := dnssecProvider.DS()
 	privKey, _ := dnssecProvider.PrivKeyBytes()
 	fmt.Printf(
-		"%s\n%s\n%s ;privKey: %s\n%s\n",
-		ds, dnssecProvider.Ksk, dnssecProvider.Zsk,
-		base64.StdEncoding.EncodeToString(privKey),
-		dnssecProvider.KeySig,
+		"%s\n%s\n%s ;privKey: %s\n%s ;validity: %d - %d\n",
+		ds, dnssecProvider.Ksk, dnssecProvider.Zsk, base64.StdEncoding.EncodeToString(privKey),
+		dnssecProvider.KeySig, dnssecProvider.KeySig.Inception, dnssecProvider.KeySig.Expiration,
 	)
 	os.Exit(0)
 }

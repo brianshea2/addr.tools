@@ -68,7 +68,7 @@ func (h *DnscheckHandler) Init(privKeyBytes []byte) *DnscheckHandler {
 			hdr := rr.Header()
 			hdr.Name = h.Zone
 			hdr.Class = dns.ClassINET
-			hdr.Ttl = 3600
+			hdr.Ttl = 300
 		}
 		for _, rr := range []*dns.DNSKEY{h.DnssecProvider.Ksk, h.DnssecProvider.Zsk} {
 			rr.Hdr.Rrtype = dns.TypeDNSKEY
@@ -106,15 +106,15 @@ func (h *DnscheckHandler) SOA(q *dns.Question) dns.RR {
 			Name:   h.Zone,
 			Rrtype: dns.TypeSOA,
 			Class:  dns.ClassINET,
-			Ttl:    3600,
+			Ttl:    300,
 		},
 		Ns:      h.Ns[0],
 		Mbox:    h.HostMasterMbox,
 		Serial:  1,
-		Refresh: 3600,
-		Retry:   1200,
-		Expire:  604800,
-		Minttl:  3600,
+		Refresh: 9000,
+		Retry:   9000,
+		Expire:  18000,
+		Minttl:  300,
 	}}
 	dnsutil.FixNames(rrs, q)
 	return rrs[0]
@@ -245,7 +245,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 						Name:   q.Name,
 						Rrtype: dns.TypeNS,
 						Class:  dns.ClassINET,
-						Ttl:    3600,
+						Ttl:    300,
 					},
 					Ns: ns,
 				})
