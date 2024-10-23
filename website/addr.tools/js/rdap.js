@@ -25,7 +25,7 @@ class DomainService {
     this.url = url
     this.mu = new Mutex()
   }
-  lookup(domain, fetchOpts) {
+  async lookup(domain, fetchOpts) {
     return this.mu.runExclusively(() =>
       fetchOk(`${this.url}domain/${domain}`, fetchOpts).then(r => r.json())
     )
@@ -40,7 +40,7 @@ class IPService {
   getCached(ipOrRange) {
     return this.cache.find(({ range }) => range.contains(ipOrRange))?.data
   }
-  lookup(ipOrRange, fetchOpts) {
+  async lookup(ipOrRange, fetchOpts) {
     return this.getCached(ipOrRange) ?? this.mu.runExclusively(async () => {
       let data = this.getCached(ipOrRange)
       if (!data) {
