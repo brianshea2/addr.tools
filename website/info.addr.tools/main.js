@@ -1,6 +1,6 @@
-import { IPAddr, IPRange }      from 'https://www.addr.tools/js/ipaddr'
-import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
-import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
+import { IPAddr, IPRange }            from 'https://www.addr.tools/js/ipaddr'
+import { Client as RDAPClient }       from 'https://www.addr.tools/js/rdap'
+import { HTTPError, encode, fetchOk } from 'https://www.addr.tools/js/util'
 
 const rdapClient = new RDAPClient()
 
@@ -45,18 +45,18 @@ const jsonReplacer = (key, value) => {
   return `<value ${type}>${value}</value>`
 }
 
-const infoLink = (label, page) => `<a href="/${page}" onclick="history.pushState(null, '', '/${page}');window.reload();return false">${label}</a>`
+const infoLink = (page, html) => `<a href="/${page}" onclick="history.pushState(null, '', '/${page}');window.reload();return false">${html ?? page}</a>`
 const domainLinks = domain => {
   const labels = domain.split('.')
   if (labels.length <= 2) {
-    return infoLink(`<span>${domain}</span>`, domain)
+    return infoLink(domain, `<span>${domain}</span>`)
   }
-  return infoLink(`<span>${labels.shift()}</span>.`, domain) + `<span class="sublinks">${domainLinks(labels.join('.'))}</span>`
+  return infoLink(domain, `<span>${labels.shift()}</span>.`) + `<span class="sublinks">${domainLinks(labels.join('.'))}</span>`
 }
 
 const htmlify = (obj, quoteStrings) => JSON.stringify(obj, jsonReplacer, 2)
   .replace(/<domain>(.*?)<\/domain>/g, (_, domain) => `<span class="domain">${domainLinks(domain)}</span>`)
-  .replace(/<ip>(.*?)<\/ip>/g, (_, ip) => `<span class="ip">${infoLink(ip, ip)}</span>`)
+  .replace(/<ip>(.*?)<\/ip>/g, (_, ip) => `<span class="ip">${infoLink(ip)}</span>`)
   .replace(/"<key>(.*?)<\/key>"/g, (_, key) => `<span class="key">"${key}"</span>`)
   .replace(/"<value (.*?)>(.*?)<\/value>"/g, (_, type, value) => {
     if (quoteStrings && type === 'string') {
@@ -151,8 +151,8 @@ const loadInfo = async () => {
       }
     }
 
-    const handleDnsError = ({ message }) => {
-      dnsDataDiv.insertAdjacentHTML('afterend', `<br><div class="error">Error: ${encode(message)}</div>`)
+    const handleDnsError = e => {
+      dnsDataDiv.insertAdjacentHTML('afterend', `<br><div class="error">Error: ${encode(e.message)}</div>`)
     }
 
     if (query instanceof IPAddr) {
@@ -181,13 +181,31 @@ const loadInfo = async () => {
 
   const rdapDataDiv = document.getElementById('rdap-data')
 
-  await rdapClient[(query instanceof IPAddr) || (query instanceof IPRange) ? 'lookupIP' : 'lookupDomain'](query, { signal })
-    .then(({ data }) => {
-      rdapDataDiv.innerHTML = htmlify(data, true)
-    })
-    .catch(({ message }) => {
-      rdapDataDiv.innerHTML = `<span class="error">No data (${encode(message)})</span>`
-    })
+  if ((query instanceof IPAddr) || (query instanceof IPRange)) {
+    await rdapClient.lookupIP(query, { signal })
+      .then(({ data }) => {
+        rdapDataDiv.innerHTML = htmlify(data, true)
+      })
+      .catch(e => {
+        rdapDataDiv.innerHTML = `<span class="error">No data (${encode(e.message)})</span>`
+      })
+  } else {
+    await rdapClient.lookupDomain(query, { signal })
+      .then(({ data }) => {
+        rdapDataDiv.innerHTML = htmlify(data, true)
+      })
+      .catch(e => {
+        let msg
+        if (e instanceof HTTPError) {
+          const labels = query.split('.')
+          if (labels.length > 2) {
+            labels.shift()
+            msg = `try ${infoLink(labels.join('.'))}`
+          }
+        }
+        rdapDataDiv.innerHTML = `<span class="error">No data (${msg ?? encode(e.message)})</span>`
+      })
+  }
 }
 
 let run = loadInfo()
