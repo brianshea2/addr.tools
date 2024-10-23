@@ -23,12 +23,9 @@ class Response {
 class DomainService {
   constructor(url) {
     this.url = url
-    this.mu = new Mutex()
   }
-  async lookup(domain, fetchOpts) {
-    return this.mu.runExclusively(() =>
-      fetchOk(`${this.url}domain/${domain}`, fetchOpts).then(r => r.json())
-    )
+  lookup(domain, fetchOpts) {
+    return fetchOk(`${this.url}domain/${domain}`, fetchOpts).then(r => r.json())
   }
 }
 class IPService {
