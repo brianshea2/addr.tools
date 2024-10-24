@@ -1,6 +1,5 @@
 import { IPAddr, IPRange } from 'https://www.addr.tools/js/ipaddr'
-import { Mutex }           from 'https://www.addr.tools/js/mutex'
-import { fetchOk }         from 'https://www.addr.tools/js/util'
+import { Mutex, fetchOk }  from 'https://www.addr.tools/js/util'
 class RDAPServiceNotFoundError extends Error {
   constructor(query) {
     super(`No RDAP service found for ${query}`)
@@ -34,24 +33,34 @@ class IPService {
     this.mu = new Mutex()
     this.cache = []
   }
+  addCache(data) {
+    if (!data.startAddress || !data.endAddress) {
+      return
+    }
+    try {
+      this.cache.push({ data, range: new IPRange(data.startAddress, data.endAddress) })
+    } catch (e) {
+      // ignore invalid startAddress or endAddress
+    }
+  }
   getCached(ipOrRange) {
     return this.cache.find(({ range }) => range.contains(ipOrRange))?.data
   }
   async lookup(ipOrRange, fetchOpts) {
-    return this.getCached(ipOrRange) ?? this.mu.runExclusively(async () => {
-      let data = this.getCached(ipOrRange)
-      if (!data) {
-        data = await fetchOk(`${this.url}ip/${ipOrRange}`, fetchOpts).then(r => r.json())
-        if (data.startAddress && data.endAddress) {
-          try {
-            this.cache.push({ data, range: new IPRange(data.startAddress, data.endAddress) })
-          } catch (e) {
-            // ignore invalid startAddress or endAddress
-          }
+    let data = this.getCached(ipOrRange)
+    if (!data) {
+      await this.mu.lock()
+      try {
+        data = this.getCached(ipOrRange)
+        if (!data) {
+          data = await fetchOk(`${this.url}ip/${ipOrRange}`, fetchOpts).then(r => r.json())
+          this.addCache(data)
         }
+      } finally {
+        this.mu.unlock()
       }
-      return data
-    })
+    }
+    return data
   }
 }
 class Client {
