@@ -347,7 +347,7 @@ const testDNS = () => new Promise(done => {
       ednsStatusSpan.innerHTML = '<span class="red" title="Extension Mechanisms for DNS\n\nNot advertised">EDNS</span>'
     }
     // discover ECS
-    if (request.clientSubnet && clientSubnets[request.clientSubnet] === undefined) {
+    if (request.clientSubnet && !request.clientSubnet.endsWith('/0') && clientSubnets[request.clientSubnet] === undefined) {
       clientSubnets[request.clientSubnet] = {
         str: request.clientSubnet,
         pending: true,
