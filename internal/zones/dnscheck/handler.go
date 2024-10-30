@@ -290,10 +290,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		if name.IPv6Only {
 			break
 		}
-		for _, ip := range h.Addrs {
-			if len(ip) != net.IPv4len {
-				continue
-			}
+		if name.NullIP {
 			resp.Answer = append(resp.Answer, &dns.A{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
@@ -301,17 +298,29 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 					Class:  dns.ClassINET,
 					Ttl:    1,
 				},
-				A: ip,
+				A: net.IPv4zero,
 			})
+		} else {
+			for _, ip := range h.Addrs {
+				if len(ip) != net.IPv4len {
+					continue
+				}
+				resp.Answer = append(resp.Answer, &dns.A{
+					Hdr: dns.RR_Header{
+						Name:   q.Name,
+						Rrtype: dns.TypeA,
+						Class:  dns.ClassINET,
+						Ttl:    1,
+					},
+					A: ip,
+				})
+			}
 		}
 	case dns.TypeAAAA:
 		if name.IPv4Only {
 			break
 		}
-		for _, ip := range h.Addrs {
-			if len(ip) != net.IPv6len {
-				continue
-			}
+		if name.NullIP {
 			resp.Answer = append(resp.Answer, &dns.AAAA{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
@@ -319,8 +328,23 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 					Class:  dns.ClassINET,
 					Ttl:    1,
 				},
-				AAAA: ip,
+				AAAA: net.IPv6zero,
 			})
+		} else {
+			for _, ip := range h.Addrs {
+				if len(ip) != net.IPv6len {
+					continue
+				}
+				resp.Answer = append(resp.Answer, &dns.AAAA{
+					Hdr: dns.RR_Header{
+						Name:   q.Name,
+						Rrtype: dns.TypeAAAA,
+						Class:  dns.ClassINET,
+						Ttl:    1,
+					},
+					AAAA: ip,
+				})
+			}
 		}
 	case dns.TypeTXT:
 		if name.TxtFill != 0 {

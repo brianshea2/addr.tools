@@ -18,6 +18,7 @@ type Options struct {
 	//
 	Rcode   int
 	NoReply bool
+	NullIP  bool
 	//
 	Padding int // 1 - 4000
 	TxtFill int // 1 - 4000
@@ -64,35 +65,40 @@ func (o *Options) ParseOptions(s string) bool {
 			}
 			o.NoTruncate = true
 		case t == "formerr":
-			if o.Rcode != 0 || o.NoReply {
+			if o.Rcode != 0 || o.NoReply || o.NullIP {
 				return false
 			}
 			o.Rcode = dns.RcodeFormatError
 		case t == "servfail":
-			if o.Rcode != 0 || o.NoReply {
+			if o.Rcode != 0 || o.NoReply || o.NullIP {
 				return false
 			}
 			o.Rcode = dns.RcodeServerFailure
 		case t == "nxdomain":
-			if o.Rcode != 0 || o.NoReply {
+			if o.Rcode != 0 || o.NoReply || o.NullIP {
 				return false
 			}
 			o.Rcode = dns.RcodeNameError
 		case t == "notimpl":
-			if o.Rcode != 0 || o.NoReply {
+			if o.Rcode != 0 || o.NoReply || o.NullIP {
 				return false
 			}
 			o.Rcode = dns.RcodeNotImplemented
 		case t == "refused":
-			if o.Rcode != 0 || o.NoReply {
+			if o.Rcode != 0 || o.NoReply || o.NullIP {
 				return false
 			}
 			o.Rcode = dns.RcodeRefused
 		case t == "noreply":
-			if o.Rcode != 0 || o.NoReply {
+			if o.Rcode != 0 || o.NoReply || o.NullIP {
 				return false
 			}
 			o.NoReply = true
+		case t == "nullip":
+			if o.Rcode != 0 || o.NoReply || o.NullIP {
+				return false
+			}
+			o.NullIP = true
 		case len(t) > 7 && t[:7] == "padding":
 			if o.Padding != 0 || o.TxtFill != 0 {
 				return false
