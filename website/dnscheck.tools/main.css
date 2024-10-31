@@ -50,9 +50,6 @@ a, span.link {
 :is(a, span.link):hover {
   font-weight: bold;
 }
-div[title], span[title] {
-  cursor: help;
-}
 h1, h2, h3 {
   font-size: 1em;
   font-weight: bold;
