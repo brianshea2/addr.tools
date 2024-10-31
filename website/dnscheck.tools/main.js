@@ -31,7 +31,7 @@ const ipData         = {}               // combined IP data promises
 const clientIPs      = {}               // detected HTTP client source IPs
 const clientSubnets  = {}               // EDNS advertised client subnets
 const resolvers      = {}               // detected DNS resolvers
-const dnssecTests    = []               // DNSSEC test results
+const dnssecTests    = [ ...Array(12) ] // DNSSEC test results
 const rtts           = []               // DNS round trip times
 const udpSizes       = []               // EDNS advertised UDP buffer sizes
 let count            = 0                // number of DNS requests received
@@ -198,7 +198,7 @@ const drawDNSSEC = () => {
     title = '<div class="dialogue">Oh no! Your DNS responses are not authenticated with DNSSEC:</div>'
     statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are not authenticated'
     statusClass = 'red'
-  } else if (dnssecTests.length !== 12 || dnssecTests.some(t => t === undefined)) {
+  } else if (dnssecTests.some(t => t === undefined)) {
     // tests are still running
     title = dnssecDiv.firstElementChild.outerHTML
   } else if ([ 0, 4, 8 ].every(i => dnssecTests[i])) {
@@ -293,12 +293,15 @@ const testDNS = () => new Promise(done => {
       tcpStatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers do not retry over TCP">TCP</span>'
     }
     // test DNSSEC validation
-    for (const alg of [ 'alg13', 'alg14', 'alg15' ]) {
-      for (const sigOpt of [ '', '-badsig', '-expiredsig', '-nosig' ]) {
-        const got = await makeQuery(`watch-${clientId}${sigOpt}.go-${alg}`, abortController.signal)
-        dnssecTests.push(got)
-        drawDNSSEC()
-      }
+    for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
+      await Promise.all([ '', '-badsig', '-expiredsig', '-nosig' ].map(
+        (sigOpt, sigIndex) => makeQuery(`watch-${clientId}${sigOpt}.go-${alg}`, abortController.signal).then(
+          got => {
+            dnssecTests[4 * algIndex + sigIndex] = got
+            drawDNSSEC()
+          }
+        )
+      ))
     }
     // finished
     countSpan.classList.remove('light')
