@@ -33,12 +33,10 @@ contentDiv.addEventListener('scroll', () => {
 })
 
 // generates some DNS requests from the browser to the given subdomain
-window.makeQuery = subdomain => {
-  const abortController = new AbortController()
-  const { signal } = abortController
-  setTimeout(() => abortController.abort(), 5000)
-  fetch(`https://${subdomain}.dnscheck.tools/`, { signal }).catch(() => {})
-}
+window.makeQuery = subdomain => fetch(`https://${subdomain}.dnscheck.tools/`, {
+  method: 'HEAD',
+  signal: AbortSignal.timeout(10000),
+}).then(r => r.ok, () => false)
 
 // returns cached promise of PTR name for given IP string
 const getPtr = ip => {

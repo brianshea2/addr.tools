@@ -54,17 +54,10 @@ const tcpStatusSpan    = document.getElementById('tcp-status')
 const countSpan        = document.getElementById('count')
 
 // generates some DNS requests from the browser to the given subdomain
-const makeQuery = (subdomain, abortSignal) => {
-  const abortController = new AbortController()
-  const { signal } = abortController
-  if (abortSignal.aborted) {
-    abortController.abort()
-  } else {
-    abortSignal.addEventListener('abort', () => abortController.abort(), { signal })
-    setTimeout(() => abortController.abort(), 5000)
-  }
-  return fetch(`https://${subdomain}.dnscheck.tools/`, { signal }).then(r => r.ok, () => false)
-}
+const makeQuery = (subdomain, abortSignal) => fetch(`https://${subdomain}.dnscheck.tools/`, {
+  method: 'HEAD',
+  signal: AbortSignal.any([ abortSignal, AbortSignal.timeout(10000) ]),
+}).then(r => r.ok, () => false)
 
 // returns promise of RDAP registrant name or other identifier for given IPAddr or IPRange
 const getReg = ipOrRange => rdapClient.lookupIP(ipOrRange).then(
