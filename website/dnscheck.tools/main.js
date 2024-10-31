@@ -277,7 +277,7 @@ const testDNS = () => new Promise(done => {
   socket.addEventListener('open', async () => {
     console.log('WebSocket opened')
     // generate some DNS requests
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       await Promise.all([
         makeQuery(`${String.fromCharCode(97 + i)}.watch-${clientId}-nullip.go-ipv4`, abortController.signal),
         makeQuery(`${String.fromCharCode(97 + i)}.watch-${clientId}-nullip.go-ipv6`, abortController.signal),
