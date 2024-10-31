@@ -376,11 +376,7 @@ const testDNS = () => new Promise(done => {
 
 // detects DNS average round trip time
 const testRTT = async () => {
-  const tlds = [
-    'app', 'biz', 'com', 'net', 'org', 'xyz',
-    'ca', 'co', 'de', 'es', 'eu', 'fr', 'in',
-    'nl', 'uk', 'us',
-  ]
+  const tlds = [ 'com', 'net', 'org', 'biz', 'info' ]
   let rand, start, avg
   for (const tld of [ ...tlds, ...tlds ]) {
     rand = Math.random().toString(36).slice(2)
