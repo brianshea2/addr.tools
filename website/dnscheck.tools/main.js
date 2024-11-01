@@ -376,12 +376,12 @@ const testDNS = () => new Promise(done => {
 
 // detects DNS average round trip time
 const testRTT = async () => {
-  const tlds = [ 'com', 'net', 'org', 'biz', 'info' ]
   let rand, start, avg
+  const tlds = [ 'com', 'net', 'org', 'biz', 'info' ]
   for (const tld of [ ...tlds, ...tlds, ...tlds ]) {
     rand = Math.random().toString(36).slice(2)
     start = Date.now()
-    await fetch(`https://nxdomain-${rand}.${tld}/`).catch(() => {})
+    await fetch(`https://test-${rand}.null-addr.${tld}/`).catch(() => {})
     rtts.push(Date.now() - start)
     avg = Math.round(rtts.reduce((sum, x) => sum + x) / rtts.length)
     rttStatusSpan.innerHTML = `<span class="${avg <= 150 ? 'green' : avg <= 500 ? 'yellow' : 'red'}">${avg}ms</span>`
