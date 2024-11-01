@@ -378,7 +378,7 @@ const testDNS = () => new Promise(done => {
 const testRTT = async () => {
   const tlds = [ 'com', 'net', 'org', 'biz', 'info' ]
   let rand, start, avg
-  for (const tld of [ ...tlds, ...tlds ]) {
+  for (const tld of [ ...tlds, ...tlds, ...tlds ]) {
     rand = Math.random().toString(36).slice(2)
     start = Date.now()
     await fetch(`https://nxdomain-${rand}.${tld}/`).catch(() => {})
@@ -392,4 +392,5 @@ const testRTT = async () => {
 // let's go!!!
 testIPs()
 await testDNS()
+await Promise.allSettled(Object.values(ipData))
 testRTT()
