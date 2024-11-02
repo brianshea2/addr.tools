@@ -42,13 +42,25 @@ body {
 body, code, kbd, samp, var {
   font-family: 'Roboto Mono', monospace;
 }
+abbr {
+  text-decoration: underline dotted;
+}
+@media (hover: none) {
+  abbr {
+    text-decoration: none;
+  }
+}
 a, span.link {
   color: inherit;
   cursor: pointer;
   text-decoration: underline;
 }
+a.no-ul, span.link.no-ul {
+  text-decoration: none;
+}
 :is(a, span.link):hover {
   font-weight: bold;
+  text-decoration: underline;
 }
 h1, h2, h3 {
   font-size: 1em;
@@ -80,9 +92,6 @@ ul.ip-list li {
 }
 ul.ip-list li > span:nth-child(n+2) {
   padding-left: 2ch;
-}
-ul.ip-list li a:not(:hover) {
-  text-decoration: none;
 }
 @media (min-width: 768px) {
   ul.ip-list li {

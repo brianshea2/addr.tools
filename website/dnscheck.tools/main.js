@@ -102,16 +102,16 @@ const getIPData = str => {
 
 // generates HTML for an IP list item
 const ipItem = ({ str, ptr, ns, geo }) => {
-  let html = `<li><span><a href="https://info.addr.tools/${str}" target="_blank">${str}</a></span>`
+  let html = `<li><span><a class="no-ul" href="https://info.addr.tools/${str}" target="_blank">${str}</a></span>`
   if (ptr) {
-    html += ` <span class="blue"><span title="Reverse DNS (PTR record)">ptr: ${encode(ptr)}</span></span>`
+    html += ` <span class="blue"><abbr title="PTR record (reverse DNS)">ptr</abbr>: ${encode(ptr)}</span>`
   } else if (ns) {
-    html += ` <span class="violet"><span title="Authoritative nameserver over the reverse zone">ns: ${encode(ns)}</span></span>`
+    html += ` <span class="violet"><abbr title="NameServer for the reverse DNS zone">ns</abbr>: ${encode(ns)}</span>`
   } else {
     html += '<span></span>'
   }
   if (geo) {
-    html += ` <span class="indigo"><span>${encode(geo)}</span></span>`
+    html += ` <span class="indigo">${encode(geo)}</span>`
   } else {
     html += '<span></span>'
   }
@@ -186,9 +186,11 @@ const drawResolvers = () => {
 // draws the DNSSEC test results section
 const drawDNSSEC = () => {
   let title, statusTooltip, statusClass
+  const dnssec = '<a class="no-ul" href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" target="_blank">' +
+    '<abbr title="Domain Name System Security Extensions">DNSSEC</abbr></a>'
   if ([ 1, 2, 3, 5, 6, 7 ].some(i => dnssecTests[i])) {
     // one or more ecdsa failing domains connected
-    title = '<div class="dialogue">Oh no! Your DNS responses are not authenticated with DNSSEC:</div>'
+    title = `<div class="dialogue">Oh no! Your DNS responses are not authenticated with ${dnssec}:</div>`
     statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are not authenticated'
     statusClass = 'red'
   } else if (dnssecTests.some(t => t === undefined)) {
@@ -197,12 +199,12 @@ const drawDNSSEC = () => {
   } else if ([ 0, 4, 8 ].every(i => dnssecTests[i])) {
     if ([ 9, 10, 11 ].every(i => !dnssecTests[i])) {
       // all good!
-      title = '<div class="dialogue">Great! Your DNS responses are authenticated with DNSSEC:</div>'
+      title = `<div class="dialogue">Great! Your DNS responses are authenticated with ${dnssec}:</div>`
       statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated'
       statusClass = 'green'
     } else {
       // one or more ed25519 failing domains connected
-      title = '<div class="dialogue">Okay! Your DNS responses are authenticated, except when using newer DNSSEC algorithms:</div>'
+      title = `<div class="dialogue">Okay! Your DNS responses are authenticated, except when using newer ${dnssec} algorithms:</div>`
       statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated (except Ed25519)'
       statusClass = 'yellow'
     }
