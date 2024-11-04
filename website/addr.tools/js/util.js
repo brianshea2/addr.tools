@@ -31,6 +31,15 @@ class Mutex {
     }
   }
 }
+function debounce(fn, delay) {
+  let timer
+  return (...args) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      fn(...args)
+    }, delay)
+  }
+}
 function encode(str) {
   return str?.replace(/["&<>]/g, match => `&#${match.charCodeAt(0)};`)
 }
@@ -42,4 +51,4 @@ function fetchOk(resource, opts) {
     return response
   })
 }
-export { HTTPError, Mutex, encode, fetchOk }
+export { HTTPError, Mutex, debounce, encode, fetchOk }
