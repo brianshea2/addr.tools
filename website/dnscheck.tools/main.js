@@ -1,6 +1,6 @@
-import { IPAddr, IPRange }      from 'https://www.addr.tools/js/ipaddr'
-import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
-import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
+import { IPAddr, IPRange }           from 'https://www.addr.tools/js/ipaddr'
+import { Client as RDAPClient }      from 'https://www.addr.tools/js/rdap'
+import { debounce, encode, fetchOk } from 'https://www.addr.tools/js/util'
 
 // handle tabs
 const updateTab = tab => {
@@ -42,6 +42,7 @@ let seenIPv6         = false            // whether any DNS requests have been se
 
 // commonly used elements
 const rootEl           = document.documentElement
+const resultsDiv       = document.getElementById('content-results')
 const connectionDiv    = document.getElementById('connection-results')
 const clientSubnetsDiv = document.getElementById('ecs-results')
 const resolversDiv     = document.getElementById('resolver-results')
@@ -391,7 +392,36 @@ const testRTT = async () => {
   rttStatusSpan.classList.remove('light')
 }
 
+// monitors resizes to toggle IP list tabular mode
+const monitorResizes = () => {
+  let resizing = false
+  const tryTable = debounce(() => {
+    if (resultsDiv.classList.contains('ip-list-tabular')) {
+      return
+    }
+    resizing = true
+    resultsDiv.classList.add('ip-list-tabular')
+    if (resultsDiv.scrollWidth > resultsDiv.clientWidth) {
+      resultsDiv.classList.remove('ip-list-tabular')
+    }
+    resizing = false
+  }, 100)
+  const obsvr = new ResizeObserver(() => {
+    if (resizing) {
+      return
+    }
+    if (resultsDiv.scrollWidth > resultsDiv.clientWidth) {
+      resultsDiv.classList.remove('ip-list-tabular')
+      return
+    }
+    tryTable()
+  })
+  obsvr.observe(resultsDiv)
+  obsvr.observe(resultsDiv.firstElementChild)
+}
+
 // let's go!!!
+monitorResizes()
 testIPs()
 await testDNS()
 await Promise.allSettled(Object.values(ipData))
