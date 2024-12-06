@@ -17,7 +17,7 @@
   </div>
 </nav>
 <div class="container my-3">
-  <h1 class="display-4">myaddr.tools</h1>
+  <h1>myaddr.tools</h1>
   <p class="lead">A minimalist dynamic DNS service</p>
   <h2>Features</h2>
   <ul>
@@ -40,10 +40,10 @@
   <p>This private key gives whoever holds it control over that name. If you lose the private key, you lose the name.</p>
   <p>With your private key, you can call the Update API to manage your DNS records.</p>
   <h2>API</h2>
-  <h3 class="h4">Update</h3>
+  <h3>Update</h3>
   <p class="lead">Manage DNS records</p>
   <p>URL: <code>https://myaddr.tools/update</code><p>
-  <p class="mb-2">The <code>/update</code> endpoint is forgiving, meaning it:</p>
+  <p class="mb-0">The <code>/update</code> endpoint is forgiving, meaning it:</p>
   <ul>
     <li>treats <code>GET</code>, <code>POST</code>, and <code>PUT</code> requests as equivalent update requests</li>
     <li>reads parameters from the URL query string and from <code>POST</code> and <code>PUT</code> bodies</li>
@@ -51,7 +51,7 @@
     <li>responds with body <code>OK</code> and status code <code>200</code> on success</li>
     <li>responds with a helpful error message and <code>4xx</code> otherwise</li>
   </ul>
-  <h4 class="h6">Add or Update an IP Address</h4>
+  <h4>Add or Update an IP Address</h4>
   <p>
     To add or update an IP address, send a <code>GET</code>, <code>POST</code>, or <code>PUT</code> request to <code>/update</code>.
     Specify <code>key</code> and <code>ip</code> parameters.
@@ -61,7 +61,7 @@
     Use host <code>ipv4.myaddr.tools</code> or <code>ipv6.myaddr.tools</code> to force IPv4 or IPv6.
   </p>
   <p>Adding an IPv4 address will replace any existing IPv4 address, and similar for IPv6.</p>
-  <h4 class="h6">Add an ACME Challenge</h4>
+  <h4>Add an ACME Challenge</h4>
   <p>
     To add an ACME <code>dns-01</code> challenge, send a <code>GET</code>, <code>POST</code>, or <code>PUT</code> request to <code>/update</code>.
     Specify <code>key</code> and <code>acme_challenge</code> parameters.
@@ -70,15 +70,15 @@
     The <code>acme_challenge</code> value will be served as a TXT record on all <code>_acme-challenge</code> subdomains.
     Challenge TXT records are automatically removed after a few minutes.
   </p>
-  <h4 class="h6">Delete IP Addresses</h4>
+  <h4>Delete IP Addresses</h4>
   <p>
     A <code>DELETE</code> request to <code>/update</code> with <code>key</code> removes both IPv4 and IPv6 addresses.
     Always responds with status code <code>204</code>.
   </p>
-  <h3 class="h4">Registration</h3>
+  <h3>Registration</h3>
   <p class="lead">Manage your registration</p>
   <p>URL: <code>https://myaddr.tools/reg</code><p>
-  <h4 class="h6">Delete your Registration</h4>
+  <h4>Delete your Registration</h4>
   <p>
     To immediately and permanently delete your registration and release your name, send a <code>DELETE</code> request to <code>/reg</code>.
     Specify <code>key</code>.
