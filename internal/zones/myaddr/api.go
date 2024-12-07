@@ -141,11 +141,12 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			http.Error(w, "registration not found", http.StatusNotFound)
 			return
 		}
+		w.Header().Set("myaddr-name", name)
 		switch req.Method {
 		case http.MethodGet:
 			// get
-			created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
 			w.Header().Set("Content-Type", "application/json")
+			created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
 			json.NewEncoder(w).Encode(
 				struct {
 					Name       string `json:"name"`
@@ -240,8 +241,9 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			return
 		}
 		// success
-		created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
+		w.Header().Set("myaddr-name", name)
 		w.Header().Set("Content-Type", "application/json")
+		created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
 		json.NewEncoder(w).Encode(
 			struct {
 				Name       string `json:"name"`
@@ -349,6 +351,7 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "registration not found", http.StatusNotFound)
 		return
 	}
+	w.Header().Set("myaddr-name", name)
 	switch req.Method {
 	case http.MethodDelete:
 		// prohibit "ip" and "acme_challenge"
