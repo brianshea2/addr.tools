@@ -64,6 +64,39 @@ func (s *SimpleTtlStore) List(prefix string) (keys []string) {
 	return
 }
 
+func (s *SimpleTtlStore) Find(val []byte, prefix string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	now := uint32(time.Now().Unix())
+	for key := range s.m {
+		if strings.HasPrefix(key, prefix) {
+			for _, r := range s.m[key] {
+				if r.Expires > now && bytes.Equal(r.Value, val) {
+					return key
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func (s *SimpleTtlStore) FindAll(val []byte, prefix string) (keys []string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	now := uint32(time.Now().Unix())
+	for key := range s.m {
+		if strings.HasPrefix(key, prefix) {
+			for _, r := range s.m[key] {
+				if r.Expires > now && bytes.Equal(r.Value, val) {
+					keys = append(keys, key)
+					break
+				}
+			}
+		}
+	}
+	return
+}
+
 func (s *SimpleTtlStore) Values(key string) (vals [][]byte) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

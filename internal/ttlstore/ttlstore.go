@@ -1,9 +1,12 @@
 package ttlstore
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"slices"
+	"strings"
 )
 
 type TtlStore interface {
@@ -13,6 +16,10 @@ type TtlStore interface {
 	Set(key string, val []byte, ttl uint32) error
 	// gets all keys starting with prefix
 	List(prefix string) []string
+	// gets the first key starting with prefix found associated with val
+	Find(val []byte, prefix string) string
+	// gets all keys starting with prefix found associated with val
+	FindAll(val []byte, prefix string) []string
 	// gets all non-expired values associated with key
 	Values(key string) [][]byte
 	// gets the first non-expired value associated with key
@@ -31,12 +38,33 @@ type AdminHandler struct {
 func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodGet:
-		w.Header().Set("Content-Type", "application/json")
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
+		var data interface{}
 		key := req.PathValue("key")
 		if len(key) == 0 {
-			keys := h.Store.List(h.KeyPrefix + req.URL.Query().Get("prefix"))
+			var keys []string
+			q := req.URL.Query()
+			find := q.Get("find")
+			prefix := h.KeyPrefix + q.Get("prefix")
+			switch {
+			case len(find) == 0:
+				keys = h.Store.List(prefix)
+			case strings.HasPrefix(find, "0x"):
+				b, err := hex.DecodeString(find[2:])
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				keys = h.Store.FindAll(b, prefix)
+			case strings.HasPrefix(find, "base64:"):
+				b, err := base64.StdEncoding.DecodeString(find[7:])
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				keys = h.Store.FindAll(b, prefix)
+			default:
+				keys = h.Store.FindAll([]byte(find), prefix)
+			}
 			if keys == nil {
 				keys = []string{}
 			}
@@ -46,14 +74,18 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				}
 			}
 			slices.Sort(keys)
-			enc.Encode(keys)
+			data = keys
 		} else {
 			values := h.Store.Values(h.KeyPrefix + key)
 			if values == nil {
 				values = [][]byte{}
 			}
-			enc.Encode(values)
+			data = values
 		}
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		enc.Encode(data)
 	case http.MethodDelete:
 		key := req.PathValue("key")
 		if len(key) == 0 {
