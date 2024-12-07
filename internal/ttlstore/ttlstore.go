@@ -1,13 +1,9 @@
 package ttlstore
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sync"
-	"time"
+	"net/http"
+	"slices"
 )
 
 type TtlStore interface {
@@ -15,6 +11,8 @@ type TtlStore interface {
 	Add(key string, val []byte, ttl uint32) error
 	// associates val with key, replacing any other values
 	Set(key string, val []byte, ttl uint32) error
+	// gets all keys starting with prefix
+	List(prefix string) []string
 	// gets all non-expired values associated with key
 	Values(key string) [][]byte
 	// gets the first non-expired value associated with key
@@ -25,201 +23,47 @@ type TtlStore interface {
 	Delete(key string)
 }
 
-type ValueWithExpiration struct {
-	Expires uint32
-	Value   []byte
+type AdminHandler struct {
+	Store     TtlStore
+	KeyPrefix string
 }
 
-type SimpleTtlStore struct {
-	MaxSize int
-	mu      sync.RWMutex
-	m       map[string][]ValueWithExpiration
-	size    int
-	dirty   bool
-}
-
-func (s *SimpleTtlStore) add(key string, val []byte, ttl uint32) error {
-	if s.m == nil {
-		s.m = make(map[string][]ValueWithExpiration)
-	}
-	if s.MaxSize > 0 && s.size >= s.MaxSize {
-		return fmt.Errorf("at max size (%v)", s.size)
-	}
-	s.m[key] = append(s.m[key], ValueWithExpiration{uint32(time.Now().Unix()) + ttl, val})
-	s.size++
-	s.dirty = true
-	return nil
-}
-
-func (s *SimpleTtlStore) Add(key string, val []byte, ttl uint32) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.add(key, val, ttl)
-}
-
-func (s *SimpleTtlStore) Set(key string, val []byte, ttl uint32) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.m[key] != nil {
-		s.size -= len(s.m[key])
-		delete(s.m, key)
-	}
-	return s.add(key, val, ttl)
-}
-
-func (s *SimpleTtlStore) Values(key string) (vals [][]byte) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	now := uint32(time.Now().Unix())
-	for _, r := range s.m[key] {
-		if r.Expires > now {
-			vals = append(vals, r.Value)
-		}
-	}
-	return
-}
-
-func (s *SimpleTtlStore) Get(key string) []byte {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	now := uint32(time.Now().Unix())
-	for _, r := range s.m[key] {
-		if r.Expires > now {
-			return r.Value
-		}
-	}
-	return nil
-}
-
-func (s *SimpleTtlStore) Remove(key string, val []byte) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	rs := s.m[key]
-	removed := false
-	for i := 0; i < len(rs); {
-		if bytes.Equal(rs[i].Value, val) {
-			rs = append(rs[:i], rs[i+1:]...)
-			s.size--
-			removed = true
-			continue
-		}
-		i++
-	}
-	if removed {
-		if len(rs) == 0 {
-			delete(s.m, key)
+func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodGet:
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		key := req.PathValue("key")
+		if len(key) == 0 {
+			keys := h.Store.List(h.KeyPrefix + req.URL.Query().Get("prefix"))
+			if keys == nil {
+				keys = []string{}
+			}
+			if len(h.KeyPrefix) > 0 {
+				for i, v := range keys {
+					keys[i] = v[len(h.KeyPrefix):]
+				}
+			}
+			slices.Sort(keys)
+			enc.Encode(keys)
 		} else {
-			s.m[key] = rs
-		}
-		s.dirty = true
-	}
-}
-
-func (s *SimpleTtlStore) Delete(key string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.m[key] != nil {
-		s.size -= len(s.m[key])
-		delete(s.m, key)
-		s.dirty = true
-	}
-}
-
-func (s *SimpleTtlStore) Size() int {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.size
-}
-
-func (s *SimpleTtlStore) Prune() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	now := uint32(time.Now().Unix())
-	for key, rs := range s.m {
-		pruned := false
-		for i := 0; i < len(rs); {
-			if rs[i].Expires <= now {
-				rs = append(rs[:i], rs[i+1:]...)
-				s.size--
-				pruned = true
-				continue
+			values := h.Store.Values(h.KeyPrefix + key)
+			if values == nil {
+				values = [][]byte{}
 			}
-			i++
+			enc.Encode(values)
 		}
-		if pruned {
-			if len(rs) == 0 {
-				delete(s.m, key)
-			} else {
-				s.m[key] = rs
-			}
-			s.dirty = true
+	case http.MethodDelete:
+		key := req.PathValue("key")
+		if len(key) == 0 {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
 		}
+		h.Store.Delete(h.KeyPrefix + key)
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		w.Header().Set("Allow", "GET, DELETE")
+		http.Error(w, "unsupported method", http.StatusMethodNotAllowed)
 	}
-}
-
-func (s *SimpleTtlStore) PrunePeriodically(interval time.Duration) {
-	for {
-		time.Sleep(interval)
-		s.Prune()
-	}
-}
-
-func (s *SimpleTtlStore) WriteFile(path string) error {
-	dir, file := filepath.Split(path)
-	f, err := os.CreateTemp(dir, file)
-	if err != nil {
-		return err
-	}
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	err = enc.Encode(s.m)
-	if err1 := f.Close(); err1 != nil && err == nil {
-		err = err1
-	}
-	if err == nil {
-		err = os.Rename(f.Name(), path)
-	}
-	if err == nil {
-		s.dirty = false
-	} else {
-		os.Remove(f.Name())
-	}
-	return err
-}
-
-func (s *SimpleTtlStore) WriteFilePeriodically(path string, interval time.Duration) error {
-	for {
-		time.Sleep(interval)
-		s.mu.RLock()
-		dirty := s.dirty
-		s.mu.RUnlock()
-		if dirty {
-			if err := s.WriteFile(path); err != nil {
-				return err
-			}
-		}
-	}
-}
-
-func (s *SimpleTtlStore) LoadFile(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	var m map[string][]ValueWithExpiration
-	if err = json.NewDecoder(f).Decode(&m); err != nil {
-		return err
-	}
-	var size int
-	for _, rs := range m {
-		size += len(rs)
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.m = m
-	s.size = size
-	return nil
 }

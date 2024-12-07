@@ -8,7 +8,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
@@ -111,18 +110,12 @@ func (ws *WebsocketWatcher) WriteLoop(ctx context.Context, conn *websocket.Conn)
 }
 
 type WebsocketHandler struct {
-	// PathRegex must fully validate the path and capture the watcher key
-	PathRegex *regexp.Regexp
 	*websocket.Upgrader
 	WatcherHub
 }
 
 func (h *WebsocketHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// parse path
-	var watcherId string
-	if m := h.PathRegex.FindStringSubmatch(req.URL.Path); m != nil {
-		watcherId = m[1]
-	}
+	watcherId := req.PathValue("watcher")
 	// validate request
 	if len(watcherId) == 0 || !websocket.IsWebSocketUpgrade(req) {
 		http.Error(w, "bad request", http.StatusBadRequest)

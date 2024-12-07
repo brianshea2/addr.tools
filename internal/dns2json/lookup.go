@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,27 +19,21 @@ const (
 )
 
 type LookupHandler struct {
-	// PathRegex must fully validate the path and capture the name and type
-	PathRegex *regexp.Regexp
-	Upstream  string
+	Upstream string
 }
 
 func (h *LookupHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	m := h.PathRegex.FindStringSubmatch(req.URL.Path)
-	if m == nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if _, ok := dns.IsDomainName(m[1]); !ok {
+	qname := req.PathValue("name")
+	if _, ok := dns.IsDomainName(qname); !ok {
 		http.Error(w, "invalid name", http.StatusBadRequest)
 		return
 	}
-	qtype := dns.StringToType[strings.ToUpper(m[2])]
+	qtype := dns.StringToType[strings.ToUpper(req.PathValue("type"))]
 	if qtype == 0 {
 		http.Error(w, "invalid type", http.StatusBadRequest)
 		return
 	}
-	msg := new(dns.Msg).SetQuestion(dns.Fqdn(m[1]), qtype)
+	msg := new(dns.Msg).SetQuestion(dns.Fqdn(qname), qtype)
 	client := &dns.Client{Timeout: LookupTimeout}
 	received, _, err := client.Exchange(msg, h.Upstream)
 	if err != nil || received.Truncated {

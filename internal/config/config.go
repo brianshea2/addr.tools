@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"regexp"
 	"strconv"
 	"syscall"
 	"time"
@@ -139,6 +138,7 @@ func (config *Config) Run() {
 			log.Fatal(persistentStore.WriteFilePeriodically(config.DatabasePath, time.Minute))
 		}()
 	}
+	http.Handle("/admin/db/{key...}", &ttlstore.AdminHandler{Store: persistentStore})
 	// init temporary challenge record store
 	challengeStore := &ttlstore.SimpleTtlStore{MaxSize: MaxTemporaryChallenges}
 	go challengeStore.PrunePeriodically(time.Minute)
@@ -160,8 +160,7 @@ func (config *Config) Run() {
 		h.DnscheckHandler.Init(ParsePrivateKey(h.PrivateKey))
 		dns.Handle(h.DnscheckHandler.Zone, h.DnscheckHandler)
 	}
-	http.Handle("/watch/", &dnscheck.WebsocketHandler{
-		PathRegex: regexp.MustCompile(`^/watch/([0-9a-f]{1,8})$`),
+	http.Handle("/watch/{watcher}", &dnscheck.WebsocketHandler{
 		Upgrader: &websocket.Upgrader{
 			ReadBufferSize:    1024,
 			WriteBufferSize:   1024,
@@ -237,10 +236,7 @@ func (config *Config) Run() {
 	})
 	// set dns lookup handler
 	if len(config.LookupUpstream) > 0 {
-		http.Handle("/dns/", &dns2json.LookupHandler{
-			PathRegex: regexp.MustCompile(`^/dns/([0-9A-Za-z._-]+)/([0-9A-Za-z]+)$`),
-			Upstream:  config.LookupUpstream,
-		})
+		http.Handle("/dns/{name}/{type}", &dns2json.LookupHandler{Upstream: config.LookupUpstream})
 	}
 	// start dns listeners
 	var tsigSecrets map[string]string
