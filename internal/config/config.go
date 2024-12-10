@@ -95,11 +95,10 @@ func ParsePrivateKey(s string) []byte {
 }
 
 func (config *Config) Run() {
-	// minimize IP lengths to allow quick length-based filtering in record generators
-	for i, ip := range config.ResponseAddrs {
-		if ip4 := ip.To4(); ip4 != nil {
-			config.ResponseAddrs[i] = ip4
-		}
+	// create response IPCollection for record generators
+	var addrs dnsutil.IPCollection
+	for _, ip := range config.ResponseAddrs {
+		addrs.Add(ip)
 	}
 	// init status handler, uptime
 	statusHandler := new(status.StatusHandler)
@@ -153,7 +152,7 @@ func (config *Config) Run() {
 	// init and set dnscheck handlers
 	largeResponseLimiter := rate.NewLimiter(rate.Limit(MaxDnscheckLargeResponseRate), MaxDnscheckLargeResponseRate)
 	for _, h := range config.DnscheckZones {
-		h.DnscheckHandler.Addrs = config.ResponseAddrs
+		h.DnscheckHandler.Addrs = addrs
 		h.DnscheckHandler.ChallengeTarget = config.InternalChallengeTarget
 		h.DnscheckHandler.LargeResponseLimiter = largeResponseLimiter
 		h.DnscheckHandler.Watchers = watcherHub
@@ -172,7 +171,7 @@ func (config *Config) Run() {
 	// init and set challenges handler
 	if config.ChallengesZone.SimpleHandler != nil {
 		config.ChallengesZone.SimpleHandler.RecordGenerator = &challenges.RecordGenerator{
-			Addrs:               config.ResponseAddrs,
+			Addrs:               addrs,
 			SelfChallengeTarget: config.InternalChallengeTarget,
 			ChallengeStore:      challengeStore,
 		}
@@ -186,7 +185,7 @@ func (config *Config) Run() {
 	// init and set dyn handler
 	if config.DynZone.SimpleHandler != nil {
 		config.DynZone.SimpleHandler.RecordGenerator = &dyn.RecordGenerator{
-			Addrs:               config.ResponseAddrs,
+			Addrs:               addrs,
 			SelfChallengeTarget: config.InternalChallengeTarget,
 			DataStore:           persistentStore,
 		}
@@ -200,7 +199,7 @@ func (config *Config) Run() {
 	// init and set ip zone handler
 	if config.IPZone.SimpleHandler != nil {
 		config.IPZone.SimpleHandler.RecordGenerator = &ipzone.RecordGenerator{
-			Addrs:               config.ResponseAddrs,
+			Addrs:               addrs,
 			SelfChallengeTarget: config.InternalChallengeTarget,
 			ChallengeStore:      challengeStore,
 		}
@@ -214,7 +213,7 @@ func (config *Config) Run() {
 	// init and set myaddr handlers
 	for _, h := range config.MyaddrZones {
 		h.SimpleHandler.RecordGenerator = &myaddr.RecordGenerator{
-			Addrs:               config.ResponseAddrs,
+			Addrs:               addrs,
 			SelfChallengeTarget: config.InternalChallengeTarget,
 			DataStore:           persistentStore,
 			ChallengeStore:      challengeStore,

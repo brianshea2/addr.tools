@@ -51,8 +51,9 @@ type DnscheckHandler struct {
 	Zone                 string
 	Ns                   []string
 	HostMasterMbox       string
-	Addrs                []net.IP
+	Addrs                dnsutil.IPCollection
 	ChallengeTarget      string
+	StaticRecords        dnsutil.StaticRecords
 	LargeResponseLimiter *rate.Limiter
 	Watchers             WatcherHub
 	BadDnssecProvider    *BadDnssecProvider
@@ -252,6 +253,13 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 		}
 	}
+	// static records
+	if h.StaticRecords != nil {
+		rrs := h.StaticRecords.Get(q)
+		if len(rrs) > 0 {
+			resp.Answer = append(resp.Answer, rrs...)
+		}
+	}
 	// acme dns-01 challenge record
 	if name.IsAcmeChallenge {
 		if q.Qtype == dns.TypeTXT {
@@ -301,10 +309,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				A: net.IPv4zero,
 			})
 		} else {
-			for _, ip := range h.Addrs {
-				if len(ip) != net.IPv4len {
-					continue
-				}
+			for _, ip := range h.Addrs.IPv4 {
 				resp.Answer = append(resp.Answer, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -331,10 +336,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				AAAA: net.IPv6zero,
 			})
 		} else {
-			for _, ip := range h.Addrs {
-				if len(ip) != net.IPv6len {
-					continue
-				}
+			for _, ip := range h.Addrs.IPv6 {
 				resp.Answer = append(resp.Answer, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,

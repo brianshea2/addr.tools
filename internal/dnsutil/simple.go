@@ -18,6 +18,7 @@ type SimpleHandler struct {
 	Zone           string
 	Ns             []string
 	HostMasterMbox string
+	StaticRecords  StaticRecords
 	RecordGenerator
 	UpdateHandler
 	*DnssecProvider
@@ -144,6 +145,13 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 					Ns: ns,
 				})
 			}
+		}
+	}
+	// static records
+	if h.StaticRecords != nil {
+		rrs := h.StaticRecords.Get(q)
+		if len(rrs) > 0 {
+			resp.Answer = append(resp.Answer, rrs...)
 		}
 	}
 	// generate records

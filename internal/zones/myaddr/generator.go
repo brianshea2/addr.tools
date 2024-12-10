@@ -3,7 +3,6 @@ package myaddr
 import (
 	"encoding/binary"
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 )
 
 type RecordGenerator struct {
-	Addrs               []net.IP
+	Addrs               dnsutil.IPCollection
 	SelfChallengeTarget string
 	DataStore           ttlstore.TtlStore
 	ChallengeStore      ttlstore.TtlStore
@@ -35,12 +34,18 @@ func GetName(sub string) string {
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
 	defer func() {
 		if validName && q.Qtype == dns.TypeTXT {
+			var ttl uint32
+			if len(rrs) > 0 {
+				ttl = rrs[0].Header().Ttl
+			} else {
+				ttl = 300
+			}
 			rrs = append(rrs, &dns.TXT{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
 					Rrtype: dns.TypeTXT,
 					Class:  dns.ClassINET,
-					Ttl:    1,
+					Ttl:    ttl,
 				},
 				Txt: []string{"v=spf1 -all"},
 			})
@@ -67,10 +72,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			if ipv6Only {
 				break
 			}
-			for _, ip := range g.Addrs {
-				if len(ip) != net.IPv4len {
-					continue
-				}
+			for _, ip := range g.Addrs.IPv4 {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -85,10 +87,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			if ipv4Only {
 				break
 			}
-			for _, ip := range g.Addrs {
-				if len(ip) != net.IPv6len {
-					continue
-				}
+			for _, ip := range g.Addrs.IPv6 {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,

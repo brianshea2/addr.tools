@@ -1,15 +1,13 @@
 package ip
 
 import (
-	"net"
-
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
 	"github.com/miekg/dns"
 )
 
 type RecordGenerator struct {
-	Addrs               []net.IP
+	Addrs               dnsutil.IPCollection
 	SelfChallengeTarget string
 	ChallengeStore      ttlstore.TtlStore
 }
@@ -36,10 +34,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			if ipv6Only {
 				break
 			}
-			for _, ip := range g.Addrs {
-				if len(ip) != net.IPv4len {
-					continue
-				}
+			for _, ip := range g.Addrs.IPv4 {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -54,10 +49,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			if ipv4Only {
 				break
 			}
-			for _, ip := range g.Addrs {
-				if len(ip) != net.IPv6len {
-					continue
-				}
+			for _, ip := range g.Addrs.IPv6 {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
