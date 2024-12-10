@@ -138,3 +138,9 @@ table.index tr:nth-child(n+2) :is(th, td) {
 .nowrap {
   white-space: nowrap;
 }
+.contact::before {
+  content: attr(data-user);
+}
+.contact::after {
+  content: '\0040' attr(data-domain);
+}
