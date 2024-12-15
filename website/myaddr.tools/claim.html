@@ -13,7 +13,10 @@
     const claimForm = document.getElementById('claim-form')
     const nameInput = document.getElementById('name-input')
     const submitButton = document.getElementById('submit-button')
-    const turnstileWidgetId = turnstile.render('#turnstile-widget', { sitekey: '0x4AAAAAAAM8zIuLgefJRkGL' })
+    const turnstileWidgetId = turnstile.render('#turnstile-widget', {
+      sitekey: '0x4AAAAAAAM8zIuLgefJRkGL',
+      size: 'flexible',
+    })
     const handleError = e => {
       console.error(e)
       submitButton.remove()
@@ -102,6 +105,7 @@
           <div class="mb-3">
             <label for="name-input" class="form-label">Your domain name</label>
             <div class="input-group has-validation">
+              <span class="input-group-text">*.</span>
               <input type="text" class="form-control" id="name-input" required pattern="[a-zA-Z][a-zA-Z0-9\-]{4,38}[a-zA-Z0-9]">
               <span class="input-group-text">.myaddr.{tools,dev,io}</span>
               <div class="invalid-feedback">
@@ -121,10 +125,11 @@
             </div>
           </div>
           <div class="mb-3">
+            <div class="form-label">Go away, bots</div>
             <div id="turnstile-widget"></div>
           </div>
           <div>
-            <button class="btn btn-primary" style="width: 6rem;" type="submit" id="submit-button">Claim</button>
+            <button class="btn btn-primary w-100" type="submit" id="submit-button">Claim</button>
           </div>
         </form>
       </div>
@@ -155,11 +160,11 @@
         </p>
         <p class="card-text">
           Your domain registration is pending until you make your first update, such as adding an IP address.
-          Your registration will expire if you do not make your first update within <span class="text-warning">1 hour</span>.
+          Your registration will expire if you do not make your first update within <strong>1 hour</strong>.
         </p>
         <p class="card-text">
-          IP address records must be updated at least once every <span class="text-warning">90 days</span> to remain active.
-          Your registration will expire if no updates are made for <span class="text-warning">120 days</span>.
+          IP address records must be updated at least once every <strong>90 days</strong> to remain active.
+          Your registration will expire if no updates are made for <strong>120 days</strong>.
         </p>
       </div>
     </div>
