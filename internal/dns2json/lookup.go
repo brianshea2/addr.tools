@@ -16,6 +16,7 @@ import (
 const (
 	LookupTimeout        = 5 * time.Second
 	LookupResponseMaxTtl = 86400
+	MaxUdpMsgSize        = 1232
 )
 
 type LookupHandler struct {
@@ -33,7 +34,9 @@ func (h *LookupHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "invalid type", http.StatusBadRequest)
 		return
 	}
-	msg := new(dns.Msg).SetQuestion(dns.Fqdn(qname), qtype)
+	msg := new(dns.Msg)
+	msg.SetQuestion(dns.Fqdn(qname), qtype)
+	msg.SetEdns0(MaxUdpMsgSize, false)
 	client := &dns.Client{Timeout: LookupTimeout}
 	received, _, err := client.Exchange(msg, h.Upstream)
 	if err != nil || received.Truncated {
