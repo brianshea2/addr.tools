@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -115,7 +116,9 @@ func (config *Config) Run() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		requestLogger = log.New(requestLogFile, "", log.LstdFlags)
+		buffer := bufio.NewWriter(requestLogFile)
+		defer buffer.Flush()
+		requestLogger = log.New(buffer, "", log.LstdFlags)
 	} else {
 		requestLogger = log.Default()
 	}
@@ -133,6 +136,11 @@ func (config *Config) Run() {
 		if err := persistentStore.LoadFile(config.DatabasePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			log.Fatal(err)
 		}
+		defer func() {
+			if err := persistentStore.WriteFile(config.DatabasePath); err != nil {
+				log.Printf("[error] %v", err)
+			}
+		}()
 		go func() {
 			log.Fatal(persistentStore.WriteFilePeriodically(config.DatabasePath, time.Minute))
 		}()
@@ -311,11 +319,5 @@ func (config *Config) Run() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 	<-terminate
-	// we're exiting
 	log.Print("[info] exiting")
-	if len(config.DatabasePath) > 0 {
-		if err := persistentStore.WriteFile(config.DatabasePath); err != nil {
-			log.Printf("[error] %v", err)
-		}
-	}
 }
