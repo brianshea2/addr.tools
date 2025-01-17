@@ -127,7 +127,7 @@ const loadInfo = async () => {
   }
   document.body.innerHTML += `<div id="rdap-container">` +
     `<div class="title"><abbr title="Registration Data Access Protocol">RDAP</abbr> data for ${htmlify(name, false)}</div>` +
-    `<div id="rdap-data" class="pre">loading...</div></div>`
+    `<div id="rdap-data" class="pre wrap">loading...</div></div>`
 
   if (!(query instanceof IPRange)) {
     const dnsDataDiv = document.getElementById('dns-data')
