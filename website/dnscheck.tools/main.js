@@ -72,7 +72,8 @@ const getGeo = ipOrRange => {
   // all ipv6 of the same /64 should have the same geolocation
   const str = `${ip.is4() ? ip : new IPAddr(ip & 0xffffffffffffffff0000000000000000n)}`
   if (geoLookups[str] === undefined) {
-    geoLookups[str] = fetchOk(`https://www.dnscheck.tools/geo/${str}`).then(r => r.text())
+    geoLookups[str] = fetchOk(`https://ipinfo.addr.tools/${str}`).then(r => r.json())
+      .then(({ city, region, country }) => [ city, region, country ].filter(v => v).join(', '))
   }
   return geoLookups[str]
 }
