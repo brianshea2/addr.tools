@@ -67,7 +67,7 @@ const handleOpen = () => {
   // set content
   if (count === 0) {
     requestsDiv.innerHTML = '<p class="dialogue">listening for requests...' +
-      `<p class="dialogue">try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig ${clientId}.go.dnscheck.tools txt</span>\`` +
+      `<p class="dialogue">try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig -t txt ${clientId}.go.dnscheck.tools</span>\`` +
       `<p class="dialogue">or <span class="link" onclick="window.makeQuery('${clientId}.go')">click here</span> to generate some requests.`
   }
 }

@@ -55,6 +55,15 @@ abbr {
     text-decoration: none;
   }
 }
+var {
+  font-style: italic;
+}
+var::before {
+  content: '<';
+}
+var::after {
+  content: '>';
+}
 a, span.link {
   color: inherit;
   cursor: pointer;
@@ -119,7 +128,14 @@ ul.ip-list li > span:nth-child(n+2) {
     padding-left: 4ch;
   }
 }
-.bold {
+ul.options li > span:nth-child(1) {
+  font-weight: bold;
+}
+ul.options li > span:nth-child(2)::before {
+  content: '\2014';
+  padding: 0 1ch;
+}
+.bold, strong {
   font-weight: bold;
 }
 .dialogue {

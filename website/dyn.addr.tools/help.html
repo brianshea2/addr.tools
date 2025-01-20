@@ -28,7 +28,7 @@
 <p>
   <samp class="pre-line break">
     <i>$</i> <kbd>sha224=$(echo -n '1SuperSecretPassphrase' | shasum -a 224 | cut -c 1-56)</kbd>
-    <i>$</i> <kbd>dig $sha224.dyn.addr.tools +short</kbd>
+    <i>$</i> <kbd>dig +short $sha224.dyn.addr.tools</kbd>
     192.0.2.1
   </samp>
 

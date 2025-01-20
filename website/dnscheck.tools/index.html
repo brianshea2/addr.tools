@@ -58,79 +58,82 @@
       <p>
         dnscheck.tools is also a custom DNS test server! Make test queries like:
       <p class="break">
-        $ dig <span class="bold">[SUBDOMAIN.]go[-ALG][-NET].dnscheck.tools</span> TXT
-      <h3>SUBDOMAIN</h3>
+        $ dig -t txt <strong>[<var>OPTIONS</var>.]go[-<var>SEC</var>][-<var>NET</var>].dnscheck.tools</strong>
       <p>
-        The SUBDOMAIN is composed of DNS response options, separated by a hyphen. Options may include:
-      <ul class="d-flex-col gap-1 indent">
+        By default, both IPv4 and IPv6 authoritative nameservers are offered and responses are signed using ECDSA P-256
+        with SHA-256.
+      <ul class="indent">
+        <li><strong><var>NET</var></strong> may be:
+        <li><ul class="options indent">
+          <li><span>ipv4</span>                       <span>offer only IPv4 authoritative nameservers</span>
+          <li><span>ipv6</span>                       <span>offer only IPv6 authoritative nameservers</span>
+        </ul>
+      </ul>
+      <ul class="indent">
+        <li><strong><var>SEC</var></strong> sets the DNSSEC signing algorithm:
+        <li><ul class="options indent">
+          <li><span>alg13</span>                      <span>sign the zone using ECDSA P-256 with SHA-256
+                                                        (default)</span>
+          <li><span>alg14</span>                      <span>sign the zone using ECDSA P-384 with SHA-384</span>
+          <li><span>alg15</span>                      <span>sign the zone using Ed25519</span>
+          <li><span>unsigned</span>                   <span>do not sign the zone</span>
+        </ul>
+      </ul>
+      <p>
+        <strong><var>OPTIONS</var></strong> is a hyphen-separated list containing:
+      <ul class="indent">
         <li>any of:
-          <ul class="indent">
-            <li><b><i>&lt;random&gt;</i></b> - a random number, up to 8 hex digits, useful for cache busting, identifies
-              requests to <a href="/watch">/watch</a>
-            <li><b>compress</b> - force the use of DNS message compression in the response
-            <li><b>[no]truncate</b> - force or disable message truncation for responses over UDP
-          </ul>
-        <li>up to one of:
-          <ul class="indent">
-            <li><b>padding<i>&lt;n&gt;</i></b> - add <i>&lt;n&gt;</i> bytes of EDNS0 padding, up to 4000, to A, AAAA,
-              and TXT responses
-            <li><b>txtfill<i>&lt;n&gt;</i></b> - add <i>&lt;n&gt;</i> bytes of padding as TXT data, up to 4000, to TXT
-              responses
-          </ul>
-        <li>up to one of:
-          <ul class="indent">
-            <li><b>formerr</b> - respond with "format error"
-            <li><b>servfail</b> - respond with "server failure"
-            <li><b>nxdomain</b> - respond with "non-existent domain"
-            <li><b>notimpl</b> - respond with "not implemented"
-            <li><b>refused</b> - respond with "query refused"
-            <li><b>noreply</b> - do not respond
-            <li><b>nullip</b> - respond with all-zero IP (0.0.0.0 for A; :: for AAAA)
-          </ul>
-        <li>up to one of:
-          <ul class="indent">
-            <li><b>nosig</b> - do not provide any DNSSEC signature in the response
-            <li><b>badsig</b> - provide an invalid DNSSEC signature when signing the response
-            <li><b>expiredsig[<i>&lt;t&gt;</i>]</b> - provide an expired DNSSEC signature when signing the response,
-              <i>&lt;t&gt;</i> seconds in the past (default 1 day)
-          </ul>
+        <li><ul class="options indent">
+          <li><span>compress</span>                   <span>force the use of DNS message compression in the
+                                                        response</span>
+          <li><span>[no]truncate</span>               <span>force or disable message truncation for responses over
+                                                        UDP</span>
+          <li><span><var>random</var></span>          <span>a random number, up to 8 hex digits, useful for cache
+                                                        busting, identifies requests to
+                                                        <a href="/watch">/watch</a></span>
+        </ul>
       </ul>
-      <h3>ALG &amp; NET</h3>
-      <p>
-        The zone, <span class="nowrap">go[-ALG][-NET]</span>, sets DNSSEC signing and network options.
-      <ul class="d-flex-col gap-1 indent">
-        <li>ALG may be one of:
-          <ul class="indent">
-            <li><b>alg13</b> - sign the zone using ECDSA P-256 with SHA-256 (default)
-            <li><b>alg14</b> - sign the zone using ECDSA P-384 with SHA-384
-            <li><b>alg15</b> - sign the zone using Ed25519
-            <li><b>unsigned</b> - do not sign the zone
-          </ul>
-        <li>NET may be one of:
-          <ul class="indent">
-            <li><b>ipv4</b> - offer only IPv4 authoritative nameservers
-            <li><b>ipv6</b> - offer only IPv6 authoritative nameservers
-          </ul>
+      <ul class="indent">
+        <li>up to one of:
+        <li><ul class="options indent">
+          <li><span>padding<var>n</var></span>        <span>add <var>n</var> bytes of EDNS0 padding, up to 4000, to A,
+                                                        AAAA, and TXT responses</span>
+          <li><span>txtfill<var>n</var></span>        <span>add <var>n</var> bytes of padding as TXT data, up to 4000,
+                                                        to TXT responses</span>
+        </ul>
       </ul>
-      <p>
-        The zone "go" is equivalent to "go-alg13" and has both IPv4 and IPv6 authoritative nameservers.
+      <ul class="indent">
+        <li>up to one of:
+        <li><ul class="options indent">
+          <li><span>formerr</span>                    <span>respond with "format error"</span>
+          <li><span>servfail</span>                   <span>respond with "server failure"</span>
+          <li><span>nxdomain</span>                   <span>respond with "non-existent domain"</span>
+          <li><span>notimpl</span>                    <span>respond with "not implemented"</span>
+          <li><span>refused</span>                    <span>respond with "query refused"</span>
+          <li><span>nullip</span>                     <span>provide only the all-zero IP in A and AAAA responses</span>
+          <li><span>noreply</span>                    <span>do not respond</span>
+        </ul>
+      </ul>
+      <ul class="indent">
+        <li>up to one of:
+        <li><ul class="options indent">
+          <li><span>nosig</span>                      <span>do not provide any DNSSEC signature in the response</span>
+          <li><span>badsig</span>                     <span>provide an invalid DNSSEC signature in the response</span>
+          <li><span>expiredsig[<var>t</var>]</span>   <span>provide an expired DNSSEC signature in the response,
+                                                        <var>t</var> seconds in the past (default 1 day)</span>
+        </ul>
+      </ul>
       <h3>EXAMPLES</h3>
-      <p>
-        See some information about your DNS resolvers:
       <p class="break">
-        $ dig go.dnscheck.tools TXT
-      <p>
-        For our Windows friends:
+        $ dig -t txt go.dnscheck.tools
       <p class="break">
-        &gt; nslookup -q=TXT go.dnscheck.tools
-      <p>
-        Getting cached results? Introduce a random number:
+        $ open https://dnscheck.tools/watch/123
       <p class="break">
-        $ dig 123456.go.dnscheck.tools TXT
-      <p>
-        Test if your resolvers are validating DNSSEC. This should produce an error:
+        $ dig 123.go.dnscheck.tools
       <p class="break">
-        $ dig badsig-123456.go.dnscheck.tools TXT
+        $ dig 123-truncate.go.dnscheck.tools
+      <p class="break">
+        $ dig 123-badsig.go-alg15-ipv4.dnscheck.tools
     </div>
     <div class="section">
       <h2>SEE ALSO</h2>
