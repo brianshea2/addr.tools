@@ -124,8 +124,11 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	q := &req.Question[0]
 	name := h.ParseName(q.Name)
 	// send to watcher
-	if name != nil && name.Watch {
-		h.Watchers.Send(name.Random, req, w.RemoteAddr(), w.(dns.ConnectionStater).ConnectionState())
+	if name != nil && len(name.Random) > 0 {
+		watcher := h.Watchers.Get(name.Random)
+		if watcher != nil {
+			watcher.Send(req, w.RemoteAddr(), w.(dns.ConnectionStater).ConnectionState())
+		}
 	}
 	// queries only
 	if req.Opcode != dns.OpcodeQuery {

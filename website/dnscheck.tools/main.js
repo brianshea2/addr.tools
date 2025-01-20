@@ -276,8 +276,8 @@ const testDNS = () => new Promise(done => {
     // generate some DNS requests
     for (let i = 0; i < 5; i++) {
       await Promise.all([
-        makeQuery(`${String.fromCharCode(97 + i)}.watch-${clientId}-nullip.go-ipv4`, abortController.signal),
-        makeQuery(`${String.fromCharCode(97 + i)}.watch-${clientId}-nullip.go-ipv6`, abortController.signal),
+        makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go-ipv4`, abortController.signal),
+        makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go-ipv6`, abortController.signal),
       ])
     }
     // test IPv6 support
@@ -285,14 +285,14 @@ const testDNS = () => new Promise(done => {
       ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach IPv6 nameservers">IPv6</span>'
     }
     // test TCP fallback
-    const usesTCP = await makeQuery(`watch-${clientId}-truncate.go`, abortController.signal)
+    const usesTCP = await makeQuery(`${clientId}-truncate.go`, abortController.signal)
     if (!usesTCP) {
       tcpStatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers do not retry over TCP">TCP</span>'
     }
     // test DNSSEC validation
     for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
       await Promise.all([ '', '-badsig', '-expiredsig', '-nosig' ].map(
-        (sigOpt, sigIndex) => makeQuery(`watch-${clientId}${sigOpt}.go-${alg}`, abortController.signal).then(
+        (sigOpt, sigIndex) => makeQuery(`${clientId}${sigOpt}.go-${alg}`, abortController.signal).then(
           got => {
             dnssecTests[4 * algIndex + sigIndex] = got
             drawDNSSEC()

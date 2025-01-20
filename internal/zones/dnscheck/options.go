@@ -11,7 +11,6 @@ import (
 type Options struct {
 	//
 	Random     string // hex
-	Watch      bool
 	Compress   bool
 	Truncate   bool
 	NoTruncate bool
@@ -45,10 +44,7 @@ func (o *Options) ParseOptions(s string) bool {
 		}
 		switch {
 		case t == "watch":
-			if o.Watch {
-				return false
-			}
-			o.Watch = true
+			// deprecated
 		case t == "compress":
 			if o.Compress {
 				return false
@@ -164,9 +160,6 @@ func (o *Options) ParseOptions(s string) bool {
 		if i < 0 {
 			break
 		}
-	}
-	if o.Watch && len(o.Random) == 0 {
-		return false
 	}
 	return true
 }

@@ -14,9 +14,9 @@ type Watcher interface {
 }
 
 type WatcherHub interface {
+	Get(watcherId string) Watcher
 	IsRegistered(watcherId string) bool
 	Register(watcherId string, watcher Watcher) error
-	Send(watcherId string, req *dns.Msg, remoteAddr net.Addr, connState *tls.ConnectionState)
 	Unregister(watcherId string)
 }
 
@@ -24,6 +24,13 @@ type SimpleWatcherHub struct {
 	MaxSize int
 	m       map[string]Watcher
 	mu      sync.RWMutex
+}
+
+func (s *SimpleWatcherHub) Get(watcherId string) Watcher {
+	s.mu.RLock()
+	watcher := s.m[watcherId]
+	s.mu.RUnlock()
+	return watcher
 }
 
 func (s *SimpleWatcherHub) IsRegistered(watcherId string) bool {
@@ -46,15 +53,6 @@ func (s *SimpleWatcherHub) Register(watcherId string, watcher Watcher) error {
 	}
 	s.m[watcherId] = watcher
 	return nil
-}
-
-func (s *SimpleWatcherHub) Send(watcherId string, req *dns.Msg, remoteAddr net.Addr, connState *tls.ConnectionState) {
-	s.mu.RLock()
-	watcher, exists := s.m[watcherId]
-	s.mu.RUnlock()
-	if exists {
-		watcher.Send(req, remoteAddr, connState)
-	}
 }
 
 func (s *SimpleWatcherHub) Unregister(watcherId string) {

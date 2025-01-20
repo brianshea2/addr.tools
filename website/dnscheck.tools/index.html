@@ -65,11 +65,10 @@
       <ul class="d-flex-col gap-1 indent">
         <li>any of:
           <ul class="indent">
-            <li><b><i>&lt;random&gt;</i></b> - a random number, up to 8 hexadecimal digits; useful for cache busting
+            <li><b><i>&lt;random&gt;</i></b> - a random number, up to 8 hex digits, useful for cache busting, identifies
+              requests to <a href="/watch">/watch</a>
             <li><b>compress</b> - force the use of DNS message compression in the response
             <li><b>[no]truncate</b> - force or disable message truncation for responses over UDP
-            <li><b>watch</b> - mirror corresponding requests to the <a href="/watch">/watch/<i>&lt;random&gt;</i></a>
-              page; requires <i>&lt;random&gt;</i>
           </ul>
         <li>up to one of:
           <ul class="indent">
@@ -132,11 +131,6 @@
         Test if your resolvers are validating DNSSEC. This should produce an error:
       <p class="break">
         $ dig badsig-123456.go.dnscheck.tools TXT
-      <p>
-        Want to watch a stream of DNS requests coming from your resolvers?
-        Goto dnscheck.tools/watch/123456 and specify the watch option:
-      <p class="break">
-        $ dig watch-123456.go.dnscheck.tools TXT
     </div>
     <div class="section">
       <h2>SEE ALSO</h2>
