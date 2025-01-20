@@ -47,6 +47,7 @@ type Config struct {
 	ResponseAddrs           []net.IP
 	InternalChallengeTarget string
 	LookupUpstream          string
+	IPInfoBaseURL           string
 	MyaddrTurnstileSecret   string
 	DnscheckZones           []struct {
 		*dnscheck.DnscheckHandler
@@ -157,6 +158,11 @@ func (config *Config) Run() {
 	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
 		return []status.Status{{Title: "watchers", Value: strconv.Itoa(watcherHub.Size())}}
 	}))
+	// init ipinfo client
+	var ipinfoClient *httputil.IPInfoClient
+	if len(config.IPInfoBaseURL) > 0 {
+		ipinfoClient = &httputil.IPInfoClient{BaseURL: config.IPInfoBaseURL}
+	}
 	// init and set dnscheck handlers
 	largeResponseLimiter := rate.NewLimiter(rate.Limit(MaxDnscheckLargeResponseRate), MaxDnscheckLargeResponseRate)
 	for _, h := range config.DnscheckZones {
@@ -164,6 +170,7 @@ func (config *Config) Run() {
 		h.DnscheckHandler.ChallengeTarget = config.InternalChallengeTarget
 		h.DnscheckHandler.LargeResponseLimiter = largeResponseLimiter
 		h.DnscheckHandler.Watchers = watcherHub
+		h.DnscheckHandler.IPInfoClient = ipinfoClient
 		h.DnscheckHandler.Init(ParsePrivateKey(h.PrivateKey))
 		dns.Handle(h.DnscheckHandler.Zone, h.DnscheckHandler)
 	}

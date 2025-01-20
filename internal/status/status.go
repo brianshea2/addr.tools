@@ -55,7 +55,7 @@ func (h *StatusHandler) GenerateRecords(q *dns.Question, zone string) (rrs []dns
 						Class:  dns.ClassINET,
 						Ttl:    1,
 					},
-					Txt: []string{s.String()},
+					Txt: dnsutil.SplitForTxt(s.String()),
 				}
 			}
 		}

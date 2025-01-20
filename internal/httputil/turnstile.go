@@ -10,16 +10,19 @@ import (
 const TurnstileVerifyTimeout = 5 * time.Second
 
 type TurnstileSite struct {
-	Secret string
+	Secret     string
+	httpClient *http.Client
 }
 
 func (ts *TurnstileSite) Verify(token string) (bool, error) {
+	if ts.httpClient == nil {
+		ts.httpClient = &http.Client{Timeout: TurnstileVerifyTimeout}
+	}
 	values := url.Values{
 		"secret":   []string{ts.Secret},
 		"response": []string{token},
 	}
-	client := &http.Client{Timeout: TurnstileVerifyTimeout}
-	resp, err := client.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify", values)
+	resp, err := ts.httpClient.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify", values)
 	if err != nil {
 		return false, err
 	}
@@ -27,7 +30,8 @@ func (ts *TurnstileSite) Verify(token string) (bool, error) {
 	var body struct {
 		Success bool `json:"success"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	if err != nil {
 		return false, err
 	}
 	return body.Success, nil

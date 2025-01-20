@@ -138,7 +138,9 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Class:  dns.ClassINET,
 						Ttl:    1,
 					},
-					Txt: []string{fmt.Sprintf("ipv4 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC())},
+					Txt: dnsutil.SplitForTxt(
+						fmt.Sprintf("ipv4 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()),
+					),
 				})
 			}
 			if mtime := g.DataStore.Get(dnsutil.LowerName(q.Name) + ":ip6mtime"); mtime != nil {
@@ -149,7 +151,9 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Class:  dns.ClassINET,
 						Ttl:    1,
 					},
-					Txt: []string{fmt.Sprintf("ipv6 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC())},
+					Txt: dnsutil.SplitForTxt(
+						fmt.Sprintf("ipv6 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()),
+					),
 				})
 			}
 		}

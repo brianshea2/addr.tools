@@ -119,7 +119,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 							Class:  dns.ClassINET,
 							Ttl:    1,
 						},
-						Txt: []string{string(v)},
+						Txt: dnsutil.SplitForTxt(string(v)),
 					})
 				}
 			}

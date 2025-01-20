@@ -5,16 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
+	"github.com/brianshea2/addr.tools/internal/httputil"
 	"github.com/miekg/dns"
 	"golang.org/x/time/rate"
 )
-
-const TxtFillString = "0000000000000000000000000000000000000000000000000000000000000000000000000" +
-	"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
-	"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 
 type BadDnssecProvider struct {
 	KeyTagOverride uint16
@@ -56,6 +54,7 @@ type DnscheckHandler struct {
 	StaticRecords        dnsutil.StaticRecords
 	LargeResponseLimiter *rate.Limiter
 	Watchers             WatcherHub
+	IPInfoClient         *httputil.IPInfoClient
 	BadDnssecProvider    *BadDnssecProvider
 	*dnsutil.DnssecProvider
 }
@@ -361,13 +360,6 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				resp.Rcode = dns.RcodeRefused
 				return
 			}
-			strs := make([]string, name.TxtFill/len(TxtFillString), name.TxtFill/len(TxtFillString)+1)
-			for i := 0; i < len(strs); i++ {
-				strs[i] = TxtFillString
-			}
-			if rem := name.TxtFill % len(TxtFillString); rem > 0 {
-				strs = append(strs, TxtFillString[:rem])
-			}
 			resp.Answer = append(resp.Answer, &dns.TXT{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
@@ -375,9 +367,9 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 					Class:  dns.ClassINET,
 					Ttl:    1,
 				},
-				Txt: strs,
+				Txt: dnsutil.SplitForTxt(strings.Repeat("0", name.TxtFill)),
 			})
-			break
+			break // no more txts
 		}
 		ip, port, _ := net.SplitHostPort(w.RemoteAddr().String())
 		txts := []string{
@@ -385,6 +377,20 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			"proto: " + dnsutil.GetWriterProtocol(w),
 			"remoteIp: " + ip,
 			"remotePort: " + port,
+		}
+		if h.IPInfoClient != nil {
+			info, err := h.IPInfoClient.Get(ip)
+			if err != nil {
+				log.Printf("[error] DnscheckHandler.ServeDNS: IPInfoClient.Get: %v", err)
+			}
+			if info != nil {
+				if geo := info.GeoString(); len(geo) > 0 {
+					txts = append(txts, "remoteGeo: "+dnsutil.ToPrintableAscii(geo))
+				}
+				if len(info.Org) > 0 {
+					txts = append(txts, "remoteOrg: "+dnsutil.ToPrintableAscii(info.Org))
+				}
+			}
 		}
 		if opt := req.IsEdns0(); opt != nil {
 			var flags string
@@ -412,10 +418,10 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				"tlsCipherSuite: "+tls.CipherSuiteName(cstate.CipherSuite),
 			)
 			if len(cstate.ServerName) > 0 {
-				txts = append(txts, "tlsServerName: "+cstate.ServerName)
+				txts = append(txts, "tlsServerName: "+dnsutil.ToPrintableAscii(cstate.ServerName))
 			}
 			if len(cstate.NegotiatedProtocol) > 0 {
-				txts = append(txts, "tlsNegotiatedProtocol: "+cstate.NegotiatedProtocol)
+				txts = append(txts, "tlsNegotiatedProtocol: "+dnsutil.ToPrintableAscii(cstate.NegotiatedProtocol))
 			}
 			if cstate.DidResume {
 				txts = append(txts, "tlsDidResume: true")
@@ -429,7 +435,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 					Class:  dns.ClassINET,
 					Ttl:    1,
 				},
-				Txt: []string{txt},
+				Txt: dnsutil.SplitForTxt(txt),
 			})
 		}
 	case dns.TypeMX:

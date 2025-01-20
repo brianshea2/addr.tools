@@ -7,6 +7,7 @@ import (
 
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
+	"github.com/brianshea2/addr.tools/internal/zones/challenges"
 	"github.com/miekg/dns"
 	"golang.org/x/time/rate"
 )
@@ -94,8 +95,8 @@ func (h *UpdateHandler) HandleUpdate(w dns.ResponseWriter, req *dns.Msg, zone st
 			return
 		}
 		txtRr := rr.(*dns.TXT)
-		// limit TXT length
-		if len(txtRr.Txt) != 1 || len(txtRr.Txt[0]) < 1 || len(txtRr.Txt[0]) > 255 {
+		// only accept valid challenge strings
+		if len(txtRr.Txt) != 1 || !challenges.IsValidChallenge(txtRr.Txt[0]) {
 			resp.Rcode = dns.RcodeRefused
 			return
 		}
