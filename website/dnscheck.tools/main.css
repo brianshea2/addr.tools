@@ -132,8 +132,17 @@ ul.options li > span:nth-child(1) {
   font-weight: bold;
 }
 ul.options li > span:nth-child(2)::before {
-  content: '\2014';
-  padding: 0 1ch;
+  content: '- ';
+}
+@media (min-width: 768px) {
+  ul.options li {
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+    gap: 4ch;
+  }
+  ul.options li > span:nth-child(2)::before {
+    padding-left: 2ch;
+  }
 }
 .bold, strong {
   font-weight: bold;
@@ -214,7 +223,7 @@ nav {
   display: inline-flex;
   flex-direction: column;
   gap: 1.3em;
-  padding: 1.3em 1em 2.6em 1em;
+  padding: 1.3em 2em 2.6em 1em;
 }
 .status {
   border-top: 1px solid var(--border-color);
