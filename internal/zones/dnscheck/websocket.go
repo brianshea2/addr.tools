@@ -24,10 +24,11 @@ const (
 )
 
 type WebsocketWatcherMessage struct {
-	req    *dns.Msg
-	raddr  net.Addr
-	cstate *tls.ConnectionState
-	time   uint32
+	req     *dns.Msg
+	raddr   net.Addr
+	cstate  *tls.ConnectionState
+	wsProto string
+	time    uint32
 }
 
 func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
@@ -36,7 +37,7 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 		Proto                 string `json:"proto"`
 		RemoteIp              string `json:"remoteIp"`
 		RemotePort            string `json:"remotePort"`
-		MsgText               string `json:"msgText"`
+		MsgText               string `json:"msgText,omitempty"`
 		IsEdns0               bool   `json:"isEdns0,omitempty"`
 		UDPSize               uint16 `json:"udpSize,omitempty"`
 		ClientSubnet          string `json:"clientSubnet,omitempty"`
@@ -49,7 +50,9 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 	r.Time = msg.time
 	r.Proto = dnsutil.GetAddrProtocol(msg.raddr, msg.cstate)
 	r.RemoteIp, r.RemotePort, _ = net.SplitHostPort(msg.raddr.String())
-	r.MsgText = msg.req.String()
+	if msg.wsProto == "full" {
+		r.MsgText = msg.req.String()
+	}
 	if opt := msg.req.IsEdns0(); opt != nil {
 		r.IsEdns0 = true
 		r.UDPSize = opt.UDPSize()
@@ -72,24 +75,26 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 }
 
 type WebsocketWatcher struct {
-	ch chan *WebsocketWatcherMessage
+	conn *websocket.Conn
+	ch   chan *WebsocketWatcherMessage
 }
 
-func NewWebsocketWatcher() *WebsocketWatcher {
+func NewWebsocketWatcher(conn *websocket.Conn) *WebsocketWatcher {
 	return &WebsocketWatcher{
-		ch: make(chan *WebsocketWatcherMessage, WebsocketWatcherBufferLength),
+		conn: conn,
+		ch:   make(chan *WebsocketWatcherMessage, WebsocketWatcherBufferLength),
 	}
 }
 
 func (ws *WebsocketWatcher) Send(req *dns.Msg, remoteAddr net.Addr, connState *tls.ConnectionState) {
 	select {
-	case ws.ch <- &WebsocketWatcherMessage{req, remoteAddr, connState, uint32(time.Now().Unix())}:
+	case ws.ch <- &WebsocketWatcherMessage{req, remoteAddr, connState, ws.conn.Subprotocol(), uint32(time.Now().Unix())}:
 	default:
 		// buffer is full or watcher is done (nil ch)
 	}
 }
 
-func (ws *WebsocketWatcher) WriteLoop(ctx context.Context, conn *websocket.Conn) {
+func (ws *WebsocketWatcher) WriteLoop(ctx context.Context) {
 	defer func() {
 		ws.ch = nil
 	}()
@@ -104,7 +109,7 @@ func (ws *WebsocketWatcher) WriteLoop(ctx context.Context, conn *websocket.Conn)
 		case <-done:
 			return
 		case msg := <-ws.ch:
-			conn.WriteJSON(msg)
+			ws.conn.WriteJSON(msg)
 		}
 	}
 }
@@ -112,6 +117,19 @@ func (ws *WebsocketWatcher) WriteLoop(ctx context.Context, conn *websocket.Conn)
 type WebsocketHandler struct {
 	*websocket.Upgrader
 	WatcherHub
+}
+
+func NewWebsocketHandler(watcherHub WatcherHub) *WebsocketHandler {
+	return &WebsocketHandler{
+		Upgrader: &websocket.Upgrader{
+			ReadBufferSize:    1024,
+			WriteBufferSize:   1024,
+			Subprotocols:      []string{"full"},
+			CheckOrigin:       func(_ *http.Request) bool { return true },
+			EnableCompression: true,
+		},
+		WatcherHub: watcherHub,
+	}
 }
 
 func (h *WebsocketHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -138,7 +156,7 @@ func (h *WebsocketHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// add watcher, defer delete
-	watcher := NewWebsocketWatcher()
+	watcher := NewWebsocketWatcher(conn)
 	err = h.Register(watcherId, watcher)
 	if err != nil {
 		// probably too many current watchers
@@ -170,7 +188,7 @@ func (h *WebsocketHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	})
 	defer stopClose()
 	// write loop
-	go watcher.WriteLoop(ctx, conn)
+	go watcher.WriteLoop(ctx)
 	// read loop
 	for {
 		_, _, err := conn.NextReader()

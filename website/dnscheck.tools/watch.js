@@ -152,7 +152,7 @@ const handleClose = e => {
 
 // opens and sets listeners on WebSocket connection to recieve DNS requests
 window.openSocket = () => {
-  const socket = new WebSocket(`wss://${window.location.host}/watch/${clientId}`)
+  const socket = new WebSocket(`wss://${window.location.host}/watch/${clientId}`, 'full')
   socket.addEventListener('open', handleOpen)
   socket.addEventListener('message', handleMessage)
   socket.addEventListener('close', handleClose)

@@ -26,7 +26,6 @@ import (
 	"github.com/brianshea2/addr.tools/internal/zones/dyn"
 	ipzone "github.com/brianshea2/addr.tools/internal/zones/ip"
 	"github.com/brianshea2/addr.tools/internal/zones/myaddr"
-	"github.com/gorilla/websocket"
 	"github.com/miekg/dns"
 	"golang.org/x/time/rate"
 )
@@ -174,15 +173,7 @@ func (config *Config) Run() {
 		h.DnscheckHandler.Init(ParsePrivateKey(h.PrivateKey))
 		dns.Handle(h.DnscheckHandler.Zone, h.DnscheckHandler)
 	}
-	http.Handle("/watch/{watcher}", &dnscheck.WebsocketHandler{
-		Upgrader: &websocket.Upgrader{
-			ReadBufferSize:    1024,
-			WriteBufferSize:   1024,
-			EnableCompression: true,
-			CheckOrigin:       func(_ *http.Request) bool { return true },
-		},
-		WatcherHub: watcherHub,
-	})
+	http.Handle("/watch/{watcher}", dnscheck.NewWebsocketHandler(watcherHub))
 	// init and set challenges handler
 	if config.ChallengesZone.SimpleHandler != nil {
 		config.ChallengesZone.SimpleHandler.RecordGenerator = &challenges.RecordGenerator{
