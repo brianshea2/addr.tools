@@ -92,25 +92,26 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	defer func() {
 		w.WriteMsg(resp)
 	}()
-	// edns, defer compress & truncate
+	// edns
 	err := CheckAndSetEdns(req, resp)
 	if err != nil {
 		// Rcode already set by CheckAndSetEdns
 		return
 	}
-	defer func() {
-		MaybeTruncate(req, resp, w.RemoteAddr().Network())
-	}()
 	// class IN only
 	if q.Qclass != dns.ClassINET {
-		resp.Rcode = dns.RcodeRefused
+		resp.Rcode = dns.RcodeNotImplemented
 		return
 	}
 	// allowed types only
-	if q.Qtype == dns.TypeANY || q.Qtype == dns.TypeRRSIG || q.Qtype == dns.TypeNSEC {
+	if q.Qtype == dns.TypeRRSIG || q.Qtype == dns.TypeNSEC {
 		resp.Rcode = dns.RcodeRefused
 		return
 	}
+	// defer compress & truncate
+	defer func() {
+		MaybeTruncate(req, resp, w.RemoteAddr().Network())
+	}()
 	// provide dnssec keys, defer dnssec proof
 	if h.ProvideKeys(req, resp) {
 		return // no further answers
@@ -126,6 +127,21 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	defer func() {
 		if (resp.Rcode == dns.RcodeSuccess && len(resp.Answer) == 0) || resp.Rcode == dns.RcodeNameError {
 			resp.Ns = append(resp.Ns, h.SOA(q))
+		}
+	}()
+	// defer adding default ANY response
+	defer func() {
+		if q.Qtype == dns.TypeANY && resp.Rcode == dns.RcodeSuccess && len(resp.Answer) == 0 {
+			resp.Answer = append(resp.Answer, &dns.HINFO{
+				Hdr: dns.RR_Header{
+					Name:   q.Name,
+					Rrtype: dns.TypeHINFO,
+					Class:  dns.ClassINET,
+					Ttl:    300,
+				},
+				Cpu: "RFC8482",
+				Os:  "",
+			})
 		}
 	}()
 	// apex records

@@ -151,16 +151,11 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	// class IN only
 	if q.Qclass != dns.ClassINET {
-		resp.Rcode = dns.RcodeRefused
-		return
-	}
-	// error response requested (NXDOMAIN handled below)
-	if name != nil && name.Rcode != 0 && name.Rcode != dns.RcodeNameError {
-		resp.Rcode = name.Rcode
+		resp.Rcode = dns.RcodeNotImplemented
 		return
 	}
 	// allowed types only
-	if q.Qtype == dns.TypeANY || q.Qtype == dns.TypeRRSIG || q.Qtype == dns.TypeNSEC {
+	if q.Qtype == dns.TypeRRSIG || q.Qtype == dns.TypeNSEC {
 		resp.Rcode = dns.RcodeRefused
 		return
 	}
@@ -227,9 +222,23 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		resp.Rcode = dns.RcodeNameError
 		return
 	}
-	// NXDOMAIN response requested
-	if name.Rcode == dns.RcodeNameError {
-		resp.Rcode = dns.RcodeNameError
+	// error response requested
+	if name.Rcode != 0 {
+		resp.Rcode = name.Rcode
+		return
+	}
+	// handle ANY queries
+	if q.Qtype == dns.TypeANY {
+		resp.Answer = append(resp.Answer, &dns.HINFO{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeHINFO,
+				Class:  dns.ClassINET,
+				Ttl:    300,
+			},
+			Cpu: "RFC8482",
+			Os:  "",
+		})
 		return
 	}
 	// apex records
