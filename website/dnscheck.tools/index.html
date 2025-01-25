@@ -96,10 +96,10 @@
       <ul class="indent">
         <li>up to one of:
         <li><ul class="options indent">
-          <li><span>padding<var>n</var></span>        <span>add <var>n</var> bytes of EDNS0 padding, up to 4000, to A,
-                                                        AAAA, and TXT responses</span>
-          <li><span>txtfill<var>n</var></span>        <span>add <var>n</var> bytes of padding as TXT data, up to 4000,
-                                                        to TXT responses</span>
+          <li><span>nosig</span>                      <span>do not provide any DNSSEC signature in the response</span>
+          <li><span>badsig</span>                     <span>provide an invalid DNSSEC signature in the response</span>
+          <li><span>expiredsig[<var>t</var>]</span>   <span>provide an expired DNSSEC signature in the response,
+                                                        <var>t</var> seconds in the past (default 1 day)</span>
         </ul>
       </ul>
       <ul class="indent">
@@ -113,10 +113,10 @@
       <ul class="indent">
         <li>up to one of:
         <li><ul class="options indent">
-          <li><span>nosig</span>                      <span>do not provide any DNSSEC signature in the response</span>
-          <li><span>badsig</span>                     <span>provide an invalid DNSSEC signature in the response</span>
-          <li><span>expiredsig[<var>t</var>]</span>   <span>provide an expired DNSSEC signature in the response,
-                                                        <var>t</var> seconds in the past (default 1 day)</span>
+          <li><span>padding<var>n</var></span>        <span>add <var>n</var> bytes of EDNS0 padding, up to 4000, to A,
+                                                        AAAA, and TXT responses</span>
+          <li><span>txtfill<var>n</var></span>        <span>add <var>n</var> bytes of padding as TXT data, up to 4000,
+                                                        to TXT responses</span>
         </ul>
       </ul>
       <h3>EXAMPLES</h3>
