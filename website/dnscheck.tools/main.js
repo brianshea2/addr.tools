@@ -247,18 +247,18 @@ const drawDNSSEC = () => {
 }
 
 // detects HTTP client's IPv4 and IPv6 addresses
-const testIPs = () => Promise.all([ 'myipv4', 'myipv6' ].map(
-  sub => fetchOk(`https://${sub}.addr.tools/plain`).then(r => r.text()).then(
-    str => {
+const testIPs = () => Promise.all([ 'ipv4', 'ipv6' ].map(
+  sub => fetchOk(`https://${sub}.icanhazip.com/`)
+    .then(r => r.text())
+    .then(str => {
+      str = str.trim()
       clientIPs[str] = { str, pending: true }
       drawIPs()
       getIPData(str).then(data => {
         clientIPs[str] = data
         drawIPs()
       })
-    },
-    () => {} // ignore errors
-  )
+    }, () => {})
 ))
 
 // detects DNS resolvers and DNSSEC validation
