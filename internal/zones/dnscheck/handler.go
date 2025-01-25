@@ -135,10 +135,6 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		w.WriteMsg(new(dns.Msg).SetRcode(req, dns.RcodeNotImplemented))
 		return
 	}
-	// no response requested
-	if name != nil && name.NoReply {
-		return
-	}
 	// prepare response, defer send
 	resp := new(dns.Msg).SetReply(req)
 	resp.Authoritative = true

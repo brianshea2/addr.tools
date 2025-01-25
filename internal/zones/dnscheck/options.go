@@ -15,15 +15,13 @@ type Options struct {
 	Truncate   bool
 	NoTruncate bool
 	//
-	Rcode   int
-	NoReply bool
-	NullIP  bool
+	Rcode    int
+	NullIP   bool
+	IPv4Only bool
+	IPv6Only bool
 	//
 	Padding int // 1 - 4000
 	TxtFill int // 1 - 4000
-	//
-	IPv4Only bool
-	IPv6Only bool
 	//
 	NoSig      bool
 	BadSig     bool
@@ -60,41 +58,31 @@ func (o *Options) ParseOptions(s string) bool {
 				return false
 			}
 			o.NoTruncate = true
-		case t == "formerr":
-			if o.Rcode != 0 || o.NoReply || o.NullIP {
-				return false
-			}
-			o.Rcode = dns.RcodeFormatError
-		case t == "servfail":
-			if o.Rcode != 0 || o.NoReply || o.NullIP {
-				return false
-			}
-			o.Rcode = dns.RcodeServerFailure
 		case t == "nxdomain":
-			if o.Rcode != 0 || o.NoReply || o.NullIP {
+			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
 				return false
 			}
 			o.Rcode = dns.RcodeNameError
-		case t == "notimpl":
-			if o.Rcode != 0 || o.NoReply || o.NullIP {
-				return false
-			}
-			o.Rcode = dns.RcodeNotImplemented
 		case t == "refused":
-			if o.Rcode != 0 || o.NoReply || o.NullIP {
+			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
 				return false
 			}
 			o.Rcode = dns.RcodeRefused
-		case t == "noreply":
-			if o.Rcode != 0 || o.NoReply || o.NullIP {
-				return false
-			}
-			o.NoReply = true
 		case t == "nullip":
-			if o.Rcode != 0 || o.NoReply || o.NullIP {
+			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
 				return false
 			}
 			o.NullIP = true
+		case t == "ipv4":
+			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
+				return false
+			}
+			o.IPv4Only = true
+		case t == "ipv6":
+			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
+				return false
+			}
+			o.IPv6Only = true
 		case len(t) > 7 && t[:7] == "padding":
 			if o.Padding != 0 || o.TxtFill != 0 {
 				return false
@@ -111,16 +99,6 @@ func (o *Options) ParseOptions(s string) bool {
 			if o.TxtFill < 1 || o.TxtFill > 4000 {
 				return false
 			}
-		case t == "ipv4":
-			if o.IPv4Only || o.IPv6Only {
-				return false
-			}
-			o.IPv4Only = true
-		case t == "ipv6":
-			if o.IPv4Only || o.IPv6Only {
-				return false
-			}
-			o.IPv6Only = true
 		case t == "nosig":
 			if o.NoSig || o.BadSig || o.ExpiredSig != 0 {
 				return false
