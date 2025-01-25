@@ -56,7 +56,6 @@ const countSpan        = document.getElementById('count')
 
 // generates some DNS requests from the browser to the given subdomain
 const makeQuery = (subdomain, abortSignal) => fetch(`https://${subdomain}.dnscheck.tools/`, {
-  method: 'HEAD',
   signal: AbortSignal.any([ abortSignal, AbortSignal.timeout(10000) ]),
 }).then(r => r.ok, () => false)
 
