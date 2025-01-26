@@ -1,6 +1,6 @@
-import { IPAddr, IPRange }           from 'https://www.addr.tools/js/ipaddr'
-import { Client as RDAPClient }      from 'https://www.addr.tools/js/rdap'
-import { debounce, encode, fetchOk } from 'https://www.addr.tools/js/util'
+import { IPAddr, IPRange }      from 'https://www.addr.tools/js/ipaddr'
+import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
+import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
 
 // handle tabs
 const updateTab = tab => {
@@ -395,27 +395,20 @@ const testRTT = async () => {
 
 // monitors resizes to toggle IP list tabular mode
 const monitorResizes = () => {
-  let resizing = false
-  const tryTable = debounce(() => {
-    if (resultsDiv.classList.contains('ip-list-tabular')) {
-      return
-    }
-    resizing = true
-    resultsDiv.classList.add('ip-list-tabular')
-    if (resultsDiv.scrollWidth > resultsDiv.clientWidth) {
-      resultsDiv.classList.remove('ip-list-tabular')
-    }
-    resizing = false
-  }, 100)
+  let minWidth
   const obsvr = new ResizeObserver(() => {
-    if (resizing) {
-      return
-    }
-    if (resultsDiv.scrollWidth > resultsDiv.clientWidth) {
-      resultsDiv.classList.remove('ip-list-tabular')
-      return
-    }
-    tryTable()
+    requestAnimationFrame(() => {
+      if (resultsDiv.classList.contains('ip-list-tabular')) {
+        if (resultsDiv.scrollWidth > resultsDiv.clientWidth) {
+          minWidth = resultsDiv.scrollWidth
+          resultsDiv.classList.remove('ip-list-tabular')
+        }
+        return
+      }
+      if (resultsDiv.clientWidth >= minWidth) {
+        resultsDiv.classList.add('ip-list-tabular')
+      }
+    })
   })
   obsvr.observe(resultsDiv)
   obsvr.observe(resultsDiv.firstElementChild)
