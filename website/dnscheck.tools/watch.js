@@ -40,9 +40,10 @@ window.makeQuery = subdomain => fetch(`https://${subdomain}.dnscheck.tools/`, {
 // returns cached promise of PTR name for given IP string
 const getPtr = ip => {
   if (ptrLookups[ip] === undefined) {
-    ptrLookups[ip] = fetchOk(`https://www.addr.tools/dns/${new IPAddr(ip).reverseZone()}/ptr`).then(r => r.json()).then(
-      ({ Answer }) => Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1)
-    )
+    const url = `https://cloudflare-dns.com/dns-query?name=${new IPAddr(ip).reverseZone()}&type=ptr`
+    ptrLookups[ip] = fetchOk(url, { headers: { Accept: 'application/dns-json' } })
+      .then(r => r.json())
+      .then(({ Answer }) => Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1))
   }
   return ptrLookups[ip]
 }
