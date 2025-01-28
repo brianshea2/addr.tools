@@ -65,7 +65,10 @@ const htmlify = (obj, quoteStrings) => JSON.stringify(obj, jsonReplacer, 2)
     return `<span class="${type} value">${value}</span>`
   })
 
-const dnsLookup = (name, type, fetchOpts) => fetchOk(`https://www.addr.tools/dns/${name}/${type}`, fetchOpts).then(r => r.json())
+const dnsLookup = (name, type, { signal }) => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, {
+  headers: { Accept: 'application/dns-json' },
+  signal,
+}).then(r => r.json())
 const dnsTypes = { 1: 'A', 2: 'NS', 5: 'CNAME', 6: 'SOA', 12: 'PTR', 15: 'MX', 16: 'TXT', 28: 'AAAA', 65: 'HTTPS' }
 const dnsSortOrder = [ 5, 1, 28, 65, 15, 16, 12, 2, 6 ]
 const drawDns = (data, div) => {
@@ -158,7 +161,7 @@ const loadInfo = async () => {
     if (query instanceof IPAddr) {
       await dnsLookup(query.reverseZone(), 'ptr', { signal }).then(handleDnsResponse).catch(handleDnsError)
     } else {
-      await Promise.all([ 'a', 'aaaa', 'https', 'mx', 'txt' ].map(type =>
+      await Promise.all([ 'a', 'aaaa', 'mx', 'txt' ].map(type =>
         dnsLookup(query, type, { signal }).then(handleDnsResponse).catch(handleDnsError)
       ))
       if (nxdomain) {
