@@ -14,7 +14,7 @@
     "DnscheckZones": [
         {
             "Zone": "go.dnscheck.tools.",
-            "Ns": ["dnscheck.tools."],
+            "Ns": ["dns.addr.tools."],
             "Ksk": {
                 "Algorithm": 13,
                 "PublicKey": ""
@@ -34,20 +34,20 @@
         },
         {
             "Zone": "go-unsigned.dnscheck.tools.",
-            "Ns": ["dnscheck.tools."]
+            "Ns": ["dns.addr.tools."]
         }
     ],
     "ChallengesZone": {
         "Zone": "challenges.addr.tools.",
-        "Ns": ["addr.tools."]
+        "Ns": ["dns.addr.tools."]
     },
     "DynZone": {
         "Zone": "dyn.addr.tools.",
-        "Ns": ["addr.tools."]
+        "Ns": ["dns.addr.tools."]
     },
     "IPZone": {
         "Zone": "ip.addr.tools.",
-        "Ns": ["addr.tools."]
+        "Ns": ["dns.addr.tools."]
     },
     "MyaddrZones": [
         {

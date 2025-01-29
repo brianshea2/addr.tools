@@ -9,8 +9,7 @@ $CERTBOT certonly                                                               
   --manual                                                                                                   \
   --manual-auth-hook "$AUTHHOOK"                                                                             \
   --preferred-challenges dns                                                                                 \
-  -d addr.tools                                                                                              \
-  -d dnscheck.tools     -d ipv4.dnscheck.tools  -d ipv6.dnscheck.tools                                       \
+  -d dns.addr.tools     -d ipv4.dns.addr.tools  -d ipv6.dns.addr.tools                                       \
   -d dns.myaddr.tools   -d dns.myaddr.dev       -d dns.myaddr.io
 
 $CERTBOT certonly                                                                                            \
@@ -24,11 +23,11 @@ $CERTBOT certonly                                                               
   -d dyn.addr.tools             -d ipv4.dyn.addr.tools      -d ipv6.dyn.addr.tools                           \
   -d header-echo.addr.tools     -d '*.header-echo.addr.tools'                                                \
   -d info.addr.tools                                                                                         \
-  -d ip.addr.tools                                                                                           \
+  -d ip.addr.tools              -d self.ip.addr.tools       -d self6.ip.addr.tools                           \
   -d myaddr.tools               -d www.myaddr.tools         -d ipv4.myaddr.tools    -d ipv6.myaddr.tools     \
   -d myaddr.dev                 -d www.myaddr.dev           -d ipv4.myaddr.dev      -d ipv6.myaddr.dev       \
   -d myaddr.io                  -d www.myaddr.io            -d ipv4.myaddr.io       -d ipv6.myaddr.io        \
-  -d myip.addr.tools
+  -d myip.addr.tools            -d myipv4.addr.tools        -d myipv6.addr.tools
 
 $CERTBOT certonly                                                                                            \
   --cert-name www-go                                                                                         \
@@ -50,19 +49,3 @@ $CERTBOT certonly                                                               
   -d go-unsigned.dnscheck.tools         -d '*.go-unsigned.dnscheck.tools'                                    \
   -d go-unsigned-ipv4.dnscheck.tools    -d '*.go-unsigned-ipv4.dnscheck.tools'                               \
   -d go-unsigned-ipv6.dnscheck.tools    -d '*.go-unsigned-ipv6.dnscheck.tools'
-
-$CERTBOT certonly                                                                                            \
-  --cert-name www-ipv4                                                                                       \
-  --manual                                                                                                   \
-  --manual-auth-hook "$AUTHHOOK"                                                                             \
-  --preferred-challenges dns                                                                                 \
-  -d myipv4.addr.tools                                                                                       \
-  -d self.ip.addr.tools
-
-$CERTBOT certonly                                                                                            \
-  --cert-name www-ipv6                                                                                       \
-  --manual                                                                                                   \
-  --manual-auth-hook "$AUTHHOOK"                                                                             \
-  --preferred-challenges dns                                                                                 \
-  -d myipv6.addr.tools                                                                                       \
-  -d self6.ip.addr.tools
