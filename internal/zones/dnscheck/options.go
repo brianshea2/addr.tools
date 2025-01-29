@@ -41,8 +41,6 @@ func (o *Options) ParseOptions(s string) bool {
 			s = s[i+1:]
 		}
 		switch {
-		case t == "watch":
-			// deprecated
 		case t == "compress":
 			if o.Compress {
 				return false
