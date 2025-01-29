@@ -87,6 +87,12 @@ const drawDns = (records, div) => {
   }).join('')
 }
 
+const geoLookup = (ip, { signal }) => {
+  const str = `${ip.is4() ? ip : new IPAddr(ip & 0xffffffffffffffff0000000000000000n)}`
+  return fetchOk(`https://ipinfo.addr.tools/${str}`, { signal }).then(r => r.json())
+    .then(({ city, region, country }) => [ city, region, country ].filter(v => v).join(', '))
+}
+
 let abortController
 const loadInfo = async () => {
   abortController = new AbortController()
@@ -127,6 +133,12 @@ const loadInfo = async () => {
     `<h2><abbr title="Registration Data Access Protocol">RDAP</abbr> data</h2>` +
     `<div id="rdap-data">loading...</div></div>`
   document.body.innerHTML += footer
+
+  if (query instanceof IPAddr) {
+    geoLookup(query, { signal }).then(geo => {
+      document.body.firstElementChild.innerHTML += `<div id="geo-data">${encode(geo)}</div>`
+    }).catch(() => {})
+  }
 
   if (!(query instanceof IPRange)) {
     const dnsDataDiv = document.getElementById('dns-data')
