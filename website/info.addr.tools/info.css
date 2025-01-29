@@ -29,7 +29,6 @@
 body {
   background-color: var(--background-color);
   color: var(--text-color);
-  display: inline-block;
   font-size: 13px;
   line-height: 1.3;
   margin: 2em 2em 2em 1em;
@@ -42,43 +41,63 @@ body {
 body, code, kbd, samp, var {
   font-family: 'Roboto Mono', monospace;
 }
-a {
-  color: inherit;
-  text-decoration: underline;
+header {
+  text-align: center;
 }
-a:hover, a:hover + .sublinks {
-  font-weight: bold;
-  text-decoration: underline;
-}
-.domain a:not(:hover) {
-  text-decoration: none;
-}
-.domain a > span {
-  text-decoration: underline;
+footer {
+  margin-top: 1em;
+  opacity: 0.8;
 }
 body > div {
   background-color: inherit;
   border: 1px solid var(--border-color);
   border-radius: 3px;
-  padding: 1em 2em 2em 1em;
-}
-body > div:nth-child(n+2) {
   margin-top: 2em;
+  padding: 1em 1em 2em 1em;
 }
-.title {
+h1 {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  word-break: break-all;
+}
+h1 * {
+  color: inherit !important;
+}
+h2 {
   background-color: inherit;
   display: inline-block;
+  font-size: 1em;
+  font-weight: bold;
+  margin: 0;
   padding: 0 3px;
   position: relative;
   top: -1.65em;
   left: -3px;
   white-space: nowrap;
 }
-.pre {
-  white-space: pre;
+a {
+  color: inherit;
+  text-decoration: none;
 }
-.pre.wrap {
+a:hover, a:hover + .sublinks {
+  font-weight: bold;
+  text-decoration: underline;
+}
+#dns-data {
+  word-break: break-all;
+}
+#dns-data > div {
+  display: flex;
+  gap: 2ch;
+}
+#dns-data > div > span:first-child {
+  flex: 0 0 5ch;
+  text-align: right;
+}
+#rdap-data {
   white-space: pre-wrap;
+  word-break: break-all;
 }
 .error {
   color: var(--text-color-orange);

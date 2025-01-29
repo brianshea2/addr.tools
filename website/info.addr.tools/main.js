@@ -3,17 +3,17 @@ import { Client as RDAPClient }       from 'https://www.addr.tools/js/rdap'
 import { HTTPError, encode, fetchOk } from 'https://www.addr.tools/js/util'
 
 const rdapClient = new RDAPClient()
-
 const domainNamePattern = '(?:[0-9a-z_](?:[0-9a-z_-]*[0-9a-z])?\\.)*[0-9a-z](?:[0-9a-z-]*[0-9a-z])?\\.[a-z][0-9a-z-]*[0-9a-z]'
 const ipOrCidrPattern = `${IPAddr.v4Pattern}(?:/(?:3[0-2]|[1-2][0-9]|[0-9]))?|${IPAddr.v6Pattern}(?:/(?:12[0-8]|1[0-1][0-9]|[1-9][0-9]|[0-9]))?`
 const domainNameRegex = new RegExp(`^${domainNamePattern}$`, 'i')
-const infoRegex = new RegExp(`(?:(${domainNamePattern})|(^|[^0-9a-z.])(${ipOrCidrPattern})(?=[^0-9a-z.]|$))`, 'gi')
+const infoRegex = new RegExp(`(?:(${domainNamePattern})|(?<=^|[^0-9a-z.])(${ipOrCidrPattern})(?=[^0-9a-z.]|$))`, 'gi')
+const footer = `<footer>// <a href="https://info.addr.tools">info.addr.tools</a></footer>`
 
 const jCardFormatter = jCard => jCard[1].reduce((out, prop) => {
   if (prop[0] !== 'version') {
-    const values = prop.slice(3).flat().flatMap(val => typeof val === 'string' ? val.split('\n') : val).filter(val => val !== '')
+    const values = prop.slice(3).flat().flatMap(val => typeof val === 'string' ? val.split(/\r?\n/) : val).filter(val => val !== '')
     const params = Object.entries(prop[1])
-      .map(entry => [ entry[0], [entry[1]].flat().flatMap(val => typeof val === 'string' ? val.split('\n') : val).filter(val => val !== '') ])
+      .map(entry => [ entry[0], [entry[1]].flat().flatMap(val => typeof val === 'string' ? val.split(/\r?\n/) : val).filter(val => val !== '') ])
       .filter(entry => entry[1].length > 0)
       .map(entry => [ entry[0], entry[1].length === 1 ? entry[1][0] : entry[1] ])
     if (params.length > 0) {
@@ -33,14 +33,14 @@ const jsonReplacer = (key, value) => {
       return value.length > 0 ? value : undefined // hide empty arrays
     }
     const entries = Object.entries(value)
-      .filter(([ k ]) => k !== 'rdapConformance' && k !== 'links' && k !== 'notices' && k !== 'port43')
+      .filter(([ k ]) => k !== 'links' && k !== 'notices' && k !== 'port43' && k !== 'rdapConformance' && k !== 'redacted')
       .map(entry => entry[0] === 'vcardArray' ? [ 'vCardObj', jCardFormatter(entry[1]) ] : entry)
       .map(([ k, v ]) => [ `<key>${encode(k)}</key>`, v ])
     return entries.length > 0 ? Object.fromEntries(entries) : undefined // hide empty objects
   }
   if (type === 'string') {
     value = encode(value)
-    value = value.replace(infoRegex, (_, domain, beforeIp, ip) => domain !== undefined ? `<domain>${domain}</domain>` : `${beforeIp}<ip>${ip}</ip>`)
+    value = value.replace(infoRegex, (_, domain, ip) => domain !== undefined ? `<domain>${domain}</domain>` : `<ip>${ip}</ip>`)
   }
   return `<value ${type}>${value}</value>`
 }
@@ -71,25 +71,20 @@ const dnsLookup = (name, type, { signal }) => fetchOk(`https://cloudflare-dns.co
 }).then(r => r.json())
 const dnsTypes = { 1: 'A', 2: 'NS', 5: 'CNAME', 6: 'SOA', 12: 'PTR', 15: 'MX', 16: 'TXT', 28: 'AAAA', 65: 'HTTPS' }
 const dnsSortOrder = [ 5, 1, 28, 65, 15, 16, 12, 2, 6 ]
-const drawDns = (data, div) => {
-  data = data.filter(o => o.type in dnsTypes).reduce((seen, current) => {
+const drawDns = (records, div) => {
+  records = records.filter(o => o.type in dnsTypes).reduce((seen, current) => {
     if (seen.every(o => o.type !== current.type || o.name !== current.name || o.data !== current.data)) {
       seen.push(current)
     }
     return seen
   }, [])
-  data.sort((a, b) => dnsSortOrder.indexOf(a.type) - dnsSortOrder.indexOf(b.type))
-  const nameWidth = data.map(o => o.name.length).reduce((max, current) => current > max ? current : max, 0)
-  div.innerHTML = data.map(
-    o => [
-      ' '.repeat(5 - dnsTypes[o.type].length),
-      dnsTypes[o.type],
-      ' '.repeat(2),
-      htmlify(o.name, false),
-      ' '.repeat(2 + nameWidth - o.name.length),
-      htmlify(o.data, false)
-    ].join('')
-  ).join('<br>')
+  records.sort((a, b) => dnsSortOrder.indexOf(a.type) - dnsSortOrder.indexOf(b.type))
+  div.innerHTML = records.map(({ type, data }) => {
+    if (type === 6) {
+      data = data.replace(/(?<= .*)(?<!\\)\./, '@').replace(/\\\./g, '.')
+    }
+    return `<div><span>${dnsTypes[type]}</span> ${htmlify(data, false)}</div>`
+  }).join('')
 }
 
 let abortController
@@ -116,21 +111,22 @@ const loadInfo = async () => {
 
   if (query === null) {
     document.title = 'info.addr.tools'
-    document.body.innerHTML = `<div><div class="title">Error</div><div class="error">Invalid address</div></div>`
+    document.body.innerHTML = `<div><h2>Error</h2><div class="error">Invalid address</div></div>${footer}`
     return
   }
 
-  const name = query.toString()
+  const name = (query instanceof IPAddr) || (query instanceof IPRange) ? query.toString(true) : query
   document.title = name
-  document.body.innerHTML = ''
+  document.body.innerHTML = `<header><h1>${htmlify(name, false)}</h1></header>`
   if (!(query instanceof IPRange)) {
     document.body.innerHTML += `<div id="dns-container">` +
-      `<div class="title"><abbr title="Domain Name System">DNS</abbr> records for ${htmlify(name, false)}</div>` +
-      `<div id="dns-data" class="pre">loading...</div></div>`
+      `<h2><abbr title="Domain Name System">DNS</abbr> records</h2>` +
+      `<div id="dns-data">loading...</div></div>`
   }
   document.body.innerHTML += `<div id="rdap-container">` +
-    `<div class="title"><abbr title="Registration Data Access Protocol">RDAP</abbr> data for ${htmlify(name, false)}</div>` +
-    `<div id="rdap-data" class="pre wrap">loading...</div></div>`
+    `<h2><abbr title="Registration Data Access Protocol">RDAP</abbr> data</h2>` +
+    `<div id="rdap-data">loading...</div></div>`
+  document.body.innerHTML += footer
 
   if (!(query instanceof IPRange)) {
     const dnsDataDiv = document.getElementById('dns-data')

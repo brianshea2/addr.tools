@@ -35,21 +35,30 @@ class IPAddr {
       `${this.#octets().reverse().join('.')}.in-addr.arpa` :
       `${this.#hexString().split('').reverse().join('.')}.ip6.arpa`
   }
-  toString(force6) {
-    return !force6 && this.is4() ?
-      this.#octets().join('.') :
-      this.#hexString().match(/.{4}/g).join(':')
+  toString(short6, force6) {
+    if (this.is4() && !force6) {
+      return this.#octets().join('.')
+    }
+    let str = this.#hexString().match(/.{4}/g).join(':')
+    if (short6) {
+      const contiguousZeroWydes = [ ...str.matchAll(/:?(0000(?::0000)+):?/g) ]
+      if (contiguousZeroWydes.length) {
+        const longestMatch = contiguousZeroWydes.reduce((a, b) => b[1].length > a[1].length ? b : a)
+        str = str.slice(0, longestMatch.index) + '::' + str.slice(longestMatch.index + longestMatch[0].length)
+      }
+      str = str.replace(/(?<=^|:)0{1,3}/g, '')
+    }
+    return str
   }
   valueOf() {
     return this.value
   }
   static v4Pattern = Array(4).fill('(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])').join('\\.')
-  static v6Pattern
-  static {
-    const wyde = '[0-9a-fA-F]{1,4}'
-    const patterns = Array.from(Array(8), (_, i) => `${i === 0 ? ':' : `(?:${wyde}:){${i}}`}${i === 7 ? `(?::|${wyde})` : `(?::|(?::${wyde}){1,${7-i}})`}`)
-    this.v6Pattern = `(?:${patterns.join('|')})`
-  }
+  static v6Pattern = `(?:${[
+    '(?:[0-9a-fA-F]{1,4}:){7}(?:[0-9a-fA-F]{1,4}|:)',
+    ...Array.from(Array(6), (_, i) => `(?:[0-9a-fA-F]{1,4}:){${6-i}}(?:(?::[0-9a-fA-F]{1,4}){1,${i+1}}|:)`),
+    ':(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)',
+  ].join('|')})`
   static v4Regex = new RegExp(`^${this.v4Pattern}$`)
   static v6Regex = new RegExp(`^${this.v6Pattern}$`)
 }
@@ -86,11 +95,11 @@ class IPRange {
     }
     return ipOrRange >= this.start && ipOrRange <= this.end
   }
-  toString() {
+  toString(short6) {
     let hostBits = this.start ^ this.end
     if ((hostBits + 1n) & hostBits) {
       const force6 = !this.start.is4() || !this.end.is4()
-      return `${this.start.toString(force6)}-${this.end.toString(force6)}`
+      return `${this.start.toString(short6, force6)} - ${this.end.toString(short6, force6)}`
     }
     let prefixLength = 128
     while (hostBits >= 0xffn) {
@@ -101,7 +110,7 @@ class IPRange {
       hostBits >>= 1n
       prefixLength -= 1
     }
-    return `${this.start}/${this.start.is4() ? prefixLength - 96 : prefixLength}`
+    return `${this.start.toString(short6)}/${this.start.is4() ? prefixLength - 96 : prefixLength}`
   }
   static cidr4Pattern = `${IPAddr.v4Pattern}/(?:3[0-2]|[1-2][0-9]|[0-9])`
   static cidr6Pattern = `${IPAddr.v6Pattern}/(?:12[0-8]|1[0-1][0-9]|[1-9][0-9]|[0-9])`
