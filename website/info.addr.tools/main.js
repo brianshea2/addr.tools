@@ -57,13 +57,14 @@ const domainLinks = domain => {
 const htmlify = (obj, quoteStrings) => JSON.stringify(obj, jsonReplacer, 2)
   .replace(/<domain>(.*?)<\/domain>/g, (_, domain) => `<span class="domain">${domainLinks(domain)}</span>`)
   .replace(/<ip>(.*?)<\/ip>/g, (_, ip) => `<span class="ip">${infoLink(ip)}</span>`)
-  .replace(/"<key>(.*?)<\/key>"/g, (_, key) => `<span class="key">"${key}"</span>`)
+  .replace(/"<key>(.*?)<\/key>"/g, '<span class="key">$1</span>')
   .replace(/"<value (.*?)>(.*?)<\/value>"/g, (_, type, value) => {
     if (quoteStrings && type === 'string') {
       value = `"${value}"`
     }
     return `<span class="${type} value">${value}</span>`
   })
+  .replace(/\[\n\s*(.*?)\n\s*\]/g, '[ $1 ]')
 
 const dnsLookup = (name, type, { signal }) => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, {
   headers: { Accept: 'application/dns-json' },
