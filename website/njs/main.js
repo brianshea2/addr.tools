@@ -4,35 +4,14 @@ const get_self_ip_host = r =>
 const make_client_id = () =>
   Math.floor(Math.random() * 0xffffffff).toString(16)
 
-const myip_content = r => {
-  if (r.args.format === "json") {
-    r.headersOut["Content-Type"] = "application/json"
-    const obj = {}
-    if (r.args.key === undefined) {
-      obj.ip = r.variables.remote_addr
-    } else {
-      obj[r.args.key] = r.variables.remote_addr
-    }
-    r.return(200, JSON.stringify(obj))
-    return
+const make_myip_json = r => {
+  const obj = {}
+  if (r.args.key === undefined) {
+    obj.ip = r.variables.remote_addr
+  } else {
+    obj[r.args.key] = r.variables.remote_addr
   }
-  if (r.args.format === "pfsense") {
-    r.headersOut["Content-Type"] = "text/html"
-    r.return(200, `<html><head><title>Current IP Check</title></head><body>Current IP Address: ${r.variables.remote_addr}</body></html>\n`)
-    return
-  }
-  if (r.args.format === "plain") {
-    r.headersOut["Content-Type"] = "text/plain"
-    r.return(200, r.variables.remote_addr)
-    return
-  }
-  if (r.args.format === undefined) {
-    r.headersOut["Content-Type"] = "text/plain"
-    r.return(200, r.variables.remote_addr + "\n")
-    return
-  }
-  r.headersOut["Content-Type"] = "text/plain"
-  r.return(400, "Bad format\n")
+  return JSON.stringify(obj)
 }
 
 const header_echo_content = r => {
@@ -76,7 +55,7 @@ const header_echo = r => {
 export default {
   get_self_ip_host,
   make_client_id,
-  myip_content,
+  make_myip_json,
   header_echo_content,
   header_echo
 }
