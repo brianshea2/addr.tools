@@ -1,6 +1,6 @@
-import { IPAddr, IPRange }            from 'https://www.addr.tools/js/ipaddr'
-import { Client as RDAPClient }       from 'https://www.addr.tools/js/rdap'
-import { HTTPError, encode, fetchOk } from 'https://www.addr.tools/js/util'
+import { IPAddr, IPRange }                                from 'https://www.addr.tools/js/ipaddr'
+import { Client as RDAPClient, RDAPServiceNotFoundError } from 'https://www.addr.tools/js/rdap'
+import { encode, fetchOk }                                from 'https://www.addr.tools/js/util'
 
 const rdapClient = new RDAPClient()
 const domainNamePattern = '(?:[0-9a-z_](?:[0-9a-z_-]*[0-9a-z])?\\.)*[0-9a-z](?:[0-9a-z-]*[0-9a-z])?\\.[a-z][0-9a-z-]*[0-9a-z]'
@@ -196,21 +196,32 @@ const loadInfo = async () => {
     }
   }
 
+  const rdapDataDiv = document.getElementById('rdap-data')
   if ((query instanceof IPAddr) || (query instanceof IPRange)) {
     await rdapClient.lookupIP(query, { signal })
       .then(({ data }) => {
-        document.getElementById('rdap-data').innerHTML = htmlify(data, true)
+        rdapDataDiv.innerHTML = htmlify(data, true)
       })
       .catch(e => {
-        document.getElementById('rdap-data').innerHTML = `<span class="error">No data (${encode(e.message)})</span>`
+        rdapDataDiv.innerHTML = `<span class="error">No data (${encode(e.message)})</span>`
       })
   } else {
     await rdapClient.lookupDomain(query, { signal })
       .then(({ data }) => {
-        document.getElementById('rdap-data').innerHTML = htmlify(data, true)
+        rdapDataDiv.innerHTML = htmlify(data, true)
       })
-      .catch(() => {
-        document.getElementById('rdap-container').remove()
+      .catch(e => {
+        if (e instanceof RDAPServiceNotFoundError) {
+          rdapDataDiv.innerHTML = `<span class="error">No RDAP service found for this domain</span>`
+          return
+        }
+        const labels = query.split('.')
+        if (labels.length > 2) {
+          labels.shift()
+          rdapDataDiv.innerHTML = `<span class="error">No data. Try a parent domain: ${htmlify(labels.join('.'), false)}</span>`
+          return
+        }
+        rdapDataDiv.innerHTML = `<span class="error">No data (${encode(e.message)})</span>`
       })
   }
 }
