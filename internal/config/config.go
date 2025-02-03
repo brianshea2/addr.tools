@@ -38,17 +38,16 @@ const (
 )
 
 type Config struct {
-	HTTPSocketPath          string
-	RequestLogPath          string
-	DatabasePath            string
-	TLSCertPath             string
-	TLSKeyPath              string
-	ResponseAddrs           []net.IP
-	InternalChallengeTarget string
-	LookupUpstream          string
-	IPInfoBaseURL           string
-	MyaddrTurnstileSecret   string
-	DnscheckZones           []struct {
+	HTTPSocketPath        string
+	RequestLogPath        string
+	DatabasePath          string
+	TLSCertPath           string
+	TLSKeyPath            string
+	ResponseAddrs         dnsutil.IPCollection
+	LookupUpstream        string
+	IPInfoBaseURL         string
+	MyaddrTurnstileSecret string
+	DnscheckZones         []struct {
 		*dnscheck.DnscheckHandler
 		PrivateKey string
 	}
@@ -96,11 +95,6 @@ func ParsePrivateKey(s string) []byte {
 }
 
 func (config *Config) Run() {
-	// create response IPCollection for record generators
-	var addrs dnsutil.IPCollection
-	for _, ip := range config.ResponseAddrs {
-		addrs.Add(ip)
-	}
 	// init status handler, uptime
 	statusHandler := new(status.StatusHandler)
 	statusHandler.Add(status.NewUptimeProvider())
@@ -165,8 +159,8 @@ func (config *Config) Run() {
 	// init and set dnscheck handlers
 	largeResponseLimiter := rate.NewLimiter(rate.Limit(MaxDnscheckLargeResponseRate), MaxDnscheckLargeResponseRate)
 	for _, h := range config.DnscheckZones {
-		h.DnscheckHandler.Addrs = addrs
-		h.DnscheckHandler.ChallengeTarget = config.InternalChallengeTarget
+		h.DnscheckHandler.IPv4 = config.ResponseAddrs.IPv4
+		h.DnscheckHandler.IPv6 = config.ResponseAddrs.IPv6
 		h.DnscheckHandler.LargeResponseLimiter = largeResponseLimiter
 		h.DnscheckHandler.Watchers = watcherHub
 		h.DnscheckHandler.IPInfoClient = ipinfoClient
@@ -177,9 +171,9 @@ func (config *Config) Run() {
 	// init and set challenges handler
 	if config.ChallengesZone.SimpleHandler != nil {
 		config.ChallengesZone.SimpleHandler.RecordGenerator = &challenges.RecordGenerator{
-			Addrs:               addrs,
-			SelfChallengeTarget: config.InternalChallengeTarget,
-			ChallengeStore:      challengeStore,
+			IPv4:           config.ResponseAddrs.IPv4,
+			IPv6:           config.ResponseAddrs.IPv6,
+			ChallengeStore: challengeStore,
 		}
 		config.ChallengesZone.SimpleHandler.Init(ParsePrivateKey(config.ChallengesZone.PrivateKey))
 		dns.Handle(config.ChallengesZone.SimpleHandler.Zone, config.ChallengesZone.SimpleHandler)
@@ -191,9 +185,9 @@ func (config *Config) Run() {
 	// init and set dyn handler
 	if config.DynZone.SimpleHandler != nil {
 		config.DynZone.SimpleHandler.RecordGenerator = &dyn.RecordGenerator{
-			Addrs:               addrs,
-			SelfChallengeTarget: config.InternalChallengeTarget,
-			DataStore:           persistentStore,
+			IPv4:      config.ResponseAddrs.IPv4,
+			IPv6:      config.ResponseAddrs.IPv6,
+			DataStore: persistentStore,
 		}
 		config.DynZone.SimpleHandler.Init(ParsePrivateKey(config.DynZone.PrivateKey))
 		dns.Handle(config.DynZone.SimpleHandler.Zone, config.DynZone.SimpleHandler)
@@ -205,9 +199,9 @@ func (config *Config) Run() {
 	// init and set ip zone handler
 	if config.IPZone.SimpleHandler != nil {
 		config.IPZone.SimpleHandler.RecordGenerator = &ipzone.RecordGenerator{
-			Addrs:               addrs,
-			SelfChallengeTarget: config.InternalChallengeTarget,
-			ChallengeStore:      challengeStore,
+			IPv4:           config.ResponseAddrs.IPv4,
+			IPv6:           config.ResponseAddrs.IPv6,
+			ChallengeStore: challengeStore,
 		}
 		config.IPZone.SimpleHandler.UpdateHandler = &ipzone.UpdateHandler{
 			ChallengeStore: challengeStore,
@@ -219,11 +213,11 @@ func (config *Config) Run() {
 	// init and set myaddr handlers
 	for _, h := range config.MyaddrZones {
 		h.SimpleHandler.RecordGenerator = &myaddr.RecordGenerator{
-			Addrs:               addrs,
-			SelfChallengeTarget: config.InternalChallengeTarget,
-			DataStore:           persistentStore,
-			ChallengeStore:      challengeStore,
-			KeyPrefix:           "myaddr:",
+			IPv4:           config.ResponseAddrs.IPv4,
+			IPv6:           config.ResponseAddrs.IPv6,
+			DataStore:      persistentStore,
+			ChallengeStore: challengeStore,
+			KeyPrefix:      "myaddr:",
 		}
 		h.SimpleHandler.Init(ParsePrivateKey(h.PrivateKey))
 		dns.Handle(h.SimpleHandler.Zone, h.SimpleHandler)

@@ -3,6 +3,7 @@ package myaddr
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -12,11 +13,11 @@ import (
 )
 
 type RecordGenerator struct {
-	Addrs               dnsutil.IPCollection
-	SelfChallengeTarget string
-	DataStore           ttlstore.TtlStore
-	ChallengeStore      ttlstore.TtlStore
-	KeyPrefix           string
+	IPv4           []net.IP
+	IPv6           []net.IP
+	DataStore      ttlstore.TtlStore
+	ChallengeStore ttlstore.TtlStore
+	KeyPrefix      string
 }
 
 func GetName(sub string) string {
@@ -32,25 +33,6 @@ func GetName(sub string) string {
 }
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
-	defer func() {
-		if validName && q.Qtype == dns.TypeTXT {
-			var ttl uint32
-			if len(rrs) > 0 {
-				ttl = rrs[0].Header().Ttl
-			} else {
-				ttl = 300
-			}
-			rrs = append(rrs, &dns.TXT{
-				Hdr: dns.RR_Header{
-					Name:   q.Name,
-					Rrtype: dns.TypeTXT,
-					Class:  dns.ClassINET,
-					Ttl:    ttl,
-				},
-				Txt: dnsutil.SplitForTxt("v=spf1 -all"),
-			})
-		}
-	}()
 	if len(q.Name) < len(zone) {
 		return
 	}
@@ -72,7 +54,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			if ipv6Only {
 				break
 			}
-			for _, ip := range g.Addrs.IPv4 {
+			for _, ip := range g.IPv4 {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -87,7 +69,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			if ipv4Only {
 				break
 			}
-			for _, ip := range g.Addrs.IPv6 {
+			for _, ip := range g.IPv6 {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -98,25 +80,6 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 					AAAA: ip,
 				})
 			}
-		}
-		return
-	}
-	if dnsutil.EqualNames(sub, "_acme-challenge.") ||
-		dnsutil.EqualNames(sub, "_acme-challenge.dns.") ||
-		dnsutil.EqualNames(sub, "_acme-challenge.www.") ||
-		dnsutil.EqualNames(sub, "_acme-challenge.ipv4.") ||
-		dnsutil.EqualNames(sub, "_acme-challenge.ipv6.") {
-		validName = true
-		if q.Qtype == dns.TypeTXT {
-			rrs = append(rrs, &dns.CNAME{
-				Hdr: dns.RR_Header{
-					Name:   q.Name,
-					Rrtype: dns.TypeCNAME,
-					Class:  dns.ClassINET,
-					Ttl:    300,
-				},
-				Target: g.SelfChallengeTarget,
-			})
 		}
 		return
 	}
@@ -165,6 +128,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				created, _, expires := GetRegistrationInfo(name, g.DataStore, g.KeyPrefix)
 				if created > 0 {
 					txts := []string{
+						"v=spf1 -all",
 						fmt.Sprintf("registered %s", time.Unix(int64(created), 0).UTC()),
 						fmt.Sprintf("expires %s", time.Unix(int64(expires), 0).UTC()),
 					}

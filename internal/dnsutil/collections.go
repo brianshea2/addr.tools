@@ -22,12 +22,34 @@ func (c *IPCollection) Add(ip net.IP) {
 	}
 }
 
+func (c *IPCollection) MarshalJSON() ([]byte, error) {
+	all := make([]net.IP, len(c.IPv4)+len(c.IPv6))
+	copy(all, c.IPv4)
+	copy(all[len(c.IPv4):], c.IPv6)
+	return json.Marshal(all)
+}
+
+func (c *IPCollection) UnmarshalJSON(data []byte) error {
+	var ips []net.IP
+	err := json.Unmarshal(data, &ips)
+	if err != nil {
+		return err
+	}
+	*c = IPCollection{}
+	for _, ip := range ips {
+		c.Add(ip)
+	}
+	return nil
+}
+
 type StaticRecords []dns.RR
 
 func (s StaticRecords) Get(question *dns.Question) (rrs []dns.RR) {
 	for _, rr := range s {
 		hdr := rr.Header()
-		if hdr.Class == question.Qclass && hdr.Rrtype == question.Qtype && EqualNames(hdr.Name, question.Name) {
+		if hdr.Class == question.Qclass &&
+			(hdr.Rrtype == question.Qtype || hdr.Rrtype == dns.TypeCNAME) &&
+			EqualNames(hdr.Name, question.Name) {
 			rrs = append(rrs, rr)
 		}
 	}

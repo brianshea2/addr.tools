@@ -49,8 +49,8 @@ type DnscheckHandler struct {
 	Zone                 string
 	Ns                   []string
 	HostMasterMbox       string
-	Addrs                dnsutil.IPCollection
-	ChallengeTarget      string
+	IPv4                 []net.IP
+	IPv6                 []net.IP
 	StaticRecords        dnsutil.StaticRecords
 	LargeResponseLimiter *rate.Limiter
 	Watchers             WatcherHub
@@ -122,10 +122,10 @@ func (h *DnscheckHandler) SOA(q *dns.Question) dns.RR {
 
 func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	q := &req.Question[0]
-	name := h.ParseName(q.Name)
+	opts := ParseOptions(q.Name, len(h.Zone))
 	// send to watcher
-	if name != nil && len(name.Random) > 0 {
-		watcher := h.Watchers.Get(name.Random)
+	if opts != nil && len(opts.Random) > 0 {
+		watcher := h.Watchers.Get(opts.Random)
 		if watcher != nil {
 			watcher.Send(req, w.RemoteAddr(), w.(dns.ConnectionStater).ConnectionState())
 		}
@@ -161,13 +161,13 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	// defer compress & truncate
 	defer func() {
-		if name == nil || !name.NoTruncate {
+		if opts == nil || !opts.NoTruncate {
 			dnsutil.MaybeTruncate(req, resp, w.RemoteAddr().Network())
 		}
-		if name != nil && name.Compress {
+		if opts != nil && opts.Compress {
 			resp.Compress = true
 		}
-		if name != nil && name.Truncate && w.RemoteAddr().Network() == "udp" {
+		if opts != nil && opts.Truncate && w.RemoteAddr().Network() == "udp" {
 			resp.Truncated = true
 			resp.Answer = nil
 			resp.Ns = nil
@@ -178,12 +178,12 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		return // no further answers
 	}
 	defer func() {
-		if name != nil && name.NoSig {
+		if opts != nil && opts.NoSig {
 			return
 		}
 		var validFrom, validTo uint32
-		if name != nil && name.ExpiredSig != 0 {
-			validTo = uint32(time.Now().Unix()) - uint32(name.ExpiredSig)
+		if opts != nil && opts.ExpiredSig != 0 {
+			validTo = uint32(time.Now().Unix()) - uint32(opts.ExpiredSig)
 			validFrom = validTo - 7200
 			if len(resp.Answer) > 0 {
 				validFrom -= resp.Answer[0].Header().Ttl
@@ -194,7 +194,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		var provider interface {
 			Prove(req, resp *dns.Msg, validFrom, validTo uint32) error
 		}
-		if name != nil && name.BadSig {
+		if opts != nil && opts.BadSig {
 			provider = h.BadDnssecProvider
 		} else {
 			provider = h.DnssecProvider
@@ -211,38 +211,8 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			resp.Ns = append(resp.Ns, h.SOA(q))
 		}
 	}()
-	// is this a valid name?
-	if name == nil {
-		if opt := resp.IsEdns0(); opt != nil {
-			opt.Option = append(opt.Option, &dns.EDNS0_EDE{
-				InfoCode:  dns.ExtendedErrorCodeOther,
-				ExtraText: "invalid subdomain options",
-			})
-		}
-		resp.Rcode = dns.RcodeNameError
-		return
-	}
-	// error response requested
-	if name.Rcode != 0 {
-		resp.Rcode = name.Rcode
-		return
-	}
-	// handle ANY queries
-	if q.Qtype == dns.TypeANY {
-		resp.Answer = append(resp.Answer, &dns.HINFO{
-			Hdr: dns.RR_Header{
-				Name:   q.Name,
-				Rrtype: dns.TypeHINFO,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			Cpu: "RFC8482",
-			Os:  "",
-		})
-		return
-	}
 	// apex records
-	if name.IsApex {
+	if len(q.Name) == len(h.Zone) {
 		switch q.Qtype {
 		case dns.TypeSOA:
 			resp.Answer = append(resp.Answer, h.SOA(q))
@@ -267,23 +237,40 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			resp.Answer = append(resp.Answer, rrs...)
 		}
 	}
-	// acme dns-01 challenge record
-	if name.IsAcmeChallenge {
-		if q.Qtype == dns.TypeTXT {
-			resp.Answer = append(resp.Answer, &dns.CNAME{
-				Hdr: dns.RR_Header{
-					Name:   q.Name,
-					Rrtype: dns.TypeCNAME,
-					Class:  dns.ClassINET,
-					Ttl:    300,
-				},
-				Target: h.ChallengeTarget,
-			})
+	// invalid options provided
+	if opts == nil {
+		if len(resp.Answer) == 0 {
+			if opt := resp.IsEdns0(); opt != nil {
+				opt.Option = append(opt.Option, &dns.EDNS0_EDE{
+					InfoCode:  dns.ExtendedErrorCodeOther,
+					ExtraText: "invalid subdomain options",
+				})
+			}
+			resp.Rcode = dns.RcodeNameError
 		}
-		return // no further answers
+		return
+	}
+	// error response requested
+	if opts.Rcode != 0 {
+		resp.Rcode = opts.Rcode
+		return
+	}
+	// handle ANY queries
+	if q.Qtype == dns.TypeANY && len(resp.Answer) == 0 {
+		resp.Answer = append(resp.Answer, &dns.HINFO{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeHINFO,
+				Class:  dns.ClassINET,
+				Ttl:    300,
+			},
+			Cpu: "RFC8482",
+			Os:  "",
+		})
+		return
 	}
 	// edns0 padding
-	if name.Padding != 0 && (q.Qtype == dns.TypeA || q.Qtype == dns.TypeAAAA || q.Qtype == dns.TypeTXT) {
+	if opts.Padding != 0 && (q.Qtype == dns.TypeA || q.Qtype == dns.TypeAAAA || q.Qtype == dns.TypeTXT) {
 		if opt := resp.IsEdns0(); opt != nil {
 			if !h.LargeResponseLimiter.Allow() {
 				log.Printf("[warn] DnscheckHandler.ServeDNS: padding request rate limited for %s", w.RemoteAddr())
@@ -295,17 +282,17 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				return
 			}
 			opt.Option = append(opt.Option, &dns.EDNS0_PADDING{
-				Padding: make([]byte, name.Padding),
+				Padding: make([]byte, opts.Padding),
 			})
 		}
 	}
 	// other records
 	switch q.Qtype {
 	case dns.TypeA:
-		if name.IPv6Only {
+		if opts.IPv6Only {
 			break
 		}
-		if name.NullIP {
+		if opts.NullIP {
 			resp.Answer = append(resp.Answer, &dns.A{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
@@ -316,7 +303,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				A: net.IPv4zero,
 			})
 		} else {
-			for _, ip := range h.Addrs.IPv4 {
+			for _, ip := range h.IPv4 {
 				resp.Answer = append(resp.Answer, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -329,10 +316,10 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 		}
 	case dns.TypeAAAA:
-		if name.IPv4Only {
+		if opts.IPv4Only {
 			break
 		}
-		if name.NullIP {
+		if opts.NullIP {
 			resp.Answer = append(resp.Answer, &dns.AAAA{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
@@ -343,7 +330,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				AAAA: net.IPv6zero,
 			})
 		} else {
-			for _, ip := range h.Addrs.IPv6 {
+			for _, ip := range h.IPv6 {
 				resp.Answer = append(resp.Answer, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -356,7 +343,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 		}
 	case dns.TypeTXT:
-		if name.TxtFill != 0 {
+		if opts.TxtFill != 0 {
 			if !h.LargeResponseLimiter.Allow() {
 				log.Printf("[warn] DnscheckHandler.ServeDNS: txtfill request rate limited for %s", w.RemoteAddr())
 				if opt := resp.IsEdns0(); opt != nil {
@@ -375,7 +362,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 					Class:  dns.ClassINET,
 					Ttl:    1,
 				},
-				Txt: dnsutil.SplitForTxt(strings.Repeat("0", name.TxtFill)),
+				Txt: dnsutil.SplitForTxt(strings.Repeat("0", opts.TxtFill)),
 			})
 			break // no more txts
 		}

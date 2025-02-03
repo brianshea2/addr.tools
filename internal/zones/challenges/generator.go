@@ -1,15 +1,17 @@
 package challenges
 
 import (
+	"net"
+
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
 	"github.com/miekg/dns"
 )
 
 type RecordGenerator struct {
-	Addrs               dnsutil.IPCollection
-	SelfChallengeTarget string
-	ChallengeStore      ttlstore.TtlStore
+	IPv4           []net.IP
+	IPv6           []net.IP
+	ChallengeStore ttlstore.TtlStore
 }
 
 func IsValidSubdomain(sub string) bool {
@@ -39,7 +41,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		validName = true
 		switch q.Qtype {
 		case dns.TypeA:
-			for _, ip := range g.Addrs.IPv4 {
+			for _, ip := range g.IPv4 {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -51,7 +53,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				})
 			}
 		case dns.TypeAAAA:
-			for _, ip := range g.Addrs.IPv6 {
+			for _, ip := range g.IPv6 {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -62,21 +64,6 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 					AAAA: ip,
 				})
 			}
-		}
-		return
-	}
-	if dnsutil.EqualNames(sub, "_acme-challenge.") {
-		validName = true
-		if q.Qtype == dns.TypeTXT {
-			rrs = append(rrs, &dns.CNAME{
-				Hdr: dns.RR_Header{
-					Name:   q.Name,
-					Rrtype: dns.TypeCNAME,
-					Class:  dns.ClassINET,
-					Ttl:    300,
-				},
-				Target: g.SelfChallengeTarget,
-			})
 		}
 		return
 	}

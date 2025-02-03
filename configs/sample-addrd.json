@@ -8,7 +8,6 @@
         "192.0.2.1",
         "2001:db8::1"
     ],
-    "InternalChallengeTarget": "_acme-challenge.addr.tools.",
     "LookupUpstream": "[2606:4700:4700::1111]:53",
     "MyaddrTurnstileSecret": "",
     "DnscheckZones": [
