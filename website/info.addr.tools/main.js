@@ -196,31 +196,21 @@ const loadInfo = async () => {
     }
   }
 
-  const rdapDataDiv = document.getElementById('rdap-data')
-
   if ((query instanceof IPAddr) || (query instanceof IPRange)) {
     await rdapClient.lookupIP(query, { signal })
       .then(({ data }) => {
-        rdapDataDiv.innerHTML = htmlify(data, true)
+        document.getElementById('rdap-data').innerHTML = htmlify(data, true)
       })
       .catch(e => {
-        rdapDataDiv.innerHTML = `<span class="error">No data (${encode(e.message)})</span>`
+        document.getElementById('rdap-data').innerHTML = `<span class="error">No data (${encode(e.message)})</span>`
       })
   } else {
     await rdapClient.lookupDomain(query, { signal })
       .then(({ data }) => {
-        rdapDataDiv.innerHTML = htmlify(data, true)
+        document.getElementById('rdap-data').innerHTML = htmlify(data, true)
       })
-      .catch(e => {
-        let msg
-        if (e instanceof HTTPError) {
-          const labels = query.split('.')
-          if (labels.length > 2) {
-            labels.shift()
-            msg = `try ${infoLink(labels.join('.'))}`
-          }
-        }
-        rdapDataDiv.innerHTML = `<span class="error">No data (${msg ?? encode(e.message)})</span>`
+      .catch(() => {
+        document.getElementById('rdap-container').remove()
       })
   }
 }
