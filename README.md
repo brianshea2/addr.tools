@@ -2,6 +2,7 @@
 
 ## This repo contains the source code for:
 - [challenges.addr.tools](https://challenges.addr.tools/) - dns-01 ACME challenge helper zone
+- [cname.addr.tools](https://cname.addr.tools/) - construct domain name aliases
 - [dyn.addr.tools](https://dyn.addr.tools/) - simple dynamic DNS for your own domains, no account required
 - [header-echo.addr.tools](https://header-echo.addr.tools/help) - view HTTP request headers, craft HTTP response headers
 - [info.addr.tools](https://info.addr.tools/) - explore identifying information for domain names and IP addresses
