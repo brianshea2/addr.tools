@@ -211,8 +211,11 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			resp.Ns = append(resp.Ns, h.SOA(q))
 		}
 	}()
+	// assume domain does not exist until validated below
+	resp.Rcode = dns.RcodeNameError
 	// apex records
 	if len(q.Name) == len(h.Zone) {
+		resp.Rcode = dns.RcodeSuccess
 		switch q.Qtype {
 		case dns.TypeSOA:
 			resp.Answer = append(resp.Answer, h.SOA(q))
@@ -232,24 +235,27 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	// static records
 	if h.StaticRecords != nil {
-		rrs := h.StaticRecords.Get(q)
+		rrs, validName := h.StaticRecords.Get(q)
 		if len(rrs) > 0 {
 			resp.Answer = append(resp.Answer, rrs...)
 		}
+		if validName {
+			resp.Rcode = dns.RcodeSuccess
+		}
 	}
-	// invalid options provided
+	// validate options
 	if opts == nil {
-		if len(resp.Answer) == 0 {
+		if resp.Rcode == dns.RcodeNameError {
 			if opt := resp.IsEdns0(); opt != nil {
 				opt.Option = append(opt.Option, &dns.EDNS0_EDE{
 					InfoCode:  dns.ExtendedErrorCodeOther,
 					ExtraText: "invalid subdomain options",
 				})
 			}
-			resp.Rcode = dns.RcodeNameError
 		}
 		return
 	}
+	resp.Rcode = dns.RcodeSuccess
 	// error response requested
 	if opts.Rcode != 0 {
 		resp.Rcode = opts.Rcode

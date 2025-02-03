@@ -144,8 +144,11 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			})
 		}
 	}()
+	// assume domain does not exist until validated below
+	resp.Rcode = dns.RcodeNameError
 	// apex records
 	if len(q.Name) == len(h.Zone) {
+		resp.Rcode = dns.RcodeSuccess
 		switch q.Qtype {
 		case dns.TypeSOA:
 			resp.Answer = append(resp.Answer, h.SOA(q))
@@ -165,22 +168,22 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	// static records
 	if h.StaticRecords != nil {
-		rrs := h.StaticRecords.Get(q)
+		rrs, validName := h.StaticRecords.Get(q)
 		if len(rrs) > 0 {
 			resp.Answer = append(resp.Answer, rrs...)
+		}
+		if validName {
+			resp.Rcode = dns.RcodeSuccess
 		}
 	}
 	// generate records
 	if h.RecordGenerator != nil {
 		rrs, validName := h.GenerateRecords(q, h.Zone)
-		if !validName {
-			if len(resp.Answer) == 0 {
-				resp.Rcode = dns.RcodeNameError
-			}
-			return
-		}
 		if len(rrs) > 0 {
 			resp.Answer = append(resp.Answer, rrs...)
+		}
+		if validName {
+			resp.Rcode = dns.RcodeSuccess
 		}
 	}
 }

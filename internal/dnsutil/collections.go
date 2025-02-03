@@ -44,12 +44,17 @@ func (c *IPCollection) UnmarshalJSON(data []byte) error {
 
 type StaticRecords []dns.RR
 
-func (s StaticRecords) Get(question *dns.Question) (rrs []dns.RR) {
+func (s StaticRecords) Get(question *dns.Question) (rrs []dns.RR, nameExists bool) {
 	for _, rr := range s {
 		hdr := rr.Header()
-		if hdr.Class == question.Qclass &&
-			(hdr.Rrtype == question.Qtype || hdr.Rrtype == dns.TypeCNAME) &&
-			EqualNames(hdr.Name, question.Name) {
+		if hdr.Class != question.Qclass {
+			continue
+		}
+		if !EqualNames(hdr.Name, question.Name) {
+			continue
+		}
+		nameExists = true
+		if hdr.Rrtype == question.Qtype || hdr.Rrtype == dns.TypeCNAME {
 			rrs = append(rrs, rr)
 		}
 	}
