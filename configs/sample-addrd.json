@@ -48,6 +48,10 @@
         "Zone": "ip.addr.tools.",
         "Ns": ["dns.addr.tools."]
     },
+    "CnameZone": {
+        "Zone": "cname.addr.tools.",
+        "Ns": ["dns.addr.tools."]
+    },
     "MyaddrZones": [
         {
             "Zone": "myaddr.tools.",

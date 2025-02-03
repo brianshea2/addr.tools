@@ -22,6 +22,7 @@ import (
 	"github.com/brianshea2/addr.tools/internal/status"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
 	"github.com/brianshea2/addr.tools/internal/zones/challenges"
+	"github.com/brianshea2/addr.tools/internal/zones/cname"
 	"github.com/brianshea2/addr.tools/internal/zones/dnscheck"
 	"github.com/brianshea2/addr.tools/internal/zones/dyn"
 	ipzone "github.com/brianshea2/addr.tools/internal/zones/ip"
@@ -60,6 +61,10 @@ type Config struct {
 		PrivateKey string
 	}
 	IPZone struct {
+		*dnsutil.SimpleHandler
+		PrivateKey string
+	}
+	CnameZone struct {
 		*dnsutil.SimpleHandler
 		PrivateKey string
 	}
@@ -209,6 +214,15 @@ func (config *Config) Run() {
 		}
 		config.IPZone.SimpleHandler.Init(ParsePrivateKey(config.IPZone.PrivateKey))
 		dns.Handle(config.IPZone.SimpleHandler.Zone, config.IPZone.SimpleHandler)
+	}
+	// init and set cname zone handler
+	if config.CnameZone.SimpleHandler != nil {
+		config.CnameZone.SimpleHandler.RecordGenerator = &cname.RecordGenerator{
+			IPv4: config.ResponseAddrs.IPv4,
+			IPv6: config.ResponseAddrs.IPv6,
+		}
+		config.CnameZone.SimpleHandler.Init(ParsePrivateKey(config.CnameZone.PrivateKey))
+		dns.Handle(config.CnameZone.SimpleHandler.Zone, config.CnameZone.SimpleHandler)
 	}
 	// init and set myaddr handlers
 	for _, h := range config.MyaddrZones {
