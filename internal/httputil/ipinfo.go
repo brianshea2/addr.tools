@@ -6,10 +6,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"time"
 )
-
-const IPInfoTimeout = time.Second
 
 type IPInfo struct {
 	City    string `json:"city"`
@@ -37,13 +34,10 @@ func (i *IPInfo) GeoString() string {
 
 type IPInfoClient struct {
 	BaseURL    string
-	httpClient *http.Client
+	HttpClient http.Client
 }
 
-func (c *IPInfoClient) Get(ip string) (*IPInfo, error) {
-	if c.httpClient == nil {
-		c.httpClient = &http.Client{Timeout: IPInfoTimeout}
-	}
+func (c *IPInfoClient) GetIPInfo(ip string) (*IPInfo, error) {
 	a, err := netip.ParseAddr(ip)
 	if err != nil {
 		return nil, err
@@ -57,7 +51,7 @@ func (c *IPInfoClient) Get(ip string) (*IPInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.httpClient.Get(url)
+	resp, err := c.HttpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}

@@ -4,25 +4,19 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"time"
 )
 
-const TurnstileVerifyTimeout = 5 * time.Second
-
-type TurnstileSite struct {
+type TurnstileClient struct {
 	Secret     string
-	httpClient *http.Client
+	HttpClient http.Client
 }
 
-func (ts *TurnstileSite) Verify(token string) (bool, error) {
-	if ts.httpClient == nil {
-		ts.httpClient = &http.Client{Timeout: TurnstileVerifyTimeout}
-	}
+func (c *TurnstileClient) Verify(token string) (bool, error) {
 	values := url.Values{
-		"secret":   []string{ts.Secret},
+		"secret":   []string{c.Secret},
 		"response": []string{token},
 	}
-	resp, err := ts.httpClient.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify", values)
+	resp, err := c.HttpClient.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify", values)
 	if err != nil {
 		return false, err
 	}

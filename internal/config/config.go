@@ -159,7 +159,10 @@ func (config *Config) Run() {
 	// init ipinfo client
 	var ipinfoClient *httputil.IPInfoClient
 	if len(config.IPInfoBaseURL) > 0 {
-		ipinfoClient = &httputil.IPInfoClient{BaseURL: config.IPInfoBaseURL}
+		ipinfoClient = &httputil.IPInfoClient{
+			BaseURL:    config.IPInfoBaseURL,
+			HttpClient: http.Client{Timeout: time.Second},
+		}
 	}
 	// init and set dnscheck handlers
 	largeResponseLimiter := rate.NewLimiter(rate.Limit(MaxDnscheckLargeResponseRate), MaxDnscheckLargeResponseRate)
@@ -240,7 +243,10 @@ func (config *Config) Run() {
 		DataStore:      persistentStore,
 		ChallengeStore: challengeStore,
 		KeyPrefix:      "myaddr:",
-		TurnstileSite:  &httputil.TurnstileSite{Secret: config.MyaddrTurnstileSecret},
+		TurnstileClient: &httputil.TurnstileClient{
+			Secret:     config.MyaddrTurnstileSecret,
+			HttpClient: http.Client{Timeout: 5 * time.Second},
+		},
 	})
 	http.Handle("/myaddr-update", &myaddr.UpdateHandler{
 		DataStore:      persistentStore,

@@ -95,10 +95,10 @@ func GetRegistrationInfo(name string, store ttlstore.TtlStore, prefix string) (c
 }
 
 type RegistrationHandler struct {
-	DataStore      ttlstore.TtlStore
-	ChallengeStore ttlstore.TtlStore
-	KeyPrefix      string
-	*httputil.TurnstileSite
+	DataStore       ttlstore.TtlStore
+	ChallengeStore  ttlstore.TtlStore
+	KeyPrefix       string
+	TurnstileClient *httputil.TurnstileClient
 }
 
 func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -210,7 +210,7 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			return
 		}
 		// verify challenge with cloudflare
-		if verified, err := h.Verify(challenge); err != nil {
+		if verified, err := h.TurnstileClient.Verify(challenge); err != nil {
 			log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: verify challenge: %v", err)
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return

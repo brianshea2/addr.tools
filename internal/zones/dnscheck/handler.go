@@ -380,9 +380,9 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			"remotePort: " + port,
 		}
 		if h.IPInfoClient != nil {
-			info, err := h.IPInfoClient.Get(ip)
+			info, err := h.IPInfoClient.GetIPInfo(ip)
 			if err != nil {
-				log.Printf("[error] DnscheckHandler.ServeDNS: IPInfoClient.Get: %v", err)
+				log.Printf("[error] DnscheckHandler.ServeDNS: IPInfoClient.GetIPInfo: %v", err)
 			}
 			if info != nil {
 				if geo := info.GeoString(); len(geo) > 0 {
