@@ -137,11 +137,11 @@ func ParseOptions(qname string, suffixLength int) *Options {
 				return nil
 			}
 			for j := 0; j < len(v); j++ {
-				if v[j] < '0' || v[j] > 'f' || (v[j] > '9' && v[j] < 'a') {
+				if v[j] < '0' || v[j] > 'f' || (v[j] > '9' && v[j] < 'A') || (v[j] > 'F' && v[j] < 'a') {
 					return nil
 				}
 			}
-			o.Random = v
+			o.Random = dnsutil.LowerName(v)
 		}
 		if i < 0 {
 			break
