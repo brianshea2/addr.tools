@@ -197,7 +197,7 @@ const drawDNSSEC = () => {
   let title, statusTooltip, statusClass
   const dnssec = '<a class="no-ul" href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" target="_blank">' +
     '<abbr title="Domain Name System Security Extensions">DNSSEC</abbr></a>'
-  if ([ 1, 2, 3, 5, 6, 7 ].some(i => dnssecTests[i])) {
+  if ([ 1, 2, 3, 5, 6, 7, 9, 10, 11 ].some(i => dnssecTests[i])) {
     // one or more ecdsa failing domains connected
     title = `<div class="dialogue">Oh no! Your DNS responses are not authenticated with ${dnssec}:</div>`
     statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are not authenticated'
@@ -206,17 +206,10 @@ const drawDNSSEC = () => {
     // tests are still running
     title = dnssecDiv.firstElementChild.outerHTML
   } else if ([ 0, 4, 8 ].every(i => dnssecTests[i])) {
-    if ([ 9, 10, 11 ].every(i => !dnssecTests[i])) {
-      // all good!
-      title = `<div class="dialogue">Great! Your DNS responses are authenticated with ${dnssec}:</div>`
-      statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated'
-      statusClass = 'green'
-    } else {
-      // one or more ed25519 failing domains connected
-      title = `<div class="dialogue">Okay! Your DNS responses are authenticated, except when using newer ${dnssec} algorithms:</div>`
-      statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated (except Ed25519)'
-      statusClass = 'yellow'
-    }
+    // all good!
+    title = `<div class="dialogue">Great! Your DNS responses are authenticated with ${dnssec}:</div>`
+    statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated'
+    statusClass = 'green'
   } else {
     // inconclusive
     title = '<div class="dialogue">Hmm... There was an issue checking your DNS security:</div>'
@@ -246,7 +239,7 @@ const drawDNSSEC = () => {
             const act = got ? 'connected' : 'not connected'
             return got === exp ?
               `<td><span class="green" title="Pass (${act})">&#10003;</span></td>` :
-              `<td><span class="${algOffset === 8 && !exp ? 'yellow' : 'red'}" title="Fail (${act})">&#10005;</span></td>`
+              `<td><span class="red" title="Fail (${act})">&#10005;</span></td>`
           }
         ).join('') +
         '</tr>'
