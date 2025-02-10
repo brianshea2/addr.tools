@@ -55,16 +55,16 @@ func (h *LoggingHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		logger = log.Default()
 	}
 	logger.Printf(
-		"%s %v/%v/%v %s %s %s %s %s %s",
+		"%s %s %s %s %s %s an:%v ns:%v ex:%v %s",
+		GetWriterProtocol(w),
 		status,
+		dns.OpcodeToString[req.Opcode],
+		dns.Class(req.Question[0].Qclass),
+		dns.Type(req.Question[0].Qtype),
+		req.Question[0].Name,
 		lw.AnCount,
 		lw.NsCount,
 		lw.ExCount,
 		lw.RemoteAddr(),
-		GetWriterProtocol(w),
-		dns.OpcodeToString[req.Opcode],
-		req.Question[0].Name,
-		dns.Class(req.Question[0].Qclass),
-		dns.Type(req.Question[0].Qtype),
 	)
 }
