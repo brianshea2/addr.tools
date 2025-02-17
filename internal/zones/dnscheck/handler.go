@@ -382,7 +382,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		if h.IPInfoClient != nil {
 			info, err := h.IPInfoClient.GetIPInfo(ip)
 			if err != nil {
-				log.Printf("[error] DnscheckHandler.ServeDNS: IPInfoClient.GetIPInfo: %v", err)
+				log.Printf("[error] DnscheckHandler.ServeDNS: IPInfoClient.GetIPInfo(%s): %v", ip, err)
 			}
 			if info != nil {
 				if geo := info.GeoString(); len(geo) > 0 {
