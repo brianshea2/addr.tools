@@ -236,10 +236,7 @@ const drawDNSSEC = () => {
               return '<td>&#8230;</td>'
             }
             const exp = sigIndex === 0 // only the 'Good' tests should make a successful connection
-            const act = got ? 'connected' : 'not connected'
-            return got === exp ?
-              `<td><span class="green" title="Pass (${act})">&#10003;</span></td>` :
-              `<td><span class="red" title="Fail (${act})">&#10005;</span></td>`
+            return `<td><span class="${got === exp ? 'green' : 'red'}">${got === exp ? 'PASS' : 'FAIL'}</span></td>`
           }
         ).join('') +
         '</tr>'
