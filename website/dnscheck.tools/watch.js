@@ -84,7 +84,7 @@ const handleMessage = ({ data }) => {
   countSpan.innerHTML = count
   // add DNS request content
   const tmpId = Math.random().toString(36).slice(2)
-  const ipLink = `<a href="https://info.addr.tools/${request.remoteIp}" target="_blank">${request.remoteIp}</a>`
+  const ipLink = `<a href="https://info.addr.tools/${request.remoteIp}">${request.remoteIp}</a>`
   let html = `<div class="dns-request-wrapper"><span>#${count}</span><div class="dns-request">${encode(request.msgText).replace(/\n/g, '<br>')}` +
     `<br>;; CLIENT: ${ipLink}#${request.remotePort}<span id="ptr-${tmpId}">(<i>pending</i>)</span>` +
     `<span id="rdap-${tmpId}"> (<i>pending</i>)</span> (${request.proto})`

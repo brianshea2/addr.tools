@@ -89,8 +89,8 @@ const drawDns = (records, div) => {
 }
 
 const geoLookup = (() => {
-  let fetcher = (str, { signal }) => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' }, signal }).catch(() => {
-    fetcher = (str, { signal }) => fetchOk(`https://ipinfo.addr.tools/${str}`, { signal })
+  let fetcher = (str, { signal }) => fetchOk(`https://ipinfo.addr.tools/${str}`, { signal }).catch(() => {
+    fetcher = (str, { signal }) => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' }, signal })
     return fetcher(str, { signal })
   })
   return (ip, { signal }) => {

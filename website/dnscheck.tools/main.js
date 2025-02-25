@@ -66,8 +66,8 @@ const getReg = ipOrRange => rdapClient.lookupIP(ipOrRange).then(
 
 // returns cached promise of geolocation for given IPAddr or IPRange
 const getGeo = (() => {
-  let fetcher = str => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' } }).catch(() => {
-    fetcher = str => fetchOk(`https://ipinfo.addr.tools/${str}`)
+  let fetcher = str => fetchOk(`https://ipinfo.addr.tools/${str}`).catch(() => {
+    fetcher = str => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' } })
     return fetcher(str)
   })
   return ipOrRange => {
@@ -111,7 +111,7 @@ const getIPData = str => {
 
 // generates HTML for an IP list item
 const ipItem = ({ str, ptr, ns, geo }) => {
-  let html = `<li><span><a class="no-ul" href="https://info.addr.tools/${str}" target="_blank">${str}</a></span>`
+  let html = `<li><span><a class="no-ul" href="https://info.addr.tools/${str}">${str}</a></span>`
   if (ptr) {
     html += ` <span class="blue"><abbr title="PTR record (reverse DNS)">ptr</abbr>: ${encode(ptr)}</span>`
   } else if (ns) {
@@ -195,7 +195,7 @@ const drawResolvers = () => {
 // draws the DNSSEC test results section
 const drawDNSSEC = () => {
   let title, statusTooltip, statusClass
-  const dnssec = '<a class="no-ul" href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" target="_blank">' +
+  const dnssec = '<a class="no-ul" href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions">' +
     '<abbr title="Domain Name System Security Extensions">DNSSEC</abbr></a>'
   if ([ 1, 2, 3, 5, 6, 7, 9, 10, 11 ].some(i => dnssecTests[i])) {
     // one or more ecdsa failing domains connected
