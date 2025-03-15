@@ -4,16 +4,6 @@ const get_self_ip_host = r =>
 const make_client_id = () =>
   Math.floor(Math.random() * 0xffffffff).toString(16)
 
-const make_myip_json = r => {
-  const obj = {}
-  if (r.args.key === undefined) {
-    obj.ip = r.variables.remote_addr
-  } else {
-    obj[r.args.key] = r.variables.remote_addr
-  }
-  return JSON.stringify(obj)
-}
-
 const header_echo_content = r => {
   r.return(200, r.variables.request + "\n" + r.rawHeadersIn.map(header => `${header[0]}: ${header[1]}\n`).join(""))
 }
@@ -55,7 +45,6 @@ const header_echo = r => {
 export default {
   get_self_ip_host,
   make_client_id,
-  make_myip_json,
   header_echo_content,
   header_echo
 }
