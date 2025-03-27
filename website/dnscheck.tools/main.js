@@ -378,14 +378,15 @@ const testDNS = () => new Promise(done => {
 // detects DNS average round trip time
 const testRTT = async () => {
   let rand, start, avg
-  const tlds = [ 'com', 'net', 'org', 'biz', 'info' ]
-  for (const tld of [ ...tlds, ...tlds, ...tlds ]) {
-    rand = Math.random().toString(36).slice(2)
-    start = Date.now()
-    await fetch(`https://test-${rand}.null-addr.${tld}/`).catch(() => {})
-    rtts.push(Date.now() - start)
-    avg = Math.round(rtts.reduce((sum, x) => sum + x) / rtts.length)
-    rttStatusSpan.innerHTML = `<span class="${avg <= 150 ? 'green' : avg <= 500 ? 'yellow' : 'red'}">${avg}ms</span>`
+  for (let i = 0; i < 5; i++) {
+    for (const tld of [ 'com', 'net', 'org' ]) {
+      rand = Math.random().toString(36).slice(2)
+      start = Date.now()
+      await fetch(`https://test-${rand}.null-addr.${tld}/`).catch(() => {})
+      rtts.push(Date.now() - start)
+      avg = Math.round(rtts.reduce((sum, x) => sum + x) / rtts.length)
+      rttStatusSpan.innerHTML = `<span class="${avg <= 150 ? 'green' : avg <= 500 ? 'yellow' : 'red'}">${avg}ms</span>`
+    }
   }
   rttStatusSpan.classList.remove('light')
 }
