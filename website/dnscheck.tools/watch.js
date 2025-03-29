@@ -32,11 +32,6 @@ contentDiv.addEventListener('scroll', () => {
   }
 })
 
-// generates some DNS requests from the browser to the given subdomain
-window.makeQuery = subdomain => fetch(`https://${subdomain}.dnscheck.tools/`, {
-  signal: AbortSignal.timeout(10000),
-}).then(r => r.ok, () => false)
-
 // returns cached promise of PTR name for given IP string
 const getPtr = ip => {
   if (ptrLookups[ip] === undefined) {
@@ -68,7 +63,7 @@ const handleOpen = () => {
   if (count === 0) {
     requestsDiv.innerHTML = '<p class="dialogue">listening for requests...' +
       `<p class="dialogue">try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig -t txt ${clientId}.go.dnscheck.tools</span>\`` +
-      `<p class="dialogue">or <span class="link" onclick="window.makeQuery('${clientId}.go')">click here</span> to generate some requests.`
+      `<p class="dialogue">or <a href="https://${clientId}.go.dnscheck.tools/" onclick="fetch(this.href).catch(() => {});return false">click here</a>.`
   }
 }
 

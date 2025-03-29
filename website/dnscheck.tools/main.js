@@ -55,8 +55,8 @@ const tcpStatusSpan    = document.getElementById('tcp-status')
 const countSpan        = document.getElementById('count')
 
 // generates some DNS requests from the browser to the given subdomain
-const makeQuery = (subdomain, abortSignal) => fetch(`https://${subdomain}.dnscheck.tools/`, {
-  signal: AbortSignal.any([ abortSignal, AbortSignal.timeout(10000) ]),
+const makeQuery = (subdomain, timeout, abortSignal) => fetch(`https://${subdomain}.dnscheck.tools/`, {
+  signal: AbortSignal.any([ AbortSignal.timeout(timeout), abortSignal ]),
 }).then(r => r.ok, () => false)
 
 // returns promise of RDAP registrant name or other identifier for given IPAddr or IPRange
@@ -272,24 +272,25 @@ const testDNS = () => new Promise(done => {
     console.log('WebSocket opened')
     // generate some DNS requests
     for (let i = 0; i < 5; i++) {
-      await Promise.all([
-        makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go-ipv4`, abortController.signal),
-        makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go-ipv6`, abortController.signal),
-      ])
+      await makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go`, 10000, abortController.signal)
+      await makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go-ipv4`, 10000, abortController.signal)
     }
     // test IPv6 support
+    if (!seenIPv6) {
+      await makeQuery(`${clientId}-nullip.go-ipv6`, 10000, abortController.signal)
+    }
     if (!seenIPv6) {
       ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach IPv6 nameservers">IPv6</span>'
     }
     // test TCP fallback
-    const usesTCP = await makeQuery(`${clientId}-truncate.go`, abortController.signal)
+    const usesTCP = await makeQuery(`${clientId}-truncate.go`, 10000, abortController.signal)
     if (!usesTCP) {
       tcpStatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers do not retry over TCP">TCP</span>'
     }
     // test DNSSEC validation
     for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
       await Promise.all([ '', '-badsig', '-expiredsig', '-nosig' ].map(
-        (sigOpt, sigIndex) => makeQuery(`${clientId}${sigOpt}.go-${alg}`, abortController.signal).then(
+        (sigOpt, sigIndex) => makeQuery(`${clientId}${sigOpt}.go-${alg}`, 30000, abortController.signal).then(
           got => {
             dnssecTests[4 * algIndex + sigIndex] = got
             drawDNSSEC()
