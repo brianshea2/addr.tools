@@ -6,7 +6,7 @@ const rdapClient = new RDAPClient()
 const domainNamePattern = '(?:[0-9a-z_](?:[0-9a-z_-]*[0-9a-z])?\\.)*[0-9a-z](?:[0-9a-z-]*[0-9a-z])?\\.[a-z][0-9a-z-]*[0-9a-z]'
 const ipOrCidrPattern = `${IPAddr.v4Pattern}(?:/(?:3[0-2]|[1-2][0-9]|[0-9]))?|${IPAddr.v6Pattern}(?:/(?:12[0-8]|1[0-1][0-9]|[1-9][0-9]|[0-9]))?`
 const domainNameRegex = new RegExp(`^${domainNamePattern}$`, 'i')
-const infoRegex = new RegExp(`(?:(${domainNamePattern})|(?<=^|[^0-9a-z.])(${ipOrCidrPattern})(?=[^0-9a-z.]|$))`, 'gi')
+const infoRegex = new RegExp(`(?:(${domainNamePattern})|(^|[^0-9a-z.])(${ipOrCidrPattern})(?=[^0-9a-z.]|$))`, 'gi')
 const footer = `<footer>// <a href="https://info.addr.tools">info.addr.tools</a></footer>`
 
 const jCardFormatter = jCard => jCard[1].reduce((out, prop) => {
@@ -40,7 +40,7 @@ const jsonReplacer = (key, value) => {
   }
   if (type === 'string') {
     value = encode(value)
-    value = value.replace(infoRegex, (_, domain, ip) => domain !== undefined ? `<domain>${domain}</domain>` : `<ip>${ip}</ip>`)
+    value = value.replace(infoRegex, (_, domain, beforeIp, ip) => domain !== undefined ? `<domain>${domain}</domain>` : `${beforeIp}<ip>${ip}</ip>`)
   }
   return `<value ${type}>${value}</value>`
 }
@@ -82,15 +82,17 @@ const drawDns = (records, div) => {
   records.sort((a, b) => dnsSortOrder.indexOf(a.type) - dnsSortOrder.indexOf(b.type))
   div.innerHTML = records.map(({ type, data }) => {
     if (type === 6) {
-      data = data.replace(/(?<= .*)(?<!\\)\./, '@').replace(/\\\./g, '.')
+      const soaParts = data.split(/\s+/)
+      soaParts[1] = soaParts[1].replace(/((?:\\\.|[^.])*)\./, '$1@').replace(/\\\./g, '.')
+      data = soaParts.join(' ')
     }
     return `<div><span>${dnsTypes[type]}</span> ${htmlify(data, false)}</div>`
   }).join('')
 }
 
 const geoLookup = (() => {
-  let fetcher = (str, { signal }) => fetchOk(`https://ipinfo.addr.tools/${str}`, { signal }).catch(() => {
-    fetcher = (str, { signal }) => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' }, signal })
+  let fetcher = (str, { signal }) => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' }, signal }).catch(() => {
+    fetcher = (str, { signal }) => fetchOk(`https://ipinfo.addr.tools/${str}`, { signal })
     return fetcher(str, { signal })
   })
   return (ip, { signal }) => {
@@ -179,7 +181,7 @@ const loadInfo = async () => {
         dnsLookup(query, type, { signal }).then(handleDnsResponse).catch(handleDnsError)
       ))
       if (nxdomain) {
-        handleDnsError(new Error('NXDOMAIN (Non-existent domain)'))
+        dnsDataDiv.insertAdjacentHTML('afterend', `<br><div class="error">Status: NXDOMAIN (Non-eXistent domain)</div>`)
       }
     }
     if (soa === undefined) {
@@ -189,10 +191,11 @@ const loadInfo = async () => {
       await dnsLookup(soa, 'ns', { signal }).then(handleDnsResponse).catch(handleDnsError)
     }
     if (servfail) {
-      handleDnsError(new Error('SERVFAIL (DNSSEC validation or other server failure)'))
+      dnsDataDiv.insertAdjacentHTML('afterend', `<br><div class="error">Status: SERVFAIL (DNS server failure or bogus DNSSEC)</div>`)
     }
     if (dnsData.length === 0) {
-      dnsDataDiv.innerHTML = `<span class="error">No records</span>`
+      dnsDataDiv.innerHTML = ''
+      dnsDataDiv.insertAdjacentHTML('afterend', `<br><div class="error">No records</div>`)
     }
   }
 

@@ -59,7 +59,7 @@ h1 {
   font-size: 1.2em;
   font-weight: bold;
   margin: 0.5em 0;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 h1 * {
   color: inherit !important;
@@ -85,19 +85,20 @@ a:hover, a:hover + .sublinks {
   text-decoration: underline;
 }
 #dns-data {
-  word-break: break-all;
+  display: grid;
+  grid-template-columns: max-content auto;
+  gap: 0 2ch;
+  overflow-wrap: anywhere;
 }
 #dns-data > div {
-  display: flex;
-  gap: 2ch;
+  display: contents;
 }
 #dns-data > div > span:first-child {
-  flex: 0 0 5ch;
   text-align: right;
 }
 #rdap-data {
   white-space: pre-wrap;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .error {
   color: var(--text-color-orange);

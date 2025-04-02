@@ -1,6 +1,6 @@
 import { IPAddr, IPRange } from 'https://www.addr.tools/js/ipaddr'
 import { Mutex, fetchOk }  from 'https://www.addr.tools/js/util'
-class RDAPServiceNotFoundError extends Error {
+export class RDAPServiceNotFoundError extends Error {
   constructor(query) {
     super(`No RDAP service found for ${query}`)
     this.query = query
@@ -63,7 +63,7 @@ class IPService {
     return data
   }
 }
-class Client {
+export class Client {
   constructor() {
     this.domainServices = []
     this.ipServices = []
@@ -137,4 +137,3 @@ class Client {
     return new Response(ipOrRange, await service.lookup(ipOrRange, fetchOpts))
   }
 }
-export { RDAPServiceNotFoundError, Client }

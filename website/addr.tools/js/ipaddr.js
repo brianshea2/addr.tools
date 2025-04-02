@@ -1,4 +1,4 @@
-class IPAddr {
+export class IPAddr {
   constructor(value) {
     if (typeof value === 'bigint') {
       this.value = value
@@ -46,7 +46,7 @@ class IPAddr {
         const longestMatch = contiguousZeroWydes.reduce((a, b) => b[1].length > a[1].length ? b : a)
         str = str.slice(0, longestMatch.index) + '::' + str.slice(longestMatch.index + longestMatch[0].length)
       }
-      str = str.replace(/(?<=^|:)0{1,3}/g, '')
+      str = str.replace(/^0{1,3}/, '').replace(/:0{1,3}/g, ':')
     }
     return str
   }
@@ -62,7 +62,7 @@ class IPAddr {
   static v4Regex = new RegExp(`^${this.v4Pattern}$`)
   static v6Regex = new RegExp(`^${this.v6Pattern}$`)
 }
-class IPRange {
+export class IPRange {
   constructor(str, end) {
     if (end === undefined) {
       let hostBits
@@ -117,4 +117,3 @@ class IPRange {
   static cidr4Regex = new RegExp(`^${this.cidr4Pattern}$`)
   static cidr6Regex = new RegExp(`^${this.cidr6Pattern}$`)
 }
-export { IPAddr, IPRange }

@@ -55,9 +55,21 @@ const tcpStatusSpan    = document.getElementById('tcp-status')
 const countSpan        = document.getElementById('count')
 
 // generates some DNS requests from the browser to the given subdomain
-const makeQuery = (subdomain, timeout, abortSignal) => fetch(`https://${subdomain}.dnscheck.tools/`, {
-  signal: AbortSignal.any([ AbortSignal.timeout(timeout), abortSignal ]),
-}).then(r => r.ok, () => false)
+const makeQuery = (subdomain, timeout, abortSignal) => {
+  if (abortSignal.aborted) {
+    return Promise.resolve(false)
+  }
+  const controller = new AbortController()
+  const abortFn = () => controller.abort()
+  const timeoutID = setTimeout(abortFn, timeout)
+  abortSignal.addEventListener('abort', abortFn)
+  return fetch(`https://${subdomain}.dnscheck.tools/`, { signal: controller.signal })
+    .then(r => r.ok, () => false)
+    .finally(() => {
+      clearTimeout(timeoutID)
+      abortSignal.removeEventListener('abort', abortFn)
+    })
+}
 
 // returns promise of RDAP registrant name or other identifier for given IPAddr or IPRange
 const getReg = ipOrRange => rdapClient.lookupIP(ipOrRange).then(
@@ -66,8 +78,8 @@ const getReg = ipOrRange => rdapClient.lookupIP(ipOrRange).then(
 
 // returns cached promise of geolocation for given IPAddr or IPRange
 const getGeo = (() => {
-  let fetcher = str => fetchOk(`https://ipinfo.addr.tools/${str}`).catch(() => {
-    fetcher = str => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' } })
+  let fetcher = str => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' } }).catch(() => {
+    fetcher = str => fetchOk(`https://ipinfo.addr.tools/${str}`)
     return fetcher(str)
   })
   return ipOrRange => {

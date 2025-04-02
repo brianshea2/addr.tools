@@ -1,11 +1,11 @@
-class HTTPError extends Error {
+export class HTTPError extends Error {
   constructor(code) {
     super(`Received HTTP status code ${code}`)
     this.code = code
     this.name = 'HTTPError'
   }
 }
-class Mutex {
+export class Mutex {
   #queue
   #locked
   constructor() {
@@ -31,24 +31,10 @@ class Mutex {
     }
   }
 }
-function debounce(fn, delay) {
-  let timer
-  return (...args) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => {
-      fn(...args)
-    }, delay)
-  }
-}
-function encode(str) {
+export function encode(str) {
   return str?.replace(/["&<>]/g, match => `&#${match.charCodeAt(0)};`)
 }
-function fetchOk(resource, opts) {
-  return fetch(resource, Object.assign({ referrerPolicy: 'no-referrer' }, opts)).then(response => {
-    if (!response.ok) {
-      throw new HTTPError(response.status)
-    }
-    return response
-  })
+export function fetchOk(resource, opts) {
+  return fetch(resource, Object.assign({ referrerPolicy: 'no-referrer' }, opts))
+    .then(response => response.ok ? response : (() => { throw new HTTPError(response.status) })())
 }
-export { HTTPError, Mutex, debounce, encode, fetchOk }
