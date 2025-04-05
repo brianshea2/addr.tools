@@ -211,7 +211,7 @@ const drawDNSSEC = () => {
     '<abbr title="Domain Name System Security Extensions">DNSSEC</abbr></a>'
   if ([ 1, 2, 3, 5, 6, 7, 9, 10, 11 ].some(i => dnssecTests[i])) {
     // one or more ecdsa failing domains connected
-    title = `<div class="dialogue">Oh no! Your DNS responses are not authenticated with ${dnssec}:</div>`
+    title = `<div>Oh no! Your DNS responses are not authenticated with ${dnssec}:</div>`
     statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are not authenticated'
     statusClass = 'red'
   } else if (dnssecTests.some(t => t === undefined)) {
@@ -219,12 +219,12 @@ const drawDNSSEC = () => {
     title = dnssecDiv.firstElementChild.outerHTML
   } else if ([ 0, 4, 8 ].every(i => dnssecTests[i])) {
     // all good!
-    title = `<div class="dialogue">Great! Your DNS responses are authenticated with ${dnssec}:</div>`
+    title = `<div>Great! Your DNS responses are authenticated with ${dnssec}:</div>`
     statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated'
     statusClass = 'green'
   } else {
     // inconclusive
-    title = '<div class="dialogue">Hmm... There was an issue checking your DNS security:</div>'
+    title = `<div>Hmm... There was a network issue while checking ${dnssec}. The result is inconclusive:</div>`
     statusTooltip = 'DNS Security Extensions\n\nAn error occurred'
     statusClass = 'yellow'
   }

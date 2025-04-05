@@ -61,9 +61,9 @@ const handleOpen = () => {
   }, 1000)
   // set content
   if (count === 0) {
-    requestsDiv.innerHTML = '<p class="dialogue">listening for requests...' +
-      `<p class="dialogue">try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig -t txt ${clientId}.go.dnscheck.tools</span>\`` +
-      `<p class="dialogue">or <a href="https://${clientId}.go.dnscheck.tools/" onclick="fetch(this.href).catch(() => {});return false">click here</a>.`
+    requestsDiv.innerHTML = '<p>listening for requests...' +
+      `<p>try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig -t txt ${clientId}.go.dnscheck.tools</span>\`` +
+      `<p>or <a href="https://${clientId}.go.dnscheck.tools/" onclick="fetch(this.href).catch(() => {});return false">click here</a>.`
   }
 }
 
@@ -136,11 +136,11 @@ const handleClose = e => {
   timerSpan.innerHTML = ''
   // set content
   if (e.code === 4000) { // clientId is already in use
-    requestsDiv.innerHTML = `<p class="red dialogue">error: ${clientId} is already in use`
+    requestsDiv.innerHTML = `<p class="red">error: ${clientId} is already in use`
   } else {
     timerSpan.innerHTML = `<span class="link" onclick="window.openSocket()">reopen</span>`
     if (count === 0) {
-      requestsDiv.innerHTML = `<p class="dialogue">no requests received`
+      requestsDiv.innerHTML = `<p>no requests received`
     }
   }
 }

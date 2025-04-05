@@ -147,9 +147,6 @@ ul.options li > span:nth-child(2)::before {
 .bold, strong {
   font-weight: bold;
 }
-.dialogue {
-  font-style: italic;
-}
 .light {
   opacity: 0.5;
 }
