@@ -153,11 +153,15 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 					Registered uint32 `json:"registered"`
 					Updated    uint32 `json:"updated"`
 					Expires    uint32 `json:"expires"`
+					IPv4       net.IP `json:"ip4,omitempty"`
+					IPv6       net.IP `json:"ip6,omitempty"`
 				}{
 					Name:       name,
 					Registered: created,
 					Updated:    updated,
 					Expires:    expires,
+					IPv4:       h.DataStore.Get(h.KeyPrefix + name + ":ip4"),
+					IPv6:       h.DataStore.Get(h.KeyPrefix + name + ":ip6"),
 				},
 			)
 		case http.MethodDelete:
