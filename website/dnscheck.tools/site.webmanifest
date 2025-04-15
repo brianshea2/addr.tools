@@ -1,0 +1,12 @@
+{
+  "display": "standalone",
+  "icons": [
+    {
+      "sizes": "any",
+      "src": "/favicon.svg",
+      "type": "image/svg+xml"
+    }
+  ],
+  "name": "dnscheck.tools",
+  "short_name": "dnscheck"
+}
