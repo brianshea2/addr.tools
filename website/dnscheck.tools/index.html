@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ebebeb">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#222222">
 <meta name="description" content="A tool to test for DNS leaks, DNSSEC validation, and more">
 <meta name="robots" content="noarchive">
 <title>dnscheck.tools - check your dns resolvers</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <link rel="stylesheet" href="/main.css">
 <script type="module" src="/main.js"></script>
@@ -15,6 +18,14 @@
     <a class="tab active" id="tab-results" href="#">Results</a>
     <a class="tab" id="tab-more" href="#more">About</a>
   </nav>
+  <div class="standalone-controls">
+    <div title="Reload" onclick="window.location.reload()">
+      <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
+        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
+      </svg>
+    </div>
+  </div>
 </header>
 <div class="content active ip-list-tabular" id="content-results" data-nosnippet>
   <div class="content-inner gap-2">
@@ -24,9 +35,9 @@
     </div>
     <div class="section hidden" id="ecs-results">
       <div>Your DNS resolvers specify your IP subnet (<a
-        class="no-ul"
         href="https://en.wikipedia.org/wiki/EDNS_Client_Subnet"
-      ><abbr title="EDNS Client Subnet">ECS</abbr></a>):</div>
+        title="EDNS Client Subnet"
+      >ECS</a>):</div>
     </div>
     <div class="section" id="resolver-results">
       <div>Your DNS resolvers are:</div>

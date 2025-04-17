@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700');
 :root {
-  height: 100%;
   -webkit-text-size-adjust: none;
   text-size-adjust: none;
   --background-color: #fff;
@@ -32,10 +31,7 @@
 body {
   background-color: var(--background-color);
   color: var(--text-color);
-  display: flex;
-  flex-direction: column;
   font-size: 13px;
-  height: 100%;
   line-height: 1.3;
   margin: 0;
 }
@@ -180,11 +176,18 @@ ul.options li > span:nth-child(2)::before {
 header {
   background-color: var(--header-color);
   display: flex;
-  padding: 1em;
+  padding-top: calc(1em + env(safe-area-inset-top));
+  padding-right: calc(1em + env(safe-area-inset-right));
+  padding-bottom: 1em;
+  padding-left: calc(1em + env(safe-area-inset-left));
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   white-space: nowrap;
 }
-header a {
-  text-decoration: none;
+header :is(a, span.link) {
+  text-decoration: none !important;
 }
 header :is(h1, h2, h3) {
   font-weight: normal;
@@ -194,6 +197,25 @@ header h2 {
 }
 header h3 {
   color: var(--text-color-yellow);
+}
+header .standalone-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-grow: 1;
+  height: 1.3em;
+  margin-left: 2ch;
+}
+header .standalone-controls > div {
+  cursor: pointer;
+}
+header .standalone-controls > div > svg {
+  display: block;
+}
+@media not (display-mode: standalone) {
+  header .standalone-controls {
+    display: none;
+  }
 }
 nav {
   display: flex;
@@ -209,32 +231,38 @@ nav {
   opacity: 1;
 }
 .content {
-  display: none;
-  flex-grow: 1;
-  overflow: auto;
-}
-.content.active {
-  display: block;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }
 .content-inner {
   display: inline-flex;
   flex-direction: column;
   gap: 1.3em;
-  padding: 1.3em 2em 2.6em 1em;
+  padding: 5em 2em 4em 1em;
 }
 .status {
+  background-color: var(--background-color);
   border-top: 1px solid var(--border-color);
-  display: none;
+  display: flex;
   align-items: center;
   gap: 2ch;
-  padding: 0.3em 1em;
-}
-.status.active {
-  display: flex;
+  padding-top: 0.3em;
+  padding-right: calc(1em + env(safe-area-inset-right));
+  padding-bottom: calc(0.3em + env(safe-area-inset-bottom));
+  padding-left: calc(1em + env(safe-area-inset-left));
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 .status > div:last-child {
   flex-grow: 1;
   text-align: right;
+}
+:is(.content, .status):not(.active) {
+  display: none;
 }
 .d-flex-col {
   display: flex;

@@ -143,11 +143,6 @@ const ipItem = ({ str, ptr, ns, geo }) => {
 // generates HTML for an IP list given an array of IP data objects
 const ipList = objs => {
   let html = ''
-  const pending = objs.filter(({ pending }) => pending)
-  if (pending.length) {
-    html += '<div class="subtitle bold"><i>Pending</i></div>' +
-      `<ul class="ip-list">${pending.map(ipItem).join('')}</ul>`
-  }
   const byReg = {}
   objs.filter(({ pending }) => !pending).forEach(obj => {
     if (byReg[obj.reg || ''] === undefined) {
@@ -156,10 +151,15 @@ const ipList = objs => {
       byReg[obj.reg || ''].push(obj)
     }
   })
-  Object.keys(byReg).sort((a, b) => a.localeCompare(b)).forEach(reg => {
+  Object.keys(byReg).sort((a, b) => a ? b ? a.localeCompare(b) : -1 : 1).forEach(reg => {
     html += `<div class="subtitle bold">${reg ? encode(reg) : '<i>Unknown</i>'}</div>` +
       `<ul class="ip-list">${byReg[reg].sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   })
+  const pending = objs.filter(({ pending }) => pending)
+  if (pending.length) {
+    html += '<div class="subtitle bold"><i>Pending</i></div>' +
+      `<ul class="ip-list">${pending.map(ipItem).join('')}</ul>`
+  }
   return html
 }
 
@@ -207,8 +207,8 @@ const drawResolvers = () => {
 // draws the DNSSEC test results section
 const drawDNSSEC = () => {
   let title, statusTooltip, statusClass
-  const dnssec = '<a class="no-ul" href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions">' +
-    '<abbr title="Domain Name System Security Extensions">DNSSEC</abbr></a>'
+  const dnssec = '<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" ' +
+    'title="Domain Name System Security Extensions">DNSSEC</a>'
   if ([ 1, 2, 3, 5, 6, 7, 9, 10, 11 ].some(i => dnssecTests[i])) {
     // one or more ecdsa failing domains connected
     title = `<div>Oh no! Your DNS responses are not authenticated with ${dnssec}:</div>`
