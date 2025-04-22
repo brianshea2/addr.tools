@@ -328,7 +328,6 @@ const testDNS = () => new Promise(done => {
   socket.addEventListener('message', ({ data }) => {
     // parse data
     const request = JSON.parse(data)
-    console.log(`[DNS] request from ${request.remoteIp}/${request.proto}:`, request)
     // increment count
     countSpan.innerHTML = ++count
     // add resolver if new
@@ -380,7 +379,6 @@ const testDNS = () => new Promise(done => {
   socket.addEventListener('close', e => {
     abortController.abort()
     console.log('WebSocket closed', e)
-    console.log('resolvers:', resolvers)
     if (count === 0) {
       resolversDiv.innerHTML = resolversDiv.firstElementChild.outerHTML +
         '<p><span class="red">an error occurred.</span> ' +

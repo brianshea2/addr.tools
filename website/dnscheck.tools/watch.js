@@ -71,7 +71,6 @@ const handleOpen = () => {
 const handleMessage = ({ data }) => {
   // parse data
   const request = JSON.parse(data)
-  console.log(`[DNS] request from ${request.remoteIp}/${request.proto}:`, request)
   // increment count, clear placeholder content
   if (count++ === 0) {
     requestsDiv.innerHTML = ''
