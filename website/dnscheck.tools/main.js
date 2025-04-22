@@ -256,21 +256,54 @@ const drawDNSSEC = () => {
     '</tbody></table></div>'
 }
 
-// detects HTTP client's IPv4 and IPv6 addresses
-const testIPs = () => Promise.all([ 'myipv4', 'myipv6' ].map(
-  sub => fetchOk(`https://${sub}.addr.tools/`)
-    .then(r => r.text())
-    .then(str => {
-      str = str.trim()
-      clientIPs[str] = { str, pending: true }
+// detects client's IPv4 and IPv6 addresses via HTTP requests and WebRTC ICE candidates
+const testIPs = async () => {
+  const urls = [
+    'https://myipv4.addr.tools/',
+    'https://myipv6.addr.tools/',
+    'stun:stun.l.google.com:19302',
+    'stun:stun.cloudflare.com:3478',
+  ]
+  const handleIP = str => {
+    if (clientIPs[str] !== undefined) {
+      return
+    }
+    clientIPs[str] = { str, pending: true }
+    drawIPs()
+    getIPData(str).then(data => {
+      clientIPs[str] = data
       drawIPs()
-      getIPData(str).then(data => {
-        clientIPs[str] = data
-        drawIPs()
-      })
     })
-    .catch(() => {})
-))
+  }
+  for (const url of urls) {
+    if (!url.startsWith('https:')) {
+      continue
+    }
+    fetchOk(url)
+      .then(r => r.text())
+      .then(s => s.trim())
+      .then(handleIP)
+      .catch(() => {})
+  }
+  const iceServers = urls.filter(url => url.startsWith('stun:')).map(urls => ({ urls }))
+  const peerConn = new RTCPeerConnection({ iceServers })
+  peerConn.addEventListener('icecandidate', ({ candidate }) => {
+    if (!candidate?.candidate) {
+      console.log('ICE candidate generation finished')
+      peerConn.close()
+      return
+    }
+    const parts = candidate.candidate.split(' ')
+    console.log(`ICE candidate: ${parts[4]}`, candidate)
+    try {
+      handleIP(new IPAddr(parts[4]).toString(true))
+    } catch(e) {
+      // ignore invalid (i.e., .local) addresses
+    }
+  })
+  peerConn.createDataChannel('dummy')
+  peerConn.setLocalDescription(await peerConn.createOffer())
+}
 
 // detects DNS resolvers and DNSSEC validation
 const testDNS = () => new Promise(done => {
