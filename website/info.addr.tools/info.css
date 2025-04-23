@@ -45,8 +45,8 @@ header {
   text-align: center;
 }
 footer {
-  margin-top: 1em;
-  opacity: 0.8;
+  margin-top: 2em;
+  opacity: 0.5;
 }
 body > div {
   background-color: inherit;

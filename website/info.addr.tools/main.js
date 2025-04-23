@@ -198,8 +198,7 @@ const loadInfo = async () => {
       dnsDataDiv.insertAdjacentHTML('afterend', `<br><div class="error">Status: SERVFAIL (DNS server failure or bogus DNSSEC)</div>`)
     }
     if (dnsData.length === 0) {
-      dnsDataDiv.innerHTML = ''
-      dnsDataDiv.insertAdjacentHTML('afterend', `<br><div class="error">No records</div>`)
+      dnsDataDiv.innerHTML = `<span class="error">No records</span>`
     }
   }
 
