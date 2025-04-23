@@ -66,10 +66,14 @@ const htmlify = (obj, quoteStrings) => JSON.stringify(obj, jsonReplacer, 2)
   })
   .replace(/\[\n\s*(.*?)\n\s*\]/g, '[ $1 ]')
 
-const dnsLookup = (name, type, { signal }) => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, {
-  headers: { Accept: 'application/dns-json' },
-  signal,
-}).then(r => r.json())
+const dnsLookup = (() => {
+  const headers = { Accept: 'application/dns-json' }
+  let fetcher = (name, type, signal) => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, { headers, signal }).catch(() => {
+    fetcher = (name, type, signal) => fetchOk(`https://doh-proxy.addr.tools/dns-query?name=${name}&type=${type}`, { headers, signal })
+    return fetcher(name, type, signal)
+  })
+  return (name, type, { signal }) => fetcher(name, type, signal).then(r => r.json())
+})()
 const dnsTypes = { 1: 'A', 2: 'NS', 5: 'CNAME', 6: 'SOA', 12: 'PTR', 15: 'MX', 16: 'TXT', 28: 'AAAA', 65: 'HTTPS' }
 const dnsSortOrder = [ 5, 1, 28, 65, 15, 16, 12, 2, 6 ]
 const drawDns = (records, div) => {
@@ -91,13 +95,13 @@ const drawDns = (records, div) => {
 }
 
 const geoLookup = (() => {
-  let fetcher = (str, { signal }) => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' }, signal }).catch(() => {
-    fetcher = (str, { signal }) => fetchOk(`https://ipinfo.addr.tools/${str}`, { signal })
-    return fetcher(str, { signal })
+  let fetcher = (str, signal) => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' }, signal }).catch(() => {
+    fetcher = (str, signal) => fetchOk(`https://ipinfo.addr.tools/${str}`, { signal })
+    return fetcher(str, signal)
   })
   return (ip, { signal }) => {
     const str = `${ip.is4() ? ip : new IPAddr(ip & 0xffffffffffffffff0000000000000000n)}`
-    return fetcher(str, { signal }).then(r => r.json()).then(({ city, region, country }) => [ city, region, country ].filter(v => v).join(', '))
+    return fetcher(str, signal).then(r => r.json()).then(({ city, region, country }) => [ city, region, country ].filter(v => v).join(', '))
   }
 })()
 

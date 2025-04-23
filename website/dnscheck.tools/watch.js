@@ -10,7 +10,6 @@ document.getElementById('clientid').innerHTML = clientId
 
 // state
 const rdapClient = new RDAPClient()
-const ptrLookups = {}     // PTR lookup promises by IP string
 let autoscroll   = true   // toggle for autoscroll on new request
 let count        = 0      // number of requests received
 let countdownId           // countdown timer `setInterval()` id
@@ -33,15 +32,22 @@ contentDiv.addEventListener('scroll', () => {
 })
 
 // returns cached promise of PTR name for given IP string
-const getPtr = ip => {
-  if (ptrLookups[ip] === undefined) {
-    const url = `https://cloudflare-dns.com/dns-query?name=${new IPAddr(ip).reverseZone()}&type=ptr`
-    ptrLookups[ip] = fetchOk(url, { headers: { Accept: 'application/dns-json' } })
-      .then(r => r.json())
-      .then(({ Answer }) => Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1))
+const getPtr = (() => {
+  const cache = {}
+  const headers = { Accept: 'application/dns-json' }
+  let fetcher = name => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=ptr`, { headers }).catch(() => {
+    fetcher = name => fetchOk(`https://doh-proxy.addr.tools/dns-query?name=${name}&type=ptr`, { headers })
+    return fetcher(name)
+  })
+  return ip => {
+    if (cache[ip] === undefined) {
+      cache[ip] = fetcher(new IPAddr(ip).reverseZone())
+        .then(r => r.json())
+        .then(({ Answer }) => Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1))
+    }
+    return cache[ip]
   }
-  return ptrLookups[ip]
-}
+})()
 
 // socket open handler
 const handleOpen = () => {
@@ -103,10 +109,10 @@ const handleMessage = ({ data }) => {
   // get PTR, update when available
   getPtr(request.remoteIp).catch(() => {}).then(ptr => {
     const span = document.getElementById(`ptr-${tmpId}`)
-    if (ptr === undefined) {
-      span.remove()
-    } else {
+    if (ptr) {
       span.innerHTML = `(${encode(ptr)})`
+    } else {
+      span.remove()
     }
   })
   // get RDAP, update when available
