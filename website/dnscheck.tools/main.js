@@ -2,27 +2,6 @@ import { IPAddr, IPRange }      from 'https://www.addr.tools/js/ipaddr'
 import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
 import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
 
-// handle tabs
-const updateTab = tab => {
-  if (tab === undefined) {
-    tab = window.location.hash === '#more' ? 'more' : 'results'
-  }
-  history.replaceState(null, '', window.location.pathname + (tab === 'results' ? '' : `#${tab}`))
-  document.querySelectorAll('.active').forEach(el => el.classList.remove('active'))
-  document.getElementById(`tab-${tab}`)?.classList.add('active')
-  document.getElementById(`content-${tab}`)?.classList.add('active')
-  document.getElementById(`status-${tab}`)?.classList.add('active')
-}
-updateTab()
-window.addEventListener('hashchange', () => updateTab())
-document.querySelectorAll('a.tab').forEach(el => {
-  const tab = el.id.slice(4) // 'tab-'
-  el.addEventListener('click', e => {
-    e.preventDefault()
-    updateTab(tab)
-  })
-})
-
 // state
 const clientId       = Math.floor(Math.random() * 0xffffffff).toString(16)
 const rdapClient     = new RDAPClient()
@@ -54,6 +33,27 @@ const ipv6StatusSpan   = document.getElementById('ipv6-status')
 const tcpStatusSpan    = document.getElementById('tcp-status')
 const countSpan        = document.getElementById('count')
 
+// handle tabs
+const updateTab = tab => {
+  if (tab === undefined) {
+    tab = window.location.hash === '#more' ? 'more' : 'results'
+  }
+  history.replaceState(null, '', window.location.pathname + (tab === 'results' ? '' : `#${tab}`))
+  document.querySelectorAll('.active').forEach(el => el.classList.remove('active'))
+  document.getElementById(`tab-${tab}`)?.classList.add('active')
+  document.getElementById(`content-${tab}`)?.classList.add('active')
+  document.getElementById(`status-${tab}`)?.classList.add('active')
+}
+updateTab()
+window.addEventListener('hashchange', () => updateTab())
+document.querySelectorAll('a.tab').forEach(el => {
+  const tab = el.id.slice(4) // 'tab-'
+  el.addEventListener('click', e => {
+    e.preventDefault()
+    updateTab(tab)
+  })
+})
+
 // generates some DNS requests from the browser to the given subdomain
 const makeQuery = (subdomain, timeout, abortSignal) => {
   if (abortSignal.aborted) {
@@ -70,6 +70,36 @@ const makeQuery = (subdomain, timeout, abortSignal) => {
       abortSignal.removeEventListener('abort', abortFn)
     })
 }
+
+// tests if the given IPAddr or entire IPRange is contained within a nonpublic IP space
+const reservedRanges = [
+  new IPRange('0.0.0.0/8'),             // current network
+  new IPRange('10.0.0.0/8'),            // private
+  new IPRange('100.64.0.0/10'),         // cgnat
+  new IPRange('127.0.0.0/8'),           // loopback
+  new IPRange('169.254.0.0/16'),        // link-local
+  new IPRange('172.16.0.0/12'),         // private
+  new IPRange('192.0.0.0/24'),          // protocol assignments
+  new IPRange('192.0.2.0/24'),          // documentation
+  new IPRange('192.168.0.0/16'),        // private
+  new IPRange('198.18.0.0/15'),         // benchmarking
+  new IPRange('198.51.100.0/24'),       // documentation
+  new IPRange('203.0.113.0/24'),        // documentation
+  new IPRange('224.0.0.0/4'),           // multicast
+  new IPRange('240.0.0.0/4'),           // future use, limited broadcast
+  new IPRange('::/127'),                // unspecified, loopback
+  new IPRange('64:ff9b:1::/48'),        // local-use ipv4/ipv6 translation
+  new IPRange('100::/64'),              // discard
+  new IPRange('2001::/23'),             // protocol assignments
+  new IPRange('2001:db8::/32'),         // documentation
+  new IPRange('2002::/16'),             // 6to4
+  new IPRange('3fff::/20'),             // documentation
+  new IPRange('5f00::/16'),             // segment routing
+  new IPRange('fc00::/7'),              // private
+  new IPRange('fe80::/10'),             // link-local
+  new IPRange('ff00::/8'),              // multicast
+]
+const isReserved = ipOrRange => reservedRanges.some(r => r.contains(ipOrRange))
 
 // returns promise of RDAP registrant name or other identifier for given IPAddr or IPRange
 const getReg = ipOrRange => rdapClient.lookupIP(ipOrRange).then(
@@ -113,21 +143,30 @@ const getPtr = (() => {
 const getIPData = str => {
   if (ipData[str] === undefined) {
     const ipOrRange = str.includes('/') ? new IPRange(str) : new IPAddr(str)
-    const gets = [
-      getReg(ipOrRange).then(reg => ({ reg }), () => ({})),
-      getGeo(ipOrRange).then(geo => ({ geo }), () => ({})),
-    ]
-    if (ipOrRange instanceof IPAddr) {
-      gets.push(getPtr(ipOrRange).catch(() => ({})))
+    if (isReserved(ipOrRange)) {
+      ipData[str] = Promise.resolve({ str, ipOrRange, reserved: true })
+    } else {
+      const gets = [
+        getReg(ipOrRange).then(reg => ({ reg }), () => ({})),
+        getGeo(ipOrRange).then(geo => ({ geo }), () => ({})),
+      ]
+      if (ipOrRange instanceof IPAddr) {
+        gets.push(getPtr(ipOrRange).catch(() => ({})))
+      }
+      ipData[str] = Promise.all(gets).then(data => Object.assign({ str, ipOrRange }, ...data))
     }
-    ipData[str] = Promise.all(gets).then(data => Object.assign({ str, ipOrRange }, ...data))
   }
   return ipData[str]
 }
 
 // generates HTML for an IP list item
-const ipItem = ({ str, ptr, ns, geo }) => {
-  let html = `<li><span><a class="no-ul" href="https://info.addr.tools/${str}">${str}</a></span>`
+const ipItem = ({ str, reserved, ptr, ns, geo }) => {
+  let html = '<li>'
+  if (reserved) {
+    html += `<span>${str}</span>`
+  } else {
+    html += `<span><a class="no-ul" href="https://info.addr.tools/${str}">${str}</a></span>`
+  }
   if (ptr) {
     html += ` <span class="blue"><abbr title="PTR record (reverse DNS)">ptr</abbr>: ${encode(ptr)}</span>`
   } else if (ns) {
@@ -148,7 +187,7 @@ const ipItem = ({ str, ptr, ns, geo }) => {
 const ipList = objs => {
   let html = ''
   const byReg = {}
-  objs.filter(({ pending }) => !pending).forEach(obj => {
+  objs.filter(({ pending, reserved }) => !pending && !reserved).forEach(obj => {
     if (byReg[obj.reg || ''] === undefined) {
       byReg[obj.reg || ''] = [ obj ]
     } else {
@@ -159,6 +198,11 @@ const ipList = objs => {
     html += `<div class="subtitle bold">${reg ? encode(reg) : '<i>Unknown</i>'}</div>` +
       `<ul class="ip-list">${byReg[reg].sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   })
+  const reserved = objs.filter(({ reserved }) => reserved)
+  if (reserved.length) {
+    html += '<div class="subtitle bold"><i>Nonpublic Reserved IP Space</i></div>' +
+      `<ul class="ip-list">${reserved.sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
+  }
   const pending = objs.filter(({ pending }) => pending)
   if (pending.length) {
     html += '<div class="subtitle bold"><i>Pending</i></div>' +

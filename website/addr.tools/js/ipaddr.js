@@ -9,9 +9,9 @@ export class IPAddr {
     } else if (this.constructor.v6Regex.test(value)) {
       const buffer = new DataView(new ArrayBuffer(16))
       const parts = value.split('::')
-      parts[0].split(':').forEach((wyde, i) => wyde !== '' && buffer.setUint16(2*i, parseInt(wyde, 16)))
-      if (parts[1] !== undefined) {
-        parts[1].split(':').reverse().forEach((wyde, i) => wyde !== '' && buffer.setUint16(14-2*i, parseInt(wyde, 16)))
+      parts[0].split(':').forEach((wyde, i) => wyde && buffer.setUint16(2*i, parseInt(wyde, 16)))
+      if (parts[1]) {
+        parts[1].split(':').reverse().forEach((wyde, i) => wyde && buffer.setUint16(14-2*i, parseInt(wyde, 16)))
       }
       this.value = (buffer.getBigUint64(0) << 64n) | buffer.getBigUint64(8)
     } else {
