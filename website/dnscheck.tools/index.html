@@ -72,7 +72,18 @@
       <p>
         dnscheck.tools is also a custom DNS test server! Make test queries like:
       <p class="break">
-        $ dig -t txt <strong>[<var>OPTIONS</var>.]go[-<var>SEC</var>][-<var>NET</var>].dnscheck.tools</strong>
+        <ul>
+          <li>Linux/MacOS</li>
+          <ul class="indent">
+            <li>$ dig -t txt <strong>[<var>OPTIONS</var>.]go[-<var>SEC</var>][-<var>NET</var>].dnscheck.tools</strong></li>
+          </ul>
+        </ul>
+        <ul>
+          <li>Windows (Powershell)</li>
+          <ul class="indent">
+            <li>> Resolve-DnsName -Name <strong>[<var>OPTIONS</var>.]go[-<var>SEC</var>][-<var>NET</var>].dnscheck.tools</strong> -Type TXT</li>
+          </ul>
+        </ul>
       <p>
         By default, both IPv4 and IPv6 authoritative nameservers are offered and responses are signed using ECDSA P-256
         with SHA-256.
@@ -144,6 +155,16 @@
         $ dig 123-truncate.go.dnscheck.tools
       <p class="break">
         $ dig 123-badsig.go-alg15-ipv4.dnscheck.tools
+      <p class="break">
+        > Resolve-DnsName -Name go.dnscheck.tools -Type TXT
+      <p class="break">
+        > Start-Process https://dnscheck.tools/watch/123
+      <p class="break">
+        > Resolve-DnsName -Name 123.go.dnscheck.tools
+      <p class="break">
+        > Resolve-DnsName -Name 123-truncate.go.dnscheck.tools
+      <p class="break">
+        > Resolve-DnsName -Name 123-badsig.go-alg15-ipv4.dnscheck.tools
     </div>
     <div class="section">
       <h2>SEE ALSO</h2>
