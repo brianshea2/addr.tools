@@ -1,6 +1,6 @@
-import { IPAddr, IPRange }      from 'https://www.addr.tools/js/ipaddr'
-import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
-import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
+import { IPAddr, IPRange }      from 'https://addr.tools/js/ipaddr'
+import { Client as RDAPClient } from 'https://addr.tools/js/rdap'
+import { encode, fetchOk }      from 'https://addr.tools/js/util'
 
 // state
 const clientId       = Math.floor(Math.random() * 0xffffffff).toString(16)

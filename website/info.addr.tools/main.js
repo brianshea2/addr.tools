@@ -1,6 +1,6 @@
-import { IPAddr, IPRange }                                from 'https://www.addr.tools/js/ipaddr'
-import { Client as RDAPClient, RDAPServiceNotFoundError } from 'https://www.addr.tools/js/rdap'
-import { encode, fetchOk }                                from 'https://www.addr.tools/js/util'
+import { IPAddr, IPRange }                                from 'https://addr.tools/js/ipaddr'
+import { Client as RDAPClient, RDAPServiceNotFoundError } from 'https://addr.tools/js/rdap'
+import { encode, fetchOk }                                from 'https://addr.tools/js/util'
 
 const rdapClient = new RDAPClient()
 const domainNamePattern = '(?:[0-9a-z_](?:[0-9a-z_-]*[0-9a-z])?\\.)*[0-9a-z](?:[0-9a-z-]*[0-9a-z])?\\.[a-z][0-9a-z-]*[0-9a-z]'

@@ -1,6 +1,6 @@
-import { IPAddr }               from 'https://www.addr.tools/js/ipaddr'
-import { Client as RDAPClient } from 'https://www.addr.tools/js/rdap'
-import { encode, fetchOk }      from 'https://www.addr.tools/js/util'
+import { IPAddr }               from 'https://addr.tools/js/ipaddr'
+import { Client as RDAPClient } from 'https://addr.tools/js/rdap'
+import { encode, fetchOk }      from 'https://addr.tools/js/util'
 
 // get & set clientId
 const clientId = window.location.pathname.match(/^\/watch\/([0-9a-f]{1,8})$/)?.[1] ?? Math.floor(Math.random() * 0xffffffff).toString(16)

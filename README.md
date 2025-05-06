@@ -1,4 +1,4 @@
-# [addr.tools](https://www.addr.tools/) - possibly useful tools for the Internet
+# [addr.tools](https://addr.tools/) - possibly useful tools for the Internet
 
 ## This repo contains the source code for:
 - [challenges.addr.tools](https://challenges.addr.tools/) - dns-01 ACME challenge helper zone
@@ -8,7 +8,7 @@
 - [info.addr.tools](https://info.addr.tools/) - explore identifying information for domain names and IP addresses
 - [ip.addr.tools](https://ip.addr.tools/) - construct domain names that resolve to any given IP address
 - [myip.addr.tools](https://myip.addr.tools/help) - get your public IP address
-- [dnscheck.tools](https://www.dnscheck.tools/) - identifies your DNS resolvers, checks DNSSEC validation, and more
+- [dnscheck.tools](https://dnscheck.tools/) - identifies your DNS resolvers, checks DNSSEC validation, and more
 - [myaddr.tools](https://myaddr.tools/) - yet another dynamic DNS service, custom names included
 - addrd - the custom dns server behind many of the above services
 
