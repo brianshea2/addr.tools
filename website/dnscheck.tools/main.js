@@ -7,7 +7,7 @@ const clientId       = Math.floor(Math.random() * 0xffffffff).toString(16)
 const rdapClient     = new RDAPClient()
 const geoLookups     = {}               // geolocation lookup promises by IP string
 const ipData         = {}               // combined IP data promises
-const clientIPs      = {}               // detected HTTP client source IPs
+const clientIPs      = {}               // detected HTTP request source and WebRTC ICE candidate IPs
 const clientSubnets  = {}               // EDNS advertised client subnets
 const resolvers      = {}               // detected DNS resolvers
 const dnssecTests    = [ ...Array(12) ] // DNSSEC test results
@@ -253,56 +253,57 @@ const drawResolvers = () => {
 }
 
 // draws the DNSSEC test results section
-const drawDNSSEC = () => {
-  let title, statusTooltip, statusClass
-  const dnssec = '<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" ' +
-    'title="Domain Name System Security Extensions">DNSSEC</a>'
-  if ([ 1, 2, 3, 5, 6, 7, 9, 10, 11 ].some(i => dnssecTests[i])) {
-    // one or more ecdsa failing domains connected
-    title = `<div>Oh no! Your DNS responses are not authenticated with ${dnssec}:</div>`
-    statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are not authenticated'
-    statusClass = 'red'
-  } else if (dnssecTests.some(t => t === undefined)) {
-    // tests are still running
-    title = dnssecDiv.firstElementChild.outerHTML
-  } else if ([ 0, 4, 8 ].every(i => dnssecTests[i])) {
-    // all good!
-    title = `<div>Great! Your DNS responses are authenticated with ${dnssec}:</div>`
-    statusTooltip = 'DNS Security Extensions\n\nYour DNS responses are authenticated'
-    statusClass = 'green'
-  } else {
-    // inconclusive
-    title = `<div>Hmm... There was a network issue while checking ${dnssec}. The result is inconclusive:</div>`
-    statusTooltip = 'DNS Security Extensions\n\nAn error occurred'
-    statusClass = 'yellow'
+const drawDNSSEC = (() => {
+  let f = () => {
+    dnssecDiv.innerHTML = dnssecDiv.firstElementChild.outerHTML + '<div><table class="dnssec"><thead><tr><th></th>' +
+      '<th>ECDSA <span class="nowrap">P-256</span></th><th>ECDSA <span class="nowrap">P-384</span></th>' +
+      '<th>Ed25519</th></tr></thead><tbody>' + [ 'Valid', 'Invalid', 'Expired', 'Missing' ].map(
+        t => `<tr><th>${t} signature</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(3)}</tr>`
+      ).join('') + '</tbody></table></div>'
+    const cols = dnssecDiv.getElementsByTagName('td')
+    const link = '<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" ' +
+      'title="Domain Name System Security Extensions">DNSSEC</a>'
+    const makeStatus = (text, className) =>
+      `<span class="${className}" title="DNS Security Extensions\n\n${text}">DNSSEC</span>`
+    f = () => {
+      let done = true
+      let error = false
+      let fail = false
+      dnssecTests.forEach((got, i) => {
+        if (got === undefined) {
+          done = false
+          return
+        }
+        const exp = i < 3 // true for the valid signature tests
+        cols[i].className = got === exp ? 'green' : 'red'
+        cols[i].innerHTML = got === exp ? 'PASS' : 'FAIL'
+        error ||= exp && !got
+        fail ||= got && !exp
+      })
+      if (error) {
+        // a dnssec-valid domain failed to connect
+        dnssecDiv.firstElementChild.innerHTML = `Hmm... There was a network issue while checking ${link}. ` +
+          'The result is inconclusive:'
+        dnssecStatusSpan.innerHTML = makeStatus('An error occurred', 'yellow')
+        return
+      }
+      if (fail) {
+        // a dnssec-invalid domain connected
+        dnssecDiv.firstElementChild.innerHTML = `Oh no! Your DNS responses are not authenticated with ${link}:`
+        dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are not authenticated', 'red')
+        return
+      }
+      if (done) {
+        // all tests passed
+        dnssecDiv.firstElementChild.innerHTML = `Great! Your DNS responses are authenticated with ${link}:`
+        dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are authenticated', 'green')
+        return
+      }
+    }
+    f()
   }
-  if (statusClass) {
-    dnssecStatusSpan.innerHTML = `<span class="${statusClass}" title="${statusTooltip}">DNSSEC</span>`
-  }
-  dnssecDiv.innerHTML = title +
-    '<div><table class="dnssec"><thead><tr>' +
-    '<th></th>' +
-    '<th>ECDSA <span class="nowrap">P-256</span></th>' +
-    '<th>ECDSA <span class="nowrap">P-384</span></th>' +
-    '<th>Ed25519</th>' +
-    '</tr></thead><tbody>' +
-    [ 'Good', 'Bad', 'Expired', 'Missing' ].map(
-      (label, sigIndex) => '<tr>' +
-        `<th>${label} signature</th>` +
-        [ 0, 4, 8 ].map(
-          algOffset => {
-            const got = dnssecTests[algOffset + sigIndex]
-            if (got === undefined) {
-              return '<td>&#8230;</td>'
-            }
-            const exp = sigIndex === 0 // only the 'Good' tests should make a successful connection
-            return `<td><span class="${got === exp ? 'green' : 'red'}">${got === exp ? 'PASS' : 'FAIL'}</span></td>`
-          }
-        ).join('') +
-        '</tr>'
-    ).join('') +
-    '</tbody></table></div>'
-}
+  return () => f()
+})()
 
 // detects client's IPv4 and IPv6 addresses via HTTP requests and WebRTC ICE candidates
 const testIPs = async () => {
@@ -382,11 +383,12 @@ const testDNS = () => new Promise(done => {
       tcpStatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers do not retry over TCP">TCP</span>'
     }
     // test DNSSEC validation
+    drawDNSSEC()
     for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
       await Promise.all([ '', '-badsig', '-expiredsig', '-nosig' ].map(
         (sigOpt, sigIndex) => makeQuery(`${clientId}${sigOpt}.go-${alg}`, 30000, abortController.signal).then(
           got => {
-            dnssecTests[4 * algIndex + sigIndex] = got
+            dnssecTests[3 * sigIndex + algIndex] = got
             drawDNSSEC()
           }
         )

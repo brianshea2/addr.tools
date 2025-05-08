@@ -295,14 +295,14 @@ nav {
   margin-bottom: -1.3em;
   white-space: nowrap;
 }
-.section :is(h3, .subtitle, table tbody th) {
+.section :is(h3, .subtitle) {
   padding-left: 2ch;
 }
 .section > :is(p, ul) {
   padding-left: 4ch;
 }
 @media (min-width: 768px) {
-  .section :is(h3, .subtitle, table tbody th) {
+  .section :is(h3, .subtitle) {
     padding-left: 4ch;
   }
   .section > :is(p, ul) {
@@ -314,22 +314,33 @@ table.dnssec {
 }
 table.dnssec :is(th, td) {
   font-weight: normal;
-  padding: 0;
+  padding: 0 0 0 2ch;
   text-align: center;
   vertical-align: bottom;
 }
-table.dnssec :is(th, td):nth-child(n+2) {
-  padding-left: 2ch;
+@media (min-width: 768px) {
+  table.dnssec :is(th, td) {
+    padding-left: 4ch;
+  }
 }
-table.dnssec th:nth-child(n+2) {
+table.dnssec thead th:nth-child(n+2) {
   max-width: 7ch;
 }
 table.dnssec tbody th {
   text-align: left;
   white-space: nowrap;
 }
-@media (min-width: 768px) {
-  table.dnssec :is(th, td):nth-child(n+2) {
-    padding-left: 4ch;
-  }
+@keyframes fade-pulse {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+table.dnssec .pending > span {
+  opacity: 0;
+  animation: 3s infinite fade-pulse;
+}
+table.dnssec .pending > span:nth-child(2) {
+  animation-delay: 0.5s;
+}
+table.dnssec .pending > span:nth-child(3) {
+  animation-delay: 1s;
 }
