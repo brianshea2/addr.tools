@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
@@ -63,20 +64,26 @@ func UpdateRegistration(hash, name string, store ttlstore.TtlStore, prefix strin
 		// update
 		ttl = RegistrationTtl
 	}
-	// (re-)set hash -> name
-	err := store.Set(prefix+"hash:"+hash, []byte(name), ttl)
-	if err != nil {
-		return err
-	}
 	// (re-)set ctime
-	err = store.Set(prefix+name+":ctime", ctime, ttl)
+	err := store.Set(prefix+name+":ctime", ctime, ttl)
 	if err != nil {
 		return err
 	}
 	// set new mtime
 	mtime := make([]byte, 4)
 	binary.BigEndian.PutUint32(mtime, now)
-	return store.Set(prefix+name+":mtime", mtime, ttl)
+	err = store.Set(prefix+name+":mtime", mtime, ttl)
+	if err != nil {
+		return err
+	}
+	// (re-)set hash -> name
+	if len(hash) > 0 {
+		err = store.Set(prefix+"hash:"+hash, []byte(name), ttl)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func GetRegistrationInfo(name string, store ttlstore.TtlStore, prefix string) (created, updated, expires uint32) {
@@ -92,6 +99,63 @@ func GetRegistrationInfo(name string, store ttlstore.TtlStore, prefix string) (c
 		}
 	}
 	return
+}
+
+type AdminHandler struct {
+	DataStore      ttlstore.TtlStore
+	ChallengeStore ttlstore.TtlStore
+	KeyPrefix      string
+}
+
+func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodGet:
+		var names []string
+		keys := h.DataStore.List(h.KeyPrefix)
+		for _, key := range keys {
+			if strings.HasSuffix(key, ":ctime") {
+				names = append(names, key[len(h.KeyPrefix):len(key)-6])
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		enc.Encode(names)
+	case http.MethodDelete, "SUSPEND":
+		name := req.URL.Query().Get("name")
+		if len(name) == 0 {
+			http.Error(w, "missing \"name\"", http.StatusBadRequest)
+			return
+		}
+		if ctime := h.DataStore.Get(h.KeyPrefix + name + ":ctime"); ctime == nil {
+			http.Error(w, "registration not found", http.StatusNotFound)
+			return
+		}
+		hashKey := h.DataStore.Find([]byte(name), h.KeyPrefix+"hash:")
+		if len(hashKey) > 0 {
+			h.DataStore.Delete(hashKey)
+		}
+		h.DataStore.Delete(h.KeyPrefix + name + ":ip4")
+		h.DataStore.Delete(h.KeyPrefix + name + ":ip4mtime")
+		h.DataStore.Delete(h.KeyPrefix + name + ":ip6")
+		h.DataStore.Delete(h.KeyPrefix + name + ":ip6mtime")
+		h.ChallengeStore.Delete(h.KeyPrefix + name)
+		if req.Method == "SUSPEND" {
+			err := UpdateRegistration("", name, h.DataStore, h.KeyPrefix)
+			if err != nil {
+				log.Printf("[error] myaddr.AdminHandler.ServeHTTP: UpdateRegistration: %v", err)
+				http.Error(w, "server error", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			h.DataStore.Delete(h.KeyPrefix + name + ":ctime")
+			h.DataStore.Delete(h.KeyPrefix + name + ":mtime")
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		w.Header().Set("Allow", "GET, DELETE, SUSPEND")
+		http.Error(w, "unsupported method", http.StatusMethodNotAllowed)
+	}
 }
 
 type RegistrationHandler struct {

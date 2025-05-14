@@ -239,6 +239,11 @@ func (config *Config) Run() {
 		h.SimpleHandler.Init(ParsePrivateKey(h.PrivateKey))
 		dns.Handle(h.SimpleHandler.Zone, h.SimpleHandler)
 	}
+	http.Handle("/admin/myaddr", &myaddr.AdminHandler{
+		DataStore:      persistentStore,
+		ChallengeStore: challengeStore,
+		KeyPrefix:      "myaddr:",
+	})
 	http.Handle("/myaddr-reg", &myaddr.RegistrationHandler{
 		DataStore:      persistentStore,
 		ChallengeStore: challengeStore,
