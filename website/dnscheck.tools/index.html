@@ -77,13 +77,6 @@
         By default, both IPv4 and IPv6 authoritative nameservers are offered and responses are signed using ECDSA P-256
         with SHA-256.
       <ul class="indent">
-        <li><strong><var>NET</var></strong> may be:
-        <li><ul class="options indent">
-          <li><span>ipv4</span>                       <span>offer only IPv4 authoritative nameservers</span>
-          <li><span>ipv6</span>                       <span>offer only IPv6 authoritative nameservers</span>
-        </ul>
-      </ul>
-      <ul class="indent">
         <li><strong><var>SEC</var></strong> sets the DNSSEC signing algorithm:
         <li><ul class="options indent">
           <li><span>alg13</span>                      <span>sign the zone using ECDSA P-256 with SHA-256
@@ -91,6 +84,13 @@
           <li><span>alg14</span>                      <span>sign the zone using ECDSA P-384 with SHA-384</span>
           <li><span>alg15</span>                      <span>sign the zone using Ed25519</span>
           <li><span>unsigned</span>                   <span>do not sign the zone</span>
+        </ul>
+      </ul>
+      <ul class="indent">
+        <li><strong><var>NET</var></strong> may be:
+        <li><ul class="options indent">
+          <li><span>ipv4</span>                       <span>offer only IPv4 authoritative nameservers</span>
+          <li><span>ipv6</span>                       <span>offer only IPv6 authoritative nameservers</span>
         </ul>
       </ul>
       <p>
