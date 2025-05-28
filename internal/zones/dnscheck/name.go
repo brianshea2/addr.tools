@@ -9,23 +9,18 @@ import (
 )
 
 type Options struct {
-	//
 	Random     string // hex
 	Compress   bool
 	Truncate   bool
 	NoTruncate bool
-	//
-	Rcode    int
-	NullIP   bool
-	IPv4Only bool
-	IPv6Only bool
-	//
-	Padding int // 1 - 4000
-	TxtFill int // 1 - 4000
-	//
-	NoSig      bool
 	BadSig     bool
 	ExpiredSig int // 1 - 99999999; default 86400
+	NoSig      bool
+	Rcode      int // nxdomain, refused
+	IPv4Only   bool
+	IPv6Only   bool
+	NullIP     bool
+	TxtFill    int // 1 - 4000
 }
 
 func ParseOptions(qname string, suffixLength int) *Options {
@@ -66,59 +61,13 @@ func ParseOptions(qname string, suffixLength int) *Options {
 				return nil
 			}
 			o.NoTruncate = true
-		case dnsutil.EqualNames(v, "nxdomain"):
-			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
-				return nil
-			}
-			o.Rcode = dns.RcodeNameError
-		case dnsutil.EqualNames(v, "refused"):
-			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
-				return nil
-			}
-			o.Rcode = dns.RcodeRefused
-		case dnsutil.EqualNames(v, "nullip"):
-			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
-				return nil
-			}
-			o.NullIP = true
-		case dnsutil.EqualNames(v, "ipv4"):
-			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
-				return nil
-			}
-			o.IPv4Only = true
-		case dnsutil.EqualNames(v, "ipv6"):
-			if o.Rcode != 0 || o.NullIP || o.IPv4Only || o.IPv6Only {
-				return nil
-			}
-			o.IPv6Only = true
-		case len(v) > 7 && dnsutil.EqualNames(v[:7], "padding"):
-			if o.Padding != 0 || o.TxtFill != 0 {
-				return nil
-			}
-			o.Padding, _ = strconv.Atoi(v[7:])
-			if o.Padding < 1 || o.Padding > 4000 {
-				return nil
-			}
-		case len(v) > 7 && dnsutil.EqualNames(v[:7], "txtfill"):
-			if o.Padding != 0 || o.TxtFill != 0 {
-				return nil
-			}
-			o.TxtFill, _ = strconv.Atoi(v[7:])
-			if o.TxtFill < 1 || o.TxtFill > 4000 {
-				return nil
-			}
-		case dnsutil.EqualNames(v, "nosig"):
-			if o.NoSig || o.BadSig || o.ExpiredSig != 0 {
-				return nil
-			}
-			o.NoSig = true
 		case dnsutil.EqualNames(v, "badsig"):
-			if o.NoSig || o.BadSig || o.ExpiredSig != 0 {
+			if o.BadSig || o.ExpiredSig != 0 || o.NoSig {
 				return nil
 			}
 			o.BadSig = true
 		case len(v) >= 10 && dnsutil.EqualNames(v[:10], "expiredsig"):
-			if o.NoSig || o.BadSig || o.ExpiredSig != 0 {
+			if o.BadSig || o.ExpiredSig != 0 || o.NoSig {
 				return nil
 			}
 			if len(v) > 10 {
@@ -128,6 +77,44 @@ func ParseOptions(qname string, suffixLength int) *Options {
 				}
 			} else {
 				o.ExpiredSig = 86400
+			}
+		case dnsutil.EqualNames(v, "nosig"):
+			if o.BadSig || o.ExpiredSig != 0 || o.NoSig {
+				return nil
+			}
+			o.NoSig = true
+		case dnsutil.EqualNames(v, "nxdomain"):
+			if o.Rcode != 0 || o.IPv4Only || o.IPv6Only || o.NullIP || o.TxtFill != 0 {
+				return nil
+			}
+			o.Rcode = dns.RcodeNameError
+		case dnsutil.EqualNames(v, "refused"):
+			if o.Rcode != 0 || o.IPv4Only || o.IPv6Only || o.NullIP || o.TxtFill != 0 {
+				return nil
+			}
+			o.Rcode = dns.RcodeRefused
+		case dnsutil.EqualNames(v, "ipv4"):
+			if o.Rcode != 0 || o.IPv4Only || o.IPv6Only || o.NullIP || o.TxtFill != 0 {
+				return nil
+			}
+			o.IPv4Only = true
+		case dnsutil.EqualNames(v, "ipv6"):
+			if o.Rcode != 0 || o.IPv4Only || o.IPv6Only || o.NullIP || o.TxtFill != 0 {
+				return nil
+			}
+			o.IPv6Only = true
+		case dnsutil.EqualNames(v, "nullip"):
+			if o.Rcode != 0 || o.IPv4Only || o.IPv6Only || o.NullIP || o.TxtFill != 0 {
+				return nil
+			}
+			o.NullIP = true
+		case len(v) > 7 && dnsutil.EqualNames(v[:7], "txtfill"):
+			if o.Rcode != 0 || o.IPv4Only || o.IPv6Only || o.NullIP || o.TxtFill != 0 {
+				return nil
+			}
+			o.TxtFill, _ = strconv.Atoi(v[7:])
+			if o.TxtFill < 1 || o.TxtFill > 4000 {
+				return nil
 			}
 		default:
 			if len(o.Random) > 0 {

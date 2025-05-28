@@ -275,23 +275,6 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		})
 		return
 	}
-	// edns0 padding
-	if opts.Padding != 0 && (q.Qtype == dns.TypeA || q.Qtype == dns.TypeAAAA || q.Qtype == dns.TypeTXT) {
-		if opt := resp.IsEdns0(); opt != nil {
-			if !h.LargeResponseLimiter.Allow() {
-				log.Printf("[warn] DnscheckHandler.ServeDNS: padding request rate limited for %s", w.RemoteAddr())
-				opt.Option = append(opt.Option, &dns.EDNS0_EDE{
-					InfoCode:  dns.ExtendedErrorCodeOther,
-					ExtraText: "too busy, try again later",
-				})
-				resp.Rcode = dns.RcodeRefused
-				return
-			}
-			opt.Option = append(opt.Option, &dns.EDNS0_PADDING{
-				Padding: make([]byte, opts.Padding),
-			})
-		}
-	}
 	// other records
 	switch q.Qtype {
 	case dns.TypeA:
