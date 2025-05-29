@@ -20,7 +20,7 @@ type Options struct {
 	IPv4Only   bool
 	IPv6Only   bool
 	NullIP     bool
-	TxtFill    int // 1 - 4000
+	TxtFill    int // 1 - 4096
 }
 
 func ParseOptions(qname string, suffixLength int) *Options {
@@ -113,7 +113,7 @@ func ParseOptions(qname string, suffixLength int) *Options {
 				return nil
 			}
 			o.TxtFill, _ = strconv.Atoi(v[7:])
-			if o.TxtFill < 1 || o.TxtFill > 4000 {
+			if o.TxtFill < 1 || o.TxtFill > 4096 {
 				return nil
 			}
 		default:
