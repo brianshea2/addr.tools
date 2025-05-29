@@ -8,6 +8,22 @@ import (
 	"github.com/miekg/dns"
 )
 
+func MsgAcceptFunc(dh dns.Header) dns.MsgAcceptAction {
+	// ignore messages with the response flag set
+	if isResponse := dh.Bits&(1<<15) != 0; isResponse {
+		return dns.MsgIgnore
+	}
+	// filter opcodes
+	if opcode := int(dh.Bits>>11) & 0xF; !(opcode == dns.OpcodeQuery || opcode == dns.OpcodeUpdate) {
+		return dns.MsgRejectNotImplemented
+	}
+	// must have exactly one question/zone
+	if dh.Qdcount != 1 {
+		return dns.MsgReject
+	}
+	return dns.MsgAccept
+}
+
 type LoggingResponseWriter struct {
 	dns.ResponseWriter
 	Rcode   int
@@ -32,8 +48,8 @@ func (w *LoggingResponseWriter) ConnectionState() *tls.ConnectionState {
 
 type LoggingHandler struct {
 	Logger *log.Logger
+	Next   dns.Handler
 	count  atomic.Uint64
-	dns.Handler
 }
 
 func (h *LoggingHandler) RequestCount() uint64 {
@@ -42,7 +58,7 @@ func (h *LoggingHandler) RequestCount() uint64 {
 
 func (h *LoggingHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	lw := &LoggingResponseWriter{ResponseWriter: w}
-	h.Handler.ServeDNS(lw, req)
+	h.Next.ServeDNS(lw, req)
 	h.count.Add(1)
 	var status string
 	if lw.Written {

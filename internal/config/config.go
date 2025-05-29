@@ -122,8 +122,8 @@ func (config *Config) Run() {
 		requestLogger = log.Default()
 	}
 	dnsHandler := &dnsutil.LoggingHandler{
-		Logger:  requestLogger,
-		Handler: dns.DefaultServeMux,
+		Logger: requestLogger,
+		Next:   dns.DefaultServeMux,
 	}
 	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
 		return []status.Status{{Title: "requests", Value: strconv.FormatUint(dnsHandler.RequestCount(), 10)}}
