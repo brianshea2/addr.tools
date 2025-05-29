@@ -16,7 +16,7 @@ import (
 const (
 	LookupTimeout        = 5 * time.Second
 	LookupResponseMaxTtl = 86400
-	MaxUdpMsgSize        = 1232
+	MaxUdpMsgSize        = 1400
 )
 
 type LookupHandler struct {

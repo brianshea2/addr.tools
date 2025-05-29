@@ -6,7 +6,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-const MaxUdpMsgSize = 1232
+const MaxUdpMsgSize = 1400
 
 // checks for edns0 in req, sets edns0 in resp
 func CheckAndSetEdns(req, resp *dns.Msg) error {
