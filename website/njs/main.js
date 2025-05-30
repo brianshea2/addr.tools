@@ -1,9 +1,6 @@
 const get_self_ip_host = r =>
   r.remoteAddress.replace(/[.:]/g, "-").replace(/^-/, "0-").replace(/-$/, "-0") + ".ip.addr.tools"
 
-const make_client_id = () =>
-  Math.floor(Math.random() * 0xffffffff).toString(16)
-
 const header_echo_content = r => {
   r.return(200, r.variables.request + "\n" + r.rawHeadersIn.map(header => `${header[0]}: ${header[1]}\n`).join(""))
 }
@@ -44,7 +41,6 @@ const header_echo = r => {
 
 export default {
   get_self_ip_host,
-  make_client_id,
   header_echo_content,
   header_echo
 }
