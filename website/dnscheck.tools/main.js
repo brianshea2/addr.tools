@@ -367,26 +367,26 @@ const testDNS = () => new Promise(done => {
     console.log('WebSocket opened')
     // generate some DNS requests
     for (let i = 0; i < 5; i++) {
-      await makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go`, 10000, abortController.signal)
-      await makeQuery(`${String.fromCharCode(97 + i)}.${clientId}-nullip.go-ipv4`, 10000, abortController.signal)
+      await makeQuery(`${String.fromCharCode(97 + i)}.nullip-${clientId}.go`, 10000, abortController.signal)
+      await makeQuery(`${String.fromCharCode(97 + i)}.nullip-${clientId}.go-ipv4`, 10000, abortController.signal)
     }
     // test IPv6 support
     if (!seenIPv6) {
-      await makeQuery(`${clientId}-nullip.go-ipv6`, 10000, abortController.signal)
+      await makeQuery(`nullip-${clientId}.go-ipv6`, 10000, abortController.signal)
     }
     if (!seenIPv6) {
       ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach IPv6 nameservers">IPv6</span>'
     }
     // test TCP fallback
-    const usesTCP = await makeQuery(`${clientId}-truncate.go`, 10000, abortController.signal)
+    const usesTCP = await makeQuery(`truncate-${clientId}.go`, 10000, abortController.signal)
     if (!usesTCP) {
       tcpStatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers do not retry over TCP">TCP</span>'
     }
     // test DNSSEC validation
     drawDNSSEC()
     for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
-      await Promise.all([ '', '-badsig', '-expiredsig', '-nosig' ].map(
-        (sigOpt, sigIndex) => makeQuery(`${clientId}${sigOpt}.go-${alg}`, 30000, abortController.signal).then(
+      await Promise.all([ '', 'badsig-', 'expiredsig-', 'nosig-' ].map(
+        (sigOpt, sigIndex) => makeQuery(`${sigOpt}${clientId}.go-${alg}`, 30000, abortController.signal).then(
           got => {
             dnssecTests[3 * sigIndex + algIndex] = got
             drawDNSSEC()
