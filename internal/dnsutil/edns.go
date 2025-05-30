@@ -6,7 +6,10 @@ import (
 	"github.com/miekg/dns"
 )
 
-const MaxUdpMsgSize = 1400
+const (
+	MaxUdpMsgSize              = 1400 // rfc9715
+	ResponsePaddingBlockLength = 468  // rfc8467
+)
 
 // checks for edns0 in req, sets edns0 in resp
 func CheckAndSetEdns(req, resp *dns.Msg) error {
@@ -36,21 +39,64 @@ func CheckAndSetEdns(req, resp *dns.Msg) error {
 	return nil
 }
 
-// determines max size, edns0 aware, truncates if necessary
-func MaybeTruncate(req, resp *dns.Msg, net string) {
-	if net != "udp" {
+// determines max udp payload size
+func GetMaxUdpSize(req *dns.Msg) int {
+	opt := req.IsEdns0()
+	if opt == nil {
+		return dns.MinMsgSize
+	}
+	maxSize := int(opt.UDPSize())
+	if maxSize < dns.MinMsgSize {
+		return dns.MinMsgSize
+	}
+	if maxSize > MaxUdpMsgSize {
+		return MaxUdpMsgSize
+	}
+	return maxSize
+}
+
+// checks if edns0 padding exists in msg
+func HasPadding(msg *dns.Msg) bool {
+	opt := msg.IsEdns0()
+	if opt == nil {
+		return false
+	}
+	for _, o := range opt.Option {
+		if o.Option() == dns.EDNS0PADDING {
+			return true
+		}
+	}
+	return false
+}
+
+// adds edns0 padding to msg so that the padded length is a multiple of blockLength
+func AddPadding(msg *dns.Msg, blockLength int) {
+	opt := msg.IsEdns0()
+	if opt == nil {
 		return
 	}
-	var maxSize int
-	if opt := req.IsEdns0(); opt != nil {
-		maxSize = int(opt.UDPSize())
-		if maxSize < dns.MinMsgSize {
-			maxSize = dns.MinMsgSize
-		} else if maxSize > MaxUdpMsgSize {
-			maxSize = MaxUdpMsgSize
-		}
-	} else {
-		maxSize = dns.MinMsgSize
+	msgLength := msg.Len() + 4 // EDNS0PADDING option adds 4 bytes
+	paddingLength := msgLength % blockLength
+	if paddingLength > 0 {
+		paddingLength = blockLength - paddingLength
 	}
-	resp.Truncate(maxSize)
+	opt.Option = append(opt.Option, &dns.EDNS0_PADDING{
+		Padding: make([]byte, paddingLength),
+	})
+}
+
+// truncates and/or pads if necessary
+func ResizeForTransport(req, resp *dns.Msg, proto string) {
+	switch proto {
+	case ProtoUDP:
+		forceCompress := resp.Compress
+		resp.Truncate(GetMaxUdpSize(req))
+		if forceCompress {
+			resp.Compress = true
+		}
+	case ProtoTLS:
+		if HasPadding(req) {
+			AddPadding(resp, ResponsePaddingBlockLength)
+		}
+	}
 }

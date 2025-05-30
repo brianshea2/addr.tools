@@ -108,9 +108,9 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		resp.Rcode = dns.RcodeRefused
 		return
 	}
-	// defer compress & truncate
+	// defer compress, truncate, padding
 	defer func() {
-		MaybeTruncate(req, resp, w.RemoteAddr().Network())
+		ResizeForTransport(req, resp, GetWriterProtocol(w))
 	}()
 	// provide dnssec keys, defer dnssec proof
 	if h.ProvideKeys(req, resp) {

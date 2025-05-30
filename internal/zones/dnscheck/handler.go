@@ -159,18 +159,30 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		resp.Rcode = dns.RcodeRefused
 		return
 	}
-	// defer compress & truncate
+	// defer compress, truncate, padding
 	defer func() {
-		if opts == nil || !opts.NoTruncate {
-			dnsutil.MaybeTruncate(req, resp, w.RemoteAddr().Network())
-		}
 		if opts != nil && opts.Compress {
 			resp.Compress = true
 		}
-		if opts != nil && opts.Truncate && w.RemoteAddr().Network() == "udp" {
-			resp.Truncated = true
-			resp.Answer = nil
-			resp.Ns = nil
+		switch dnsutil.GetWriterProtocol(w) {
+		case dnsutil.ProtoUDP:
+			if opts != nil && opts.NoTruncate {
+				break
+			}
+			if opts != nil && opts.Truncate {
+				resp.Truncated = true
+				resp.Answer = nil
+				resp.Ns = nil
+				break
+			}
+			resp.Truncate(dnsutil.GetMaxUdpSize(req))
+			if opts != nil && opts.Compress {
+				resp.Compress = true
+			}
+		case dnsutil.ProtoTLS:
+			if dnsutil.HasPadding(req) {
+				dnsutil.AddPadding(resp, dnsutil.ResponsePaddingBlockLength)
+			}
 		}
 	}()
 	// provide dnssec keys, defer dnssec proof
