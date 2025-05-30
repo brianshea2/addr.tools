@@ -36,7 +36,7 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 		Time                  uint32 `json:"time"`
 		Proto                 string `json:"proto"`
 		RemoteIp              string `json:"remoteIp"`
-		RemotePort            string `json:"remotePort"`
+		RemotePort            int    `json:"remotePort"`
 		MsgText               string `json:"msgText,omitempty"`
 		IsEdns0               bool   `json:"isEdns0,omitempty"`
 		UDPSize               uint16 `json:"udpSize,omitempty"`
@@ -49,7 +49,14 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 	}
 	r.Time = msg.time
 	r.Proto = msg.proto
-	r.RemoteIp, r.RemotePort, _ = net.SplitHostPort(msg.raddr.String())
+	switch a := msg.raddr.(type) {
+	case *net.UDPAddr:
+		r.RemoteIp = a.IP.String()
+		r.RemotePort = a.Port
+	case *net.TCPAddr:
+		r.RemoteIp = a.IP.String()
+		r.RemotePort = a.Port
+	}
 	if msg.wsProto == "full" {
 		r.MsgText = msg.req.String()
 	}

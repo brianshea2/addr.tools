@@ -367,12 +367,21 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			})
 			break // no more txts
 		}
-		ip, port, _ := net.SplitHostPort(w.RemoteAddr().String())
+		var ip string
+		var port int
+		switch a := w.RemoteAddr().(type) {
+		case *net.UDPAddr:
+			ip = a.IP.String()
+			port = a.Port
+		case *net.TCPAddr:
+			ip = a.IP.String()
+			port = a.Port
+		}
 		txts := []string{
 			fmt.Sprintf("id: %d", req.Id),
 			"proto: " + dnsutil.GetProtocol(w),
 			"remoteIp: " + ip,
-			"remotePort: " + port,
+			fmt.Sprintf("remotePort: %d", port),
 		}
 		if h.IPInfoClient != nil {
 			info, err := h.IPInfoClient.GetIPInfo(ip)
