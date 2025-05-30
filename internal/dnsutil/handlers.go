@@ -72,7 +72,7 @@ func (h *LoggingHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	logger.Printf(
 		"%s %s %s %s %s %s an:%v ns:%v ex:%v %s",
-		GetWriterProtocol(w),
+		GetProtocol(w),
 		status,
 		dns.OpcodeToString[req.Opcode],
 		dns.Class(req.Question[0].Qclass),

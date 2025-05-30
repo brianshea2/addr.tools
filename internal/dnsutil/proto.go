@@ -1,7 +1,6 @@
 package dnsutil
 
 import (
-	"crypto/tls"
 	"net"
 
 	"github.com/miekg/dns"
@@ -13,24 +12,11 @@ const (
 	ProtoTLS = "TLS"
 )
 
-func GetAddrProtocol(addr net.Addr, cstate *tls.ConnectionState) string {
-	switch addr.Network() {
-	case "udp":
+func GetProtocol(w dns.ResponseWriter) string {
+	switch w.LocalAddr().(type) {
+	case *net.UDPAddr:
 		return ProtoUDP
-	case "tcp":
-		if cstate != nil {
-			return ProtoTLS
-		}
-		return ProtoTCP
-	}
-	return ""
-}
-
-func GetWriterProtocol(w dns.ResponseWriter) string {
-	switch w.LocalAddr().Network() {
-	case "udp":
-		return ProtoUDP
-	case "tcp":
+	case *net.TCPAddr:
 		if w.(dns.ConnectionStater).ConnectionState() != nil {
 			return ProtoTLS
 		}

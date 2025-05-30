@@ -127,7 +127,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	if opts != nil && len(opts.Random) > 0 {
 		watcher := h.Watchers.Get(opts.Random)
 		if watcher != nil {
-			watcher.Send(req, w.RemoteAddr(), w.(dns.ConnectionStater).ConnectionState())
+			watcher.Send(req, dnsutil.GetProtocol(w), w.RemoteAddr(), w.(dns.ConnectionStater).ConnectionState())
 		}
 	}
 	// queries only
@@ -164,7 +164,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		if opts != nil && opts.Compress {
 			resp.Compress = true
 		}
-		switch dnsutil.GetWriterProtocol(w) {
+		switch dnsutil.GetProtocol(w) {
 		case dnsutil.ProtoUDP:
 			if opts != nil && opts.NoTruncate {
 				break
@@ -370,7 +370,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		ip, port, _ := net.SplitHostPort(w.RemoteAddr().String())
 		txts := []string{
 			fmt.Sprintf("id: %d", req.Id),
-			"proto: " + dnsutil.GetWriterProtocol(w),
+			"proto: " + dnsutil.GetProtocol(w),
 			"remoteIp: " + ip,
 			"remotePort: " + port,
 		}

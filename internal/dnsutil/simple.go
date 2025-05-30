@@ -110,7 +110,7 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	// defer compress, truncate, padding
 	defer func() {
-		ResizeForTransport(req, resp, GetWriterProtocol(w))
+		ResizeForTransport(req, resp, GetProtocol(w))
 	}()
 	// provide dnssec keys, defer dnssec proof
 	if h.ProvideKeys(req, resp) {

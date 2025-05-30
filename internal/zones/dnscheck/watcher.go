@@ -10,7 +10,7 @@ import (
 )
 
 type Watcher interface {
-	Send(req *dns.Msg, remoteAddr net.Addr, connState *tls.ConnectionState)
+	Send(req *dns.Msg, proto string, remoteAddr net.Addr, connState *tls.ConnectionState)
 }
 
 type WatcherHub interface {

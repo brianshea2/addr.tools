@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/gorilla/websocket"
 	"github.com/miekg/dns"
 )
@@ -25,6 +24,7 @@ const (
 
 type WebsocketWatcherMessage struct {
 	req     *dns.Msg
+	proto   string
 	raddr   net.Addr
 	cstate  *tls.ConnectionState
 	wsProto string
@@ -48,7 +48,7 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 		TLSDidResume          bool   `json:"tlsDidResume,omitempty"`
 	}
 	r.Time = msg.time
-	r.Proto = dnsutil.GetAddrProtocol(msg.raddr, msg.cstate)
+	r.Proto = msg.proto
 	r.RemoteIp, r.RemotePort, _ = net.SplitHostPort(msg.raddr.String())
 	if msg.wsProto == "full" {
 		r.MsgText = msg.req.String()
@@ -86,9 +86,9 @@ func NewWebsocketWatcher(conn *websocket.Conn) *WebsocketWatcher {
 	}
 }
 
-func (ws *WebsocketWatcher) Send(req *dns.Msg, remoteAddr net.Addr, connState *tls.ConnectionState) {
+func (ws *WebsocketWatcher) Send(req *dns.Msg, proto string, remoteAddr net.Addr, connState *tls.ConnectionState) {
 	select {
-	case ws.ch <- &WebsocketWatcherMessage{req, remoteAddr, connState, ws.conn.Subprotocol(), uint32(time.Now().Unix())}:
+	case ws.ch <- &WebsocketWatcherMessage{req, proto, remoteAddr, connState, ws.conn.Subprotocol(), uint32(time.Now().Unix())}:
 	default:
 		// buffer is full or watcher is done (nil ch)
 	}
