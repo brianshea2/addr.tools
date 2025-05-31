@@ -12,7 +12,7 @@
     "MyaddrTurnstileSecret": "",
     "DnscheckZones": [
         {
-            "Zone": "go.dnscheck.tools.",
+            "Zone": "test.dnscheck.tools.",
             "Ns": ["dns.addr.tools."],
             "Ksk": {
                 "Algorithm": 13,
@@ -30,10 +30,6 @@
                 "Signature": ""
             },
             "PrivateKey": ""
-        },
-        {
-            "Zone": "go-unsigned.dnscheck.tools.",
-            "Ns": ["dns.addr.tools."]
         }
     ],
     "ChallengesZone": {

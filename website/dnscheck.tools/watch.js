@@ -68,8 +68,8 @@ const handleOpen = () => {
   // set content
   if (count === 0) {
     requestsDiv.innerHTML = '<p>listening for requests...' +
-      `<p>try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig -t txt ${clientId}.go.dnscheck.tools</span>\`` +
-      `<p>or <a href="https://${clientId}.go.dnscheck.tools/" onclick="fetch(this.href).catch(() => {});return false">click here</a>.`
+      `<p>try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig -t txt ${clientId}.test.dnscheck.tools</span>\`` +
+      `<p>or <a href="https://${clientId}.test.dnscheck.tools/" onclick="fetch(this.href).catch(() => {});return false">click here</a>.`
   }
 }
 
