@@ -64,6 +64,25 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 					AAAA: ip,
 				})
 			}
+		case dns.TypeHTTPS:
+			https := &dns.HTTPS{dns.SVCB{
+				Hdr: dns.RR_Header{
+					Name:   q.Name,
+					Rrtype: dns.TypeHTTPS,
+					Class:  dns.ClassINET,
+					Ttl:    300,
+				},
+				Priority: 1,
+				Target:   ".",
+				Value:    []dns.SVCBKeyValue{&dns.SVCBAlpn{Alpn: []string{"h3", "h2"}}},
+			}}
+			if len(g.IPv4) > 0 {
+				https.Value = append(https.Value, &dns.SVCBIPv4Hint{Hint: g.IPv4})
+			}
+			if len(g.IPv6) > 0 {
+				https.Value = append(https.Value, &dns.SVCBIPv6Hint{Hint: g.IPv6})
+			}
+			rrs = append(rrs, https)
 		}
 		return
 	}

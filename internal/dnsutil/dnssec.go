@@ -23,6 +23,7 @@ var DefaultNsecTypes = []uint16{
 	dns.TypeRRSIG,
 	dns.TypeNSEC,
 	dns.TypeDNSKEY,
+	dns.TypeHTTPS,
 }
 
 type DnssecProvider struct {

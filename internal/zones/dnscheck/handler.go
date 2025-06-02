@@ -343,6 +343,28 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				})
 			}
 		}
+	case dns.TypeHTTPS:
+		if opts.NullIP {
+			break
+		}
+		https := &dns.HTTPS{dns.SVCB{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeHTTPS,
+				Class:  dns.ClassINET,
+				Ttl:    1,
+			},
+			Priority: 1,
+			Target:   ".",
+			Value:    []dns.SVCBKeyValue{&dns.SVCBAlpn{Alpn: []string{"h3", "h2"}}},
+		}}
+		if !opts.IPv6Only && len(h.IPv4) > 0 {
+			https.Value = append(https.Value, &dns.SVCBIPv4Hint{Hint: h.IPv4})
+		}
+		if !opts.IPv4Only && len(h.IPv6) > 0 {
+			https.Value = append(https.Value, &dns.SVCBIPv6Hint{Hint: h.IPv6})
+		}
+		resp.Answer = append(resp.Answer, https)
 	case dns.TypeTXT:
 		if opts.TxtFill != 0 {
 			if !h.LargeResponseLimiter.Allow() {
