@@ -2,7 +2,22 @@ const get_self_ip_host = r =>
   r.remoteAddress.replace(/[.:]/g, "-").replace(/^-/, "0-").replace(/-$/, "-0") + ".ip.addr.tools"
 
 const header_echo_content = r => {
-  r.return(200, r.variables.request + "\n" + r.rawHeadersIn.map(header => `${header[0]}: ${header[1]}\n`).join(""))
+  let content = `# IP: ${r.variables.remote_addr}.${r.variables.remote_port} > ${r.variables.server_addr}.${r.variables.server_port}\n`
+  if (r.variables.ssl_protocol) {
+    content += `# TLS: ${r.variables.ssl_session_reused === "r" ? "Reused" : "New"}, ${r.variables.ssl_protocol}\n`
+  }
+  if (r.variables.ssl_ciphers) {
+    content += `# CIPHER: ${r.variables.ssl_ciphers.split(":").map(v => v === r.variables.ssl_cipher ? `[${v}]` : v).join(", ")}\n`
+  }
+  if (r.variables.ssl_curves) {
+    content += `# CURVE: ${r.variables.ssl_curves.split(":").map(v => v === r.variables.ssl_curve ? `[${v}]` : v).join(", ")}\n`
+  }
+  if (r.variables.ssl_server_name) {
+    content += `# SNI: ${r.variables.ssl_server_name}\n`
+  }
+  content += `${r.variables.request}\n`
+  content += r.rawHeadersIn.map(hdr => `${hdr[0]}: ${hdr[1]}\n`).join("")
+  r.return(200, content)
 }
 
 const header_echo = r => {
