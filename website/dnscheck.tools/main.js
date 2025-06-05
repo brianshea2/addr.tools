@@ -274,11 +274,24 @@ const drawDNSSEC = (() => {
           done = false
           return
         }
-        const exp = i < 3 // true for the valid signature tests
-        cols[i].className = got === exp ? 'green' : 'red'
-        cols[i].innerHTML = got === exp ? 'PASS' : 'FAIL'
-        error ||= exp && !got
-        fail ||= got && !exp
+        if (i < 3) {
+          // the valid signature tests
+          cols[i].className = got ? 'green' : 'red'
+          cols[i].innerHTML = got ? 'PASS' : 'FAIL'
+          if (!got) {
+            error = true
+            for (let j = i + 3; j < cols.length; j += 3) {
+              cols[j].className = 'yellow'
+              cols[j].innerHTML = 'ERR'
+            }
+          }
+          return
+        }
+        cols[i].className = got ? 'red' : 'green'
+        cols[i].innerHTML = got ? 'FAIL' : 'PASS'
+        if (got) {
+          fail = true
+        }
       })
       if (error) {
         // a dnssec-valid domain failed to connect
@@ -385,14 +398,15 @@ const testDNS = () => new Promise(done => {
     // test DNSSEC validation
     drawDNSSEC()
     for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
-      await Promise.all([ '', 'badsig-', 'expiredsig-', 'nosig-' ].map(
-        (sigOpt, sigIndex) => makeQuery(`${sigOpt}${clientId}.test-${alg}`, 30000, abortController.signal).then(
-          got => {
-            dnssecTests[3 * sigIndex + algIndex] = got
-            drawDNSSEC()
-          }
-        )
-      ))
+      for (const [ sigIndex, sigOpt ] of [ '', 'badsig-', 'expiredsig-', 'nosig-' ].entries()) {
+        const got = await makeQuery(`${sigOpt}${clientId}.test-${alg}`, 30000, abortController.signal)
+        dnssecTests[3 * sigIndex + algIndex] = got
+        drawDNSSEC()
+        if (sigIndex === 0 && !got) {
+          // valid signature failed to connect, no point in continuing tests for this signing algorithm
+          break
+        }
+      }
     }
     // finished
     countSpan.classList.remove('light')
@@ -460,8 +474,10 @@ const testDNS = () => new Promise(done => {
 
   // on close
   socket.addEventListener('close', e => {
-    abortController.abort()
     console.log('WebSocket closed', e)
+    if (e.code === 4000) { // clientId is already in use
+      abortController.abort()
+    }
     if (count === 0) {
       resolversDiv.innerHTML = resolversDiv.firstElementChild.outerHTML +
         '<p><span class="red">an error occurred.</span> ' +
