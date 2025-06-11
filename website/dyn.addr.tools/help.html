@@ -15,19 +15,19 @@
 <h2>SYNOPSIS</h2>
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl 'https://dyn.addr.tools/?secret=1SuperSecretPassphrase&amp;ip=self'</kbd>
+    <i>$</i> <kbd>curl 'https://dyn.addr.tools/?secret=1SuperSecret&amp;ip=self'</kbd>
     OK
   </samp>
 
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl -d 'secret=1SuperSecretPassphrase' -d 'ip=192.0.2.1' https://dyn.addr.tools</kbd>
+    <i>$</i> <kbd>curl -d 'secret=1SuperSecret' -d 'ip=192.0.2.1' https://dyn.addr.tools</kbd>
     OK
   </samp>
 
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>sha224=$(echo -n '1SuperSecretPassphrase' | shasum -a 224 | cut -c 1-56)</kbd>
+    <i>$</i> <kbd>sha224=$(echo -n '1SuperSecret' | shasum -a 224 | cut -c 1-56)</kbd>
     <i>$</i> <kbd>dig +short $sha224.dyn.addr.tools</kbd>
     192.0.2.1
   </samp>
@@ -76,16 +76,16 @@
   Say you want to keep home.example.com updated with your public IPv4 address.
 
 <p>
-  First, pick a strong password. We'll use "1SuperSecretPassphrase", but you shouldn't.
+  First, pick a strong password. We'll use "1SuperSecret", but you shouldn't.
 
 <p>
   Add a CNAME record to point home.example.com to the subdomain of dyn.addr.tools named by calculating the SHA-224 hash
-  of "1SuperSecretPassphrase". This should look similar to:
+  of "1SuperSecret". This should look similar to:
 
 <table>
   <tr><th>Name:   <td>home.example.com
   <tr><th>Type:   <td>CNAME
-  <tr><th>Target: <td class="break">9afcdffa0d7a6d6f0140cadea70a9f62d58a96dd5d50f268086ca968.dyn.addr.tools
+  <tr><th>Target: <td class="break">1d23d5e1a9a689668e8510aef992aa358cb54992d0c4327842a1416f.dyn.addr.tools
 </table>
 
 <p>
@@ -93,7 +93,7 @@
 
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl 'https://ipv4.dyn.addr.tools/?secret=1SuperSecretPassphrase&amp;ip=self'</kbd>
+    <i>$</i> <kbd>curl 'https://ipv4.dyn.addr.tools/?secret=1SuperSecret&amp;ip=self'</kbd>
   </samp>
 
 <p>
@@ -105,7 +105,7 @@
 
 <table>
   <tr><th>Service Type:  <td>Custom
-  <tr><th>Update URL:    <td class="break">https://ipv4.dyn.addr.tools/?secret=1SuperSecretPassphrase&amp;ip=self
+  <tr><th>Update URL:    <td class="break">https://ipv4.dyn.addr.tools/?secret=1SuperSecret&amp;ip=self
   <tr><th>Result Match:  <td>OK
   <tr><th>Max Cache Age: <td>90
 </table>

@@ -15,19 +15,19 @@
 <h2>SYNOPSIS</h2>
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl 'https://challenges.addr.tools/?secret=1SuperSecretPassphrase&amp;txt=foo'</kbd>
+    <i>$</i> <kbd>curl 'https://challenges.addr.tools/?secret=1SuperSecret&amp;txt=foo'</kbd>
     OK
   </samp>
 
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl -d 'secret=1SuperSecretPassphrase' -d 'txt=foo' https://challenges.addr.tools</kbd>
+    <i>$</i> <kbd>curl -d 'secret=1SuperSecret' -d 'txt=foo' https://challenges.addr.tools</kbd>
     OK
   </samp>
 
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>sha224=$(echo -n '1SuperSecretPassphrase' | shasum -a 224 | cut -c 1-56)</kbd>
+    <i>$</i> <kbd>sha224=$(echo -n '1SuperSecret' | shasum -a 224 | cut -c 1-56)</kbd>
     <i>$</i> <kbd>dig -t txt +short $sha224.challenges.addr.tools</kbd>
     "foo"
   </samp>
@@ -66,28 +66,28 @@
   Say you want to obtain a wildcard TLS certificate for example.com from Let's Encrypt using Certbot.
 
 <p>
-  First, pick a strong password. We'll use "1SuperSecretPassphrase", but you shouldn't.
+  First, pick a strong password. We'll use "1SuperSecret", but you shouldn't.
 
 <p>
   Add a CNAME record to point _acme-challenge.example.com to the subdomain of challenges.addr.tools named by calculating
-  the SHA-224 hash of "1SuperSecretPassphrase". This should look similar to:
+  the SHA-224 hash of "1SuperSecret". This should look similar to:
 
 <table>
   <tr><th>Name:   <td>_acme-challenge.example.com
   <tr><th>Type:   <td>CNAME
-  <tr><th>Target: <td class="break">9afcdffa0d7a6d6f0140cadea70a9f62d58a96dd5d50f268086ca968.challenges.addr.tools
+  <tr><th>Target: <td class="break">1d23d5e1a9a689668e8510aef992aa358cb54992d0c4327842a1416f.challenges.addr.tools
 </table>
 
 <p>
   Now when Let's Encrypt queries _acme-challenge.example.com for the challenge TXT record, they will follow the CNAME to
-  9afcdf…6ca968.challenges.addr.tools. We can give Certbot a command to automatically add the challenge TXT record to
+  1d23d5…a1416f.challenges.addr.tools. We can give Certbot a command to automatically add the challenge TXT record to
   that subdomain:
 
 <p>
   <samp class="pre-line break">
     <i>$</i> <kbd>certbot certonly \
     --manual \
-    --manual-auth-hook 'curl -fsS "https://challenges.addr.tools/?secret=1SuperSecretPassphrase&amp;txt=$CERTBOT_VALIDATION"' \
+    --manual-auth-hook 'curl -fsS "https://challenges.addr.tools/?secret=1SuperSecret&amp;txt=$CERTBOT_VALIDATION"' \
     --preferred-challenges dns \
     -d example.com \
     -d '*.example.com'</kbd>
