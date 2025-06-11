@@ -87,7 +87,7 @@
   <samp class="pre-line break">
     <i>$</i> <kbd>certbot certonly \
     --manual \
-    --manual-auth-hook 'curl "https://challenges.addr.tools/?secret=1SuperSecretPassphrase&amp;txt=$CERTBOT_VALIDATION"' \
+    --manual-auth-hook 'curl -fsS "https://challenges.addr.tools/?secret=1SuperSecretPassphrase&amp;txt=$CERTBOT_VALIDATION"' \
     --preferred-challenges dns \
     -d example.com \
     -d '*.example.com'</kbd>
