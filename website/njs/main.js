@@ -5,18 +5,9 @@ const header_echo_content = r => {
     r.return(+r.args["status-code"])
     return
   }
-  let content = `# IP: ${r.variables.remote_addr}.${r.variables.remote_port} > ${r.variables.server_addr}.${r.variables.server_port}\n`
-  if (r.variables.ssl_protocol) {
-    content += `# TLS: ${r.variables.ssl_session_reused === "r" ? "Reused" : "New"}, ${r.variables.ssl_protocol}\n`
-  }
-  if (r.variables.ssl_ciphers) {
-    content += `# CIPHER: ${r.variables.ssl_ciphers.split(":").map(v => v === r.variables.ssl_cipher ? `[${v}]` : v).join(", ")}\n`
-  }
-  if (r.variables.ssl_curves) {
-    content += `# CURVE: ${r.variables.ssl_curves.split(":").map(v => v === r.variables.ssl_curve ? `[${v}]` : v).join(", ")}\n`
-  }
-  if (r.variables.ssl_server_name) {
-    content += `# SNI: ${r.variables.ssl_server_name}\n`
+  let content = `# ${r.variables.remote_addr}.${r.variables.remote_port} > ${r.variables.server_addr}.${r.variables.server_port}\n`
+  if (r.variables.ssl_cipher) {
+    content += `# ${r.variables.ssl_cipher} ${r.variables.ssl_curve}\n`
   }
   content += `${r.variables.request}\n`
   content += r.rawHeadersIn.map(hdr => `${hdr[0]}: ${hdr[1]}\n`).join("")
