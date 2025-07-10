@@ -1,8 +1,6 @@
 package dnsutil
 
 import (
-	"net"
-
 	"github.com/miekg/dns"
 )
 
@@ -13,14 +11,13 @@ const (
 )
 
 func GetProtocol(w dns.ResponseWriter) string {
-	switch w.LocalAddr().(type) {
-	case *net.UDPAddr:
+	switch w.Network() {
+	case "udp", "udp4", "udp6":
 		return ProtoUDP
-	case *net.TCPAddr:
-		if w.(dns.ConnectionStater).ConnectionState() != nil {
-			return ProtoTLS
-		}
+	case "tcp", "tcp4", "tcp6":
 		return ProtoTCP
+	case "tcp-tls", "tcp4-tls", "tcp6-tls":
+		return ProtoTLS
 	}
 	return ""
 }
