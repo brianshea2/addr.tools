@@ -287,7 +287,7 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			return
 		}
 		// check if name already exists
-		name = dnsutil.LowerName(name) // all names stored in lowercase
+		name = dnsutil.ToLowerAscii(name) // all names stored in lowercase
 		if ctime := h.DataStore.Get(h.KeyPrefix + name + ":ctime"); ctime != nil {
 			http.Error(w, "name already exists", http.StatusConflict)
 			return

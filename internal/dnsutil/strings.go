@@ -2,6 +2,7 @@ package dnsutil
 
 import (
 	"unicode"
+	"unsafe"
 
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
@@ -15,6 +16,30 @@ var PrintableAscii = &unicode.RangeTable{
 		{0x0020, 0x007e, 1}, // [ -~]
 	},
 	LatinOffset: 1,
+}
+
+// fast, ascii-only string case lower-er
+func ToLowerAscii(s string) string {
+	i := 0
+	for i < len(s) {
+		if s[i] >= 'A' && s[i] <= 'Z' {
+			break
+		}
+		i++
+	}
+	if i == len(s) {
+		return s
+	}
+	b := []byte(s)
+	b[i] += 32 // 'a' - 'A'
+	i++
+	for i < len(b) {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			b[i] += 32
+		}
+		i++
+	}
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 // attempts to replace all non-ascii characters with ascii approximations, then

@@ -27,27 +27,6 @@ func EqualNames(a, b string) bool {
 	return true
 }
 
-// fast, ascii-only string case lower-er
-func LowerName(s string) string {
-	var i int
-	for i = 0; i < len(s); i++ {
-		if s[i] >= 'A' && s[i] <= 'Z' {
-			break
-		}
-	}
-	if i == len(s) {
-		return s
-	}
-	bs := []byte(s)
-	bs[i] += 'a' - 'A'
-	for i++; i < len(bs); i++ {
-		if bs[i] >= 'A' && bs[i] <= 'Z' {
-			bs[i] += 'a' - 'A'
-		}
-	}
-	return string(bs)
-}
-
 // make names of rrs match case of name in question
 func FixNames(rrs []dns.RR, question *dns.Question) {
 	var rname, qname string

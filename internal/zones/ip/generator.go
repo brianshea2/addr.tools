@@ -115,7 +115,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			})
 		case dns.TypeTXT:
 			if len(sub) > 16 && dnsutil.EqualNames(sub[:16], "_acme-challenge.") {
-				for _, v := range g.ChallengeStore.Values(dnsutil.LowerName(q.Name)) {
+				for _, v := range g.ChallengeStore.Values(dnsutil.ToLowerAscii(q.Name)) {
 					rrs = append(rrs, &dns.TXT{
 						Hdr: dns.RR_Header{
 							Name:   q.Name,

@@ -128,7 +128,7 @@ func ParseOptions(qname string, suffixLength int) *Options {
 					return nil
 				}
 			}
-			o.Random = dnsutil.LowerName(v)
+			o.Random = dnsutil.ToLowerAscii(v)
 		}
 		if i < 0 {
 			break

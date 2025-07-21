@@ -285,7 +285,7 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 				Class:  dns.ClassINET,
 				Ttl:    p.Ksk.Hdr.Ttl,
 			},
-			NextDomain: "\\000." + LowerName(q.Name),
+			NextDomain: "\\000." + ToLowerAscii(q.Name),
 			TypeBitMap: types,
 		})
 	} else {

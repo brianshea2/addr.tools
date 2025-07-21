@@ -145,7 +145,7 @@ func (h *UpdateHandler) HandleUpdate(w dns.ResponseWriter, req *dns.Msg, zone st
 		switch txtRr.Hdr.Class {
 		case dns.ClassINET:
 			// add
-			err := h.ChallengeStore.Add(dnsutil.LowerName(txtRr.Hdr.Name), []byte(txtRr.Txt[0]), ChallengeTtl)
+			err := h.ChallengeStore.Add(dnsutil.ToLowerAscii(txtRr.Hdr.Name), []byte(txtRr.Txt[0]), ChallengeTtl)
 			if err != nil {
 				log.Printf("[error] ipzone.UpdateHandler.HandleUpdate: add client challenge: %v", err)
 				resp.Rcode = dns.RcodeServerFailure
@@ -153,7 +153,7 @@ func (h *UpdateHandler) HandleUpdate(w dns.ResponseWriter, req *dns.Msg, zone st
 			}
 		case dns.ClassNONE:
 			// delete
-			h.ChallengeStore.Remove(dnsutil.LowerName(txtRr.Hdr.Name), []byte(txtRr.Txt[0]))
+			h.ChallengeStore.Remove(dnsutil.ToLowerAscii(txtRr.Hdr.Name), []byte(txtRr.Txt[0]))
 		}
 	}
 	// TSIG [rfc 2845](https://datatracker.ietf.org/doc/html/rfc2845)

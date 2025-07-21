@@ -29,7 +29,7 @@ func GetName(sub string) string {
 	if !IsValidName(name) {
 		return ""
 	}
-	return dnsutil.LowerName(name) // all names stored in lowercase
+	return dnsutil.ToLowerAscii(name) // all names stored in lowercase
 }
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {

@@ -89,7 +89,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 	if IsValidSubdomain(sub) {
 		validName = true
 		if q.Qtype == dns.TypeTXT {
-			for _, v := range g.ChallengeStore.Values(dnsutil.LowerName(q.Name)) {
+			for _, v := range g.ChallengeStore.Values(dnsutil.ToLowerAscii(q.Name)) {
 				rrs = append(rrs, &dns.TXT{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,

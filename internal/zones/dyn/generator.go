@@ -109,7 +109,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		validName = true
 		switch q.Qtype {
 		case dns.TypeA:
-			if ip := g.DataStore.Get(dnsutil.LowerName(q.Name) + ":ip4"); ip != nil {
+			if ip := g.DataStore.Get(dnsutil.ToLowerAscii(q.Name) + ":ip4"); ip != nil {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -121,7 +121,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				})
 			}
 		case dns.TypeAAAA:
-			if ip := g.DataStore.Get(dnsutil.LowerName(q.Name) + ":ip6"); ip != nil {
+			if ip := g.DataStore.Get(dnsutil.ToLowerAscii(q.Name) + ":ip6"); ip != nil {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -133,7 +133,8 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				})
 			}
 		case dns.TypeTXT:
-			if mtime := g.DataStore.Get(dnsutil.LowerName(q.Name) + ":ip4mtime"); mtime != nil {
+			lowerName := dnsutil.ToLowerAscii(q.Name)
+			if mtime := g.DataStore.Get(lowerName + ":ip4mtime"); mtime != nil {
 				rrs = append(rrs, &dns.TXT{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -146,7 +147,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 					),
 				})
 			}
-			if mtime := g.DataStore.Get(dnsutil.LowerName(q.Name) + ":ip6mtime"); mtime != nil {
+			if mtime := g.DataStore.Get(lowerName + ":ip6mtime"); mtime != nil {
 				rrs = append(rrs, &dns.TXT{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
