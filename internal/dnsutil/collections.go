@@ -55,11 +55,9 @@ func (s StaticRecords) Get(question *dns.Question) (rrs []dns.RR, nameExists boo
 		}
 		nameExists = true
 		if hdr.Rrtype == question.Qtype || hdr.Rrtype == dns.TypeCNAME {
-			rrs = append(rrs, rr)
+			rrs = append(rrs, dns.Copy(rr))
+			rrs[len(rrs)-1].Header().Name = question.Name
 		}
-	}
-	if len(rrs) > 0 {
-		FixNames(rrs, question)
 	}
 	return
 }

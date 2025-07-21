@@ -219,11 +219,13 @@ func (p *DnssecProvider) ProvideKeys(req, resp *dns.Msg) bool {
 	}
 	q := &req.Question[0]
 	if q.Qclass == dns.ClassINET && q.Qtype == dns.TypeDNSKEY && EqualNames(q.Name, p.Ksk.Hdr.Name) {
-		resp.Answer = append(resp.Answer, p.Ksk, p.Zsk)
+		resp.Answer = append(resp.Answer, dns.Copy(p.Ksk), dns.Copy(p.Zsk))
+		resp.Answer[len(resp.Answer)-2].Header().Name = q.Name
+		resp.Answer[len(resp.Answer)-1].Header().Name = q.Name
 		if opt := req.IsEdns0(); opt != nil && opt.Do() {
-			resp.Answer = append(resp.Answer, p.KeySig)
+			resp.Answer = append(resp.Answer, dns.Copy(p.KeySig))
+			resp.Answer[len(resp.Answer)-1].Header().Name = q.Name
 		}
-		FixNames(resp.Answer, q)
 		return true
 	}
 	return false

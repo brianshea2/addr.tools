@@ -54,10 +54,10 @@ func (h *SimpleHandler) Init(privKeyBytes []byte) *SimpleHandler {
 	return h
 }
 
-func (h *SimpleHandler) SOA(q *dns.Question) dns.RR {
-	rrs := []dns.RR{&dns.SOA{
+func (h *SimpleHandler) SOA(q *dns.Question) *dns.SOA {
+	return &dns.SOA{
 		Hdr: dns.RR_Header{
-			Name:   h.Zone,
+			Name:   q.Name[len(q.Name)-len(h.Zone):],
 			Rrtype: dns.TypeSOA,
 			Class:  dns.ClassINET,
 			Ttl:    300,
@@ -69,9 +69,7 @@ func (h *SimpleHandler) SOA(q *dns.Question) dns.RR {
 		Retry:   9000,
 		Expire:  18000,
 		Minttl:  300,
-	}}
-	FixNames(rrs, q)
-	return rrs[0]
+	}
 }
 
 func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {

@@ -1,9 +1,5 @@
 package dnsutil
 
-import (
-	"github.com/miekg/dns"
-)
-
 // fast, ascii-only, case-insensitive equality check
 func EqualNames(a, b string) bool {
 	if len(a) != len(b) {
@@ -25,29 +21,4 @@ func EqualNames(a, b string) bool {
 		return false
 	}
 	return true
-}
-
-// make names of rrs match case of name in question
-func FixNames(rrs []dns.RR, question *dns.Question) {
-	var rname, qname string
-	for i, rr := range rrs {
-		rname = rr.Header().Name
-		qname = question.Name
-		if len(rname) < len(qname) {
-			if qname[len(qname)-len(rname)-1] != '.' {
-				continue
-			}
-			qname = qname[len(qname)-len(rname):]
-		} else if len(rname) > len(qname) {
-			if rname[len(rname)-len(qname)-1] != '.' {
-				continue
-			}
-			qname = rname[:len(rname)-len(qname)] + qname
-		}
-		if rname == qname || !EqualNames(rname, qname) {
-			continue
-		}
-		rrs[i] = dns.Copy(rr)
-		rrs[i].Header().Name = qname
-	}
 }

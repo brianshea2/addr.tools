@@ -100,10 +100,10 @@ func (h *DnscheckHandler) Init(privKeyBytes []byte) *DnscheckHandler {
 	return h
 }
 
-func (h *DnscheckHandler) SOA(q *dns.Question) dns.RR {
-	rrs := []dns.RR{&dns.SOA{
+func (h *DnscheckHandler) SOA(q *dns.Question) *dns.SOA {
+	return &dns.SOA{
 		Hdr: dns.RR_Header{
-			Name:   h.Zone,
+			Name:   q.Name[len(q.Name)-len(h.Zone):],
 			Rrtype: dns.TypeSOA,
 			Class:  dns.ClassINET,
 			Ttl:    300,
@@ -115,9 +115,7 @@ func (h *DnscheckHandler) SOA(q *dns.Question) dns.RR {
 		Retry:   9000,
 		Expire:  18000,
 		Minttl:  300,
-	}}
-	dnsutil.FixNames(rrs, q)
-	return rrs[0]
+	}
 }
 
 func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
