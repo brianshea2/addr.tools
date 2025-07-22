@@ -23,10 +23,10 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 	switch {
 	case len(sub) == 0:
 		validName = true
-	case dnsutil.EqualNames(sub, "self."):
+	case dnsutil.EqualsAsciiIgnoreCase(sub, "self."):
 		validName = true
 		ipv4Only = true
-	case dnsutil.EqualNames(sub, "self6."):
+	case dnsutil.EqualsAsciiIgnoreCase(sub, "self6."):
 		validName = true
 		ipv6Only = true
 	}
@@ -114,7 +114,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				AAAA: ip,
 			})
 		case dns.TypeTXT:
-			if len(sub) > 16 && dnsutil.EqualNames(sub[:16], "_acme-challenge.") {
+			if len(sub) > 16 && dnsutil.EqualsAsciiIgnoreCase(sub[:16], "_acme-challenge.") {
 				for _, v := range g.ChallengeStore.Values(dnsutil.ToLowerAscii(q.Name)) {
 					rrs = append(rrs, &dns.TXT{
 						Hdr: dns.RR_Header{

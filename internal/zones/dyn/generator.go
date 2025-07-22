@@ -44,10 +44,10 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 	switch {
 	case len(sub) == 0:
 		validName = true
-	case dnsutil.EqualNames(sub, "ipv4."):
+	case dnsutil.EqualsAsciiIgnoreCase(sub, "ipv4."):
 		validName = true
 		ipv4Only = true
-	case dnsutil.EqualNames(sub, "ipv6."):
+	case dnsutil.EqualsAsciiIgnoreCase(sub, "ipv6."):
 		validName = true
 		ipv6Only = true
 	}

@@ -50,7 +50,7 @@ func (s StaticRecords) Get(question *dns.Question) (rrs []dns.RR, nameExists boo
 		if hdr.Class != question.Qclass {
 			continue
 		}
-		if !EqualNames(hdr.Name, question.Name) {
+		if !EqualsAsciiIgnoreCase(hdr.Name, question.Name) {
 			continue
 		}
 		nameExists = true

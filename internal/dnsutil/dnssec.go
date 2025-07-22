@@ -218,7 +218,7 @@ func (p *DnssecProvider) ProvideKeys(req, resp *dns.Msg) bool {
 		return false
 	}
 	q := &req.Question[0]
-	if q.Qclass == dns.ClassINET && q.Qtype == dns.TypeDNSKEY && EqualNames(q.Name, p.Ksk.Hdr.Name) {
+	if q.Qclass == dns.ClassINET && q.Qtype == dns.TypeDNSKEY && EqualsAsciiIgnoreCase(q.Name, p.Ksk.Hdr.Name) {
 		resp.Answer = append(resp.Answer, dns.Copy(p.Ksk), dns.Copy(p.Zsk))
 		resp.Answer[len(resp.Answer)-2].Header().Name = q.Name
 		resp.Answer[len(resp.Answer)-1].Header().Name = q.Name
@@ -270,7 +270,7 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 				types = make([]uint16, len(p.NsecTypes))
 				copy(types, p.NsecTypes)
 			}
-			isApex := EqualNames(q.Name, p.Ksk.Hdr.Name)
+			isApex := EqualsAsciiIgnoreCase(q.Name, p.Ksk.Hdr.Name)
 			for i := 0; i < len(types); {
 				if types[i] == q.Qtype || (!isApex && (types[i] == dns.TypeNS ||
 					types[i] == dns.TypeSOA || types[i] == dns.TypeDNSKEY)) {

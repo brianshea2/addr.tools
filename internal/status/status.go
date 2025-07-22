@@ -42,7 +42,7 @@ func (h *StatusHandler) GetStatus() (ss []Status) {
 }
 
 func (h *StatusHandler) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
-	if dnsutil.EqualNames(q.Name, zone) {
+	if dnsutil.EqualsAsciiIgnoreCase(q.Name, zone) {
 		validName = true
 		if q.Qtype == dns.TypeTXT {
 			ss := h.GetStatus()

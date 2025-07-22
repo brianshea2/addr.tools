@@ -66,7 +66,7 @@ func (h *UpdateHandler) HandleUpdate(w dns.ResponseWriter, req *dns.Msg, zone st
 		resp.Rcode = dns.RcodeFormatError
 		return
 	}
-	if !dnsutil.EqualNames(zoneSection[0].Name, zone) || zoneSection[0].Qclass != dns.ClassINET {
+	if !dnsutil.EqualsAsciiIgnoreCase(zoneSection[0].Name, zone) || zoneSection[0].Qclass != dns.ClassINET {
 		resp.Rcode = dns.RcodeNotAuth
 		return
 	}
@@ -102,8 +102,8 @@ func (h *UpdateHandler) HandleUpdate(w dns.ResponseWriter, req *dns.Msg, zone st
 		}
 		// only for _acme-challenge subdomains of this zone
 		if len(hdr.Name) < len(zone)+18 ||
-			!dnsutil.EqualNames(hdr.Name[:16], "_acme-challenge.") ||
-			!dnsutil.EqualNames(hdr.Name[len(hdr.Name)-len(zone)-1:], "."+zone) {
+			!dnsutil.EqualsAsciiIgnoreCase(hdr.Name[:16], "_acme-challenge.") ||
+			!dnsutil.EqualsAsciiIgnoreCase(hdr.Name[len(hdr.Name)-len(zone)-1:], "."+zone) {
 			resp.Rcode = dns.RcodeRefused
 			return
 		}

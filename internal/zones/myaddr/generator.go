@@ -39,12 +39,12 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 	sub := q.Name[:len(q.Name)-len(zone)]
 	var ipv4Only, ipv6Only bool
 	switch {
-	case len(sub) == 0, dnsutil.EqualNames(sub, "dns."), dnsutil.EqualNames(sub, "www."):
+	case len(sub) == 0, dnsutil.EqualsAsciiIgnoreCase(sub, "dns."), dnsutil.EqualsAsciiIgnoreCase(sub, "www."):
 		validName = true
-	case dnsutil.EqualNames(sub, "ipv4."):
+	case dnsutil.EqualsAsciiIgnoreCase(sub, "ipv4."):
 		validName = true
 		ipv4Only = true
-	case dnsutil.EqualNames(sub, "ipv6."):
+	case dnsutil.EqualsAsciiIgnoreCase(sub, "ipv6."):
 		validName = true
 		ipv6Only = true
 	}
@@ -130,7 +130,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				})
 			}
 		case dns.TypeTXT:
-			if len(sub) > 16 && dnsutil.EqualNames(sub[:16], "_acme-challenge.") {
+			if len(sub) > 16 && dnsutil.EqualsAsciiIgnoreCase(sub[:16], "_acme-challenge.") {
 				for _, v := range g.ChallengeStore.Values(g.KeyPrefix + name) {
 					rrs = append(rrs, &dns.TXT{
 						Hdr: dns.RR_Header{
