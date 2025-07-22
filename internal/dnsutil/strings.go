@@ -18,6 +18,29 @@ var PrintableAscii = &unicode.RangeTable{
 	LatinOffset: 1,
 }
 
+// fast, ascii-only, case-insensitive string equality check
+func EqualsAsciiIgnoreCase(s, t string) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] == t[i] {
+			continue
+		}
+		if s[i] > t[i] {
+			if t[i] >= 'A' && t[i] <= 'Z' && s[i] == t[i]+32 {
+				continue
+			}
+			return false
+		}
+		if s[i] >= 'A' && s[i] <= 'Z' && t[i] == s[i]+32 {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 // fast, ascii-only string case lower-er
 func ToLowerAscii(s string) string {
 	i := 0

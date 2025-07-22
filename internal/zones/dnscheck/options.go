@@ -39,36 +39,36 @@ func ParseOptions(sub string) *Options {
 			if i < 0 {
 				break
 			}
-			if !yield(dnsutil.ToLowerAscii(sub[:i])) {
+			if !yield(sub[:i]) {
 				return
 			}
 			sub = sub[i+1:]
 		}
-		yield(dnsutil.ToLowerAscii(sub))
+		yield(sub)
 	}
 	for s := range seq {
 		switch {
-		case s == "compress":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "compress"):
 			if o.Compress {
 				return nil
 			}
 			o.Compress = true
-		case s == "truncate":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "truncate"):
 			if o.Truncate || o.NoTruncate {
 				return nil
 			}
 			o.Truncate = true
-		case s == "notruncate":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "notruncate"):
 			if o.Truncate || o.NoTruncate {
 				return nil
 			}
 			o.NoTruncate = true
-		case s == "badsig":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "badsig"):
 			if o.BadSig || o.ExpiredSig != 0 || o.NoSig {
 				return nil
 			}
 			o.BadSig = true
-		case len(s) >= 10 && s[:10] == "expiredsig":
+		case len(s) >= 10 && dnsutil.EqualsAsciiIgnoreCase(s[:10], "expiredsig"):
 			if o.BadSig || o.ExpiredSig != 0 || o.NoSig {
 				return nil
 			}
@@ -80,27 +80,27 @@ func ParseOptions(sub string) *Options {
 			} else {
 				o.ExpiredSig = 86400
 			}
-		case s == "nosig":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "nosig"):
 			if o.BadSig || o.ExpiredSig != 0 || o.NoSig {
 				return nil
 			}
 			o.NoSig = true
-		case s == "nxdomain":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "nxdomain"):
 			if o.Rcode != 0 || o.NullIP || o.TxtFill != 0 {
 				return nil
 			}
 			o.Rcode = dns.RcodeNameError
-		case s == "refused":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "refused"):
 			if o.Rcode != 0 || o.NullIP || o.TxtFill != 0 {
 				return nil
 			}
 			o.Rcode = dns.RcodeRefused
-		case s == "nullip":
+		case dnsutil.EqualsAsciiIgnoreCase(s, "nullip"):
 			if o.Rcode != 0 || o.NullIP || o.TxtFill != 0 {
 				return nil
 			}
 			o.NullIP = true
-		case len(s) > 7 && s[:7] == "txtfill":
+		case len(s) > 7 && dnsutil.EqualsAsciiIgnoreCase(s[:7], "txtfill"):
 			if o.Rcode != 0 || o.NullIP || o.TxtFill != 0 {
 				return nil
 			}
@@ -117,12 +117,13 @@ func ParseOptions(sub string) *Options {
 				c = s[i]
 				switch {
 				case c >= '0' && c <= '9':
+				case c >= 'A' && c <= 'F':
 				case c >= 'a' && c <= 'f':
 				default:
 					return nil
 				}
 			}
-			o.Random = s
+			o.Random = dnsutil.ToLowerAscii(s)
 		}
 	}
 	return o
