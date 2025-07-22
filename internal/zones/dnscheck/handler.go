@@ -120,7 +120,8 @@ func (h *DnscheckHandler) SOA(q *dns.Question) *dns.SOA {
 
 func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	q := &req.Question[0]
-	opts := ParseOptions(q.Name, len(h.Zone))
+	sub := q.Name[:len(q.Name)-len(h.Zone)]
+	opts := ParseOptions(sub)
 	// send to watcher
 	if opts != nil && len(opts.Random) > 0 {
 		watcher := h.Watchers.Get(opts.Random)
@@ -288,9 +289,6 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	// other records
 	switch q.Qtype {
 	case dns.TypeA:
-		if opts.IPv6Only {
-			break
-		}
 		if opts.NullIP {
 			resp.Answer = append(resp.Answer, &dns.A{
 				Hdr: dns.RR_Header{
@@ -315,9 +313,6 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 		}
 	case dns.TypeAAAA:
-		if opts.IPv4Only {
-			break
-		}
 		if opts.NullIP {
 			resp.Answer = append(resp.Answer, &dns.AAAA{
 				Hdr: dns.RR_Header{
@@ -356,10 +351,10 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			Target:   ".",
 			Value:    []dns.SVCBKeyValue{&dns.SVCBAlpn{Alpn: []string{"h3", "h2"}}},
 		}}
-		if !opts.IPv6Only && len(h.IPv4) > 0 {
+		if len(h.IPv4) > 0 {
 			https.Value = append(https.Value, &dns.SVCBIPv4Hint{Hint: h.IPv4})
 		}
-		if !opts.IPv4Only && len(h.IPv6) > 0 {
+		if len(h.IPv6) > 0 {
 			https.Value = append(https.Value, &dns.SVCBIPv6Hint{Hint: h.IPv6})
 		}
 		resp.Answer = append(resp.Answer, https)
