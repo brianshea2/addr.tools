@@ -3,6 +3,7 @@ package cname
 import (
 	"net"
 
+	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/miekg/dns"
 )
 
@@ -12,8 +13,8 @@ type RecordGenerator struct {
 }
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
+	validName = true
 	if len(q.Name) == len(zone) {
-		validName = true
 		switch q.Qtype {
 		case dns.TypeA:
 			for _, ip := range g.IPv4 {
@@ -61,10 +62,6 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		}
 		return
 	}
-	if len(q.Name) < len(zone) {
-		return
-	}
-	validName = true
 	rrs = append(rrs, &dns.CNAME{
 		Hdr: dns.RR_Header{
 			Name:   q.Name,
@@ -72,7 +69,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			Class:  dns.ClassINET,
 			Ttl:    300,
 		},
-		Target: q.Name[:len(q.Name)-len(zone)],
+		Target: dnsutil.ToLowerAscii(q.Name[:len(q.Name)-len(zone)]),
 	})
 	return
 }

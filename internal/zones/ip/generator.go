@@ -15,9 +15,6 @@ type RecordGenerator struct {
 }
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
-	if len(q.Name) < len(zone) {
-		return
-	}
 	sub := q.Name[:len(q.Name)-len(zone)]
 	var ipv4Only, ipv6Only bool
 	switch {
@@ -84,7 +81,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		}
 		return
 	}
-	if ip := ParseIP(sub, 0); ip != nil {
+	if ip := ParseIP(sub); ip != nil {
 		validName = true
 		switch q.Qtype {
 		case dns.TypeA:

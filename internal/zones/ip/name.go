@@ -4,9 +4,9 @@ import (
 	"net"
 )
 
-func ParseIP(qname string, suffixLength int) net.IP {
-	end := len(qname) - suffixLength - 1
-	if end < 1 || qname[end] != '.' {
+func ParseIP(sub string) net.IP {
+	end := len(sub) - 1
+	if end < 1 || sub[end] != '.' {
 		return nil
 	}
 	var hasDoubleDash, hasHighHex bool
@@ -14,7 +14,7 @@ func ParseIP(qname string, suffixLength int) net.IP {
 	var c, d byte
 loop:
 	for i = end; i > 0; i-- {
-		c, d = qname[i-1], qname[i]
+		c, d = sub[i-1], sub[i]
 		switch {
 		case c == '.':
 			if d == '.' || i == 1 {
@@ -52,10 +52,10 @@ loop:
 		}
 	}
 	if dotSeps == 3 {
-		return net.ParseIP(qname[i:end])
+		return net.ParseIP(sub[i:end])
 	}
 	if dashSeps == 3 && !hasDoubleDash && !hasHighHex {
-		b := []byte(qname[i:end])
+		b := []byte(sub[i:end])
 		for i, c = range b {
 			if c == '-' {
 				b[i] = '.'
@@ -63,8 +63,8 @@ loop:
 		}
 		return net.ParseIP(string(b))
 	}
-	if (hasDoubleDash && dashSeps > 0) || dashSeps == 7 {
-		b := []byte(qname[i:end])
+	if dashSeps == 7 || hasDoubleDash {
+		b := []byte(sub[i:end])
 		for i, c = range b {
 			if c == '-' {
 				b[i] = ':'

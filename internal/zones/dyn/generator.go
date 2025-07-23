@@ -36,9 +36,6 @@ func IsValidSubdomain(sub string) bool {
 }
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
-	if len(q.Name) < len(zone) {
-		return
-	}
 	sub := q.Name[:len(q.Name)-len(zone)]
 	var ipv4Only, ipv6Only bool
 	switch {

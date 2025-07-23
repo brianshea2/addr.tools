@@ -33,11 +33,7 @@ func IsValidSubdomain(sub string) bool {
 }
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
-	if len(q.Name) < len(zone) {
-		return
-	}
-	sub := q.Name[:len(q.Name)-len(zone)]
-	if len(sub) == 0 {
+	if len(q.Name) == len(zone) {
 		validName = true
 		switch q.Qtype {
 		case dns.TypeA:
@@ -86,7 +82,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		}
 		return
 	}
-	if IsValidSubdomain(sub) {
+	if IsValidSubdomain(q.Name[:len(q.Name)-len(zone)]) {
 		validName = true
 		if q.Qtype == dns.TypeTXT {
 			for _, v := range g.ChallengeStore.Values(dnsutil.ToLowerAscii(q.Name)) {

@@ -108,7 +108,7 @@ func (h *UpdateHandler) HandleUpdate(w dns.ResponseWriter, req *dns.Msg, zone st
 			return
 		}
 		// only for valid ip subdomains
-		ip := ParseIP(hdr.Name, len(zone))
+		ip := ParseIP(hdr.Name[:len(hdr.Name)-len(zone)])
 		if ip == nil {
 			resp.Rcode = dns.RcodeRefused
 			return

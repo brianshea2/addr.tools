@@ -60,8 +60,14 @@ type DnscheckHandler struct {
 }
 
 func (h *DnscheckHandler) Init(privKeyBytes []byte) *DnscheckHandler {
+	h.Zone = dns.CanonicalName(h.Zone)
+	for i, ns := range h.Ns {
+		h.Ns[i] = dns.CanonicalName(ns)
+	}
 	if len(h.HostMasterMbox) == 0 {
 		h.HostMasterMbox = "hostmaster." + h.Zone
+	} else {
+		h.HostMasterMbox = dns.CanonicalName(h.HostMasterMbox)
 	}
 	if h.DnssecProvider != nil {
 		for _, rr := range []dns.RR{h.DnssecProvider.Ksk, h.DnssecProvider.Zsk, h.DnssecProvider.KeySig} {

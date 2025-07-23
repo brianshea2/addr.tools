@@ -20,22 +20,7 @@ type RecordGenerator struct {
 	KeyPrefix      string
 }
 
-func GetName(sub string) string {
-	if len(sub) == 0 || sub[0] == '.' || sub[len(sub)-1] != '.' {
-		return ""
-	}
-	name := sub[:len(sub)-1]                         // remove trailing dot
-	name = name[strings.LastIndexByte(name, '.')+1:] // remove subdomains
-	if !IsValidName(name) {
-		return ""
-	}
-	return dnsutil.ToLowerAscii(name) // all names stored in lowercase
-}
-
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
-	if len(q.Name) < len(zone) {
-		return
-	}
 	sub := q.Name[:len(q.Name)-len(zone)]
 	var ipv4Only, ipv6Only bool
 	switch {
@@ -102,11 +87,18 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		}
 		return
 	}
-	if name := GetName(sub); len(name) > 0 {
+	if len(sub) == 0 {
+		return
+	}
+	name := sub[:len(sub)-1]
+	if i := strings.LastIndexByte(name, '.'); i >= 0 {
+		name = name[i+1:]
+	}
+	if IsValidName(name) {
 		validName = true
 		switch q.Qtype {
 		case dns.TypeA:
-			if ip := g.DataStore.Get(g.KeyPrefix + name + ":ip4"); ip != nil {
+			if ip := g.DataStore.Get(g.KeyPrefix + dnsutil.ToLowerAscii(name) + ":ip4"); ip != nil {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -118,7 +110,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				})
 			}
 		case dns.TypeAAAA:
-			if ip := g.DataStore.Get(g.KeyPrefix + name + ":ip6"); ip != nil {
+			if ip := g.DataStore.Get(g.KeyPrefix + dnsutil.ToLowerAscii(name) + ":ip6"); ip != nil {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -131,7 +123,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 			}
 		case dns.TypeTXT:
 			if len(sub) > 16 && dnsutil.EqualsAsciiIgnoreCase(sub[:16], "_acme-challenge.") {
-				for _, v := range g.ChallengeStore.Values(g.KeyPrefix + name) {
+				for _, v := range g.ChallengeStore.Values(g.KeyPrefix + dnsutil.ToLowerAscii(name)) {
 					rrs = append(rrs, &dns.TXT{
 						Hdr: dns.RR_Header{
 							Name:   q.Name,
@@ -142,8 +134,8 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Txt: dnsutil.SplitForTxt(string(v)),
 					})
 				}
-			}
-			if len(sub) == len(name)+1 {
+			} else {
+				name = dnsutil.ToLowerAscii(name)
 				created, _, expires := GetRegistrationInfo(name, g.DataStore, g.KeyPrefix)
 				if created > 0 {
 					txts := []string{
