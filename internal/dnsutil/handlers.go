@@ -27,13 +27,14 @@ func MsgAcceptFunc(dh dns.Header) dns.MsgAcceptAction {
 
 type LoggingResponseWriter struct {
 	dns.ResponseWriter
-	Start   time.Time
-	End     time.Time
-	Rcode   int
-	AnCount int
-	NsCount int
-	ExCount int
-	Written bool
+	Start     time.Time
+	End       time.Time
+	Rcode     int
+	AnCount   int
+	NsCount   int
+	ExCount   int
+	Written   bool
+	connState *tls.ConnectionState
 }
 
 func (w *LoggingResponseWriter) WriteMsg(m *dns.Msg) error {
@@ -47,7 +48,12 @@ func (w *LoggingResponseWriter) WriteMsg(m *dns.Msg) error {
 }
 
 func (w *LoggingResponseWriter) ConnectionState() *tls.ConnectionState {
-	return w.ResponseWriter.(dns.ConnectionStater).ConnectionState()
+	if w.connState == nil {
+		if stater, ok := w.ResponseWriter.(dns.ConnectionStater); ok {
+			w.connState = stater.ConnectionState()
+		}
+	}
+	return w.connState
 }
 
 type LoggingHandler struct {
