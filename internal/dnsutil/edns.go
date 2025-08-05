@@ -75,7 +75,11 @@ func AddPadding(msg *dns.Msg, blockLength int) {
 	if opt == nil {
 		return
 	}
-	msgLength := msg.Len() + 4 // EDNS0PADDING option adds 4 bytes
+	packed, _ := msg.Pack()
+	if packed == nil {
+		return
+	}
+	msgLength := len(packed) + 4 // EDNS0PADDING option adds 4 bytes
 	paddingLength := msgLength % blockLength
 	if paddingLength > 0 {
 		paddingLength = blockLength - paddingLength
