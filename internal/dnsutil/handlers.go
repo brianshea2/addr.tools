@@ -49,9 +49,7 @@ func (w *LoggingResponseWriter) WriteMsg(m *dns.Msg) error {
 
 func (w *LoggingResponseWriter) ConnectionState() *tls.ConnectionState {
 	if w.connState == nil {
-		if stater, ok := w.ResponseWriter.(dns.ConnectionStater); ok {
-			w.connState = stater.ConnectionState()
-		}
+		w.connState = w.ResponseWriter.(dns.ConnectionStater).ConnectionState()
 	}
 	return w.connState
 }
