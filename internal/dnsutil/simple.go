@@ -70,7 +70,7 @@ func (h *SimpleHandler) SOA(q *dns.Question) *dns.SOA {
 		},
 		Ns:      h.Ns[0],
 		Mbox:    h.HostMasterMbox,
-		Serial:  0,
+		Serial:  1,
 		Refresh: 0,
 		Retry:   0,
 		Expire:  0,
