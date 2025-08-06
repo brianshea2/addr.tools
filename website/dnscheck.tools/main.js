@@ -350,9 +350,7 @@ const testIPs = async () => {
   const iceServers = urls.filter(url => url.startsWith('stun:')).map(urls => ({ urls }))
   const peerConn = new RTCPeerConnection({ iceServers })
   peerConn.addEventListener('icecandidate', ({ candidate }) => {
-    if (!candidate?.candidate) {
-      console.log('ICE candidate generation finished')
-      peerConn.close()
+    if (!candidate || !candidate.candidate) {
       return
     }
     const parts = candidate.candidate.split(' ')
