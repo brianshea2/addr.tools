@@ -186,11 +186,19 @@ func (p *DnssecProvider) Sign(rrs []dns.RR, validFrom, validTo uint32) (sigs []d
 		}
 	}
 	rrsByType := make(map[uint16][]dns.RR)
+	typesAlreadySigned := make(map[uint16]struct{})
 	for _, rr := range rrs {
 		rrtype := rr.Header().Rrtype
-		rrsByType[rrtype] = append(rrsByType[rrtype], rr)
+		if rrtype == dns.TypeRRSIG {
+			typesAlreadySigned[rr.(*dns.RRSIG).TypeCovered] = struct{}{}
+		} else {
+			rrsByType[rrtype] = append(rrsByType[rrtype], rr)
+		}
 	}
-	for _, rrsOfSameType := range rrsByType {
+	for rrtype, rrsOfSameType := range rrsByType {
+		if _, alreadySigned := typesAlreadySigned[rrtype]; alreadySigned {
+			continue
+		}
 		expiration := validTo
 		if expiration == 0 {
 			expiration = now + 3600 + rrsOfSameType[0].Header().Ttl
@@ -244,12 +252,6 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 	// only class IN
 	if q.Qclass != dns.ClassINET {
 		return nil
-	}
-	// stop here if answer section already contains RRSIG
-	for _, rr := range resp.Answer {
-		if rr.Header().Rrtype == dns.TypeRRSIG {
-			return nil
-		}
 	}
 	// stop here if signing isn't requested
 	if opt := req.IsEdns0(); opt == nil || !opt.Do() {
