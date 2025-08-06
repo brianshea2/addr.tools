@@ -70,10 +70,10 @@ func (h *SimpleHandler) SOA(q *dns.Question) *dns.SOA {
 		},
 		Ns:      h.Ns[0],
 		Mbox:    h.HostMasterMbox,
-		Serial:  1,
-		Refresh: 9000,
-		Retry:   9000,
-		Expire:  18000,
+		Serial:  0,
+		Refresh: 0,
+		Retry:   0,
+		Expire:  0,
 		Minttl:  300,
 	}
 }
@@ -108,7 +108,7 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		return
 	}
 	// allowed types only
-	if q.Qtype == dns.TypeRRSIG || q.Qtype == dns.TypeNSEC {
+	if q.Qtype == dns.TypeRRSIG || q.Qtype == dns.TypeNSEC || q.Qtype == dns.TypeAXFR || q.Qtype == dns.TypeIXFR {
 		resp.Rcode = dns.RcodeRefused
 		return
 	}
