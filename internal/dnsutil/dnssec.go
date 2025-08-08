@@ -263,7 +263,7 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 		var types []uint16
 		if resp.Rcode == dns.RcodeNameError {
 			resp.Rcode = dns.RcodeSuccess
-			types = []uint16{dns.TypeRRSIG, dns.TypeNSEC}
+			types = []uint16{dns.TypeRRSIG, dns.TypeNSEC, dns.TypeNXNAME}
 		} else {
 			if p.NsecTypes == nil {
 				types = make([]uint16, len(DefaultNsecTypes))

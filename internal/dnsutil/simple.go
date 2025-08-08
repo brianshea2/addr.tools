@@ -108,9 +108,21 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		return
 	}
 	// allowed types only
-	if q.Qtype == dns.TypeRRSIG || q.Qtype == dns.TypeNSEC || q.Qtype == dns.TypeAXFR || q.Qtype == dns.TypeIXFR {
+	switch q.Qtype {
+	case dns.TypeOPT, dns.TypeNXNAME:
+		resp.Rcode = dns.RcodeFormatError
+		return
+	case dns.TypeRRSIG, dns.TypeNSEC:
 		resp.Rcode = dns.RcodeRefused
 		return
+	case dns.TypeANY:
+		// meta type handled later
+	default:
+		// unhandled meta types
+		if q.Qtype&128 != 0 {
+			resp.Rcode = dns.RcodeNotImplemented
+			return
+		}
 	}
 	// defer compress, truncate, padding
 	defer func() {
