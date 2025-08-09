@@ -4,7 +4,7 @@
   text-size-adjust: none;
   --background-color: #fff;
   --header-color: #ebebeb;
-  --border-color: #555753;
+  --status-color: #ebebeb;
   --text-color: #2e3436;
   --text-color-red: #c00;
   --text-color-orange: #c85000;
@@ -18,6 +18,7 @@
   :root {
     --background-color: #2e3436;
     --header-color: #222222;
+    --status-color: #222222;
     --text-color: #d3d7cf;
     --text-color-red: #ef2929;
     --text-color-orange: #f6893c;
@@ -86,13 +87,13 @@ ul {
   padding: 0;
 }
 ul.indent li {
-  text-indent: -2ch;
   padding-left: 2ch;
+  text-indent: -2ch;
 }
 @media (min-width: 768px) {
   ul.indent li {
-    text-indent: -4ch;
     padding-left: 4ch;
+    text-indent: -4ch;
   }
 }
 ul.ip-list li {
@@ -175,60 +176,28 @@ ul.options li > span:nth-child(2)::before {
 }
 header {
   background-color: var(--header-color);
-  display: flex;
-  padding-top: calc(1em + env(safe-area-inset-top));
-  padding-right: calc(1em + env(safe-area-inset-right));
-  padding-bottom: 1em;
-  padding-left: calc(1em + env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: 1fr max-content 1fr;
+  gap: 1ch;
+  padding-top: calc(0.65em + env(safe-area-inset-top));
+  padding-right: calc(3ch + env(safe-area-inset-right));
+  padding-bottom: 0.65em;
+  padding-left: calc(3ch + env(safe-area-inset-left));
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   white-space: nowrap;
 }
+header > div:nth-child(3) {
+  text-align: right;
+}
 header :is(a, span.link) {
   text-decoration: none !important;
 }
-header :is(h1, h2, h3) {
+header h1 {
+  display: inline;
   font-weight: normal;
-}
-header h2 {
-  color: var(--text-color-green);
-}
-header h3 {
-  color: var(--text-color-yellow);
-}
-header .standalone-controls {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  flex-grow: 1;
-  height: 1.3em;
-  margin-left: 2ch;
-}
-header .standalone-controls > div {
-  cursor: pointer;
-}
-header .standalone-controls > div > svg {
-  display: block;
-}
-@media not (display-mode: standalone) {
-  header .standalone-controls {
-    display: none;
-  }
-}
-nav {
-  display: flex;
-  gap: 2ch;
-  margin-left: 4ch;
-}
-.tab {
-  opacity: 0.5;
-  transition: opacity 0.3s;
-}
-.tab.active {
-  font-weight: bold;
-  opacity: 1;
 }
 .content {
   padding-top: env(safe-area-inset-top);
@@ -239,19 +208,21 @@ nav {
 .content-inner {
   display: inline-flex;
   flex-direction: column;
-  gap: 1.3em;
-  padding: 5em 2em 4em 1em;
+  gap: 1.6em;
+  padding: 3.9em 3ch 3.9em 1ch;
+}
+body:not(:has(> .status)) .content-inner {
+  padding-bottom: 1.6em;
 }
 .status {
-  background-color: var(--background-color);
-  border-top: 1px solid var(--border-color);
+  background-color: var(--status-color);
   display: flex;
   align-items: center;
   gap: 2ch;
-  padding-top: 0.3em;
-  padding-right: calc(1em + env(safe-area-inset-right));
-  padding-bottom: calc(0.3em + env(safe-area-inset-bottom));
-  padding-left: calc(1em + env(safe-area-inset-left));
+  padding-top: 0.5em;
+  padding-right: calc(3ch + env(safe-area-inset-right));
+  padding-bottom: calc(0.5em + env(safe-area-inset-bottom));
+  padding-left: calc(3ch + env(safe-area-inset-left));
   position: fixed;
   bottom: 0;
   left: 0;
@@ -261,18 +232,9 @@ nav {
   flex-grow: 1;
   text-align: right;
 }
-:is(.content, .status):not(.active) {
-  display: none;
-}
 .d-flex-col {
   display: flex;
   flex-direction: column;
-}
-.gap-1 {
-  gap: 1.3em;
-}
-.gap-2 {
-  gap: 2.6em;
 }
 .dns-request-wrapper {
   display: flex;
@@ -290,6 +252,14 @@ nav {
 }
 .section.hidden {
   display: none;
+}
+.section .lead {
+  padding-left: 2ch;
+  text-indent: -2ch;
+}
+.section .lead::before {
+  content: '> ';
+  font-weight: bold;
 }
 .section :is(h2, h3, .title, .subtitle) {
   margin-bottom: -1.3em;

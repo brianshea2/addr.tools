@@ -5,7 +5,7 @@ import { encode, fetchOk }      from 'https://addr.tools/js/util'
 // get & set clientId
 const clientId = window.location.pathname.match(/^\/watch\/([0-9a-f]{1,8})$/)?.[1] ?? Math.floor(Math.random() * 0xffffffff).toString(16)
 history.replaceState(null, '', `/watch/${clientId}`)
-document.title = `watch/${clientId}`
+document.title = `dnscheck.tools/watch/${clientId}`
 document.getElementById('clientid').innerHTML = clientId
 
 // state

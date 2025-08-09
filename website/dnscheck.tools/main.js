@@ -21,7 +21,7 @@ let seenIPv6         = false            // whether any DNS requests have been se
 
 // commonly used elements
 const rootEl           = document.documentElement
-const resultsDiv       = document.getElementById('content-results')
+const contentDiv       = document.getElementById('content')
 const connectionDiv    = document.getElementById('connection-results')
 const clientSubnetsDiv = document.getElementById('ecs-results')
 const resolversDiv     = document.getElementById('resolver-results')
@@ -32,27 +32,6 @@ const dnssecStatusSpan = document.getElementById('dnssec-status')
 const ipv6StatusSpan   = document.getElementById('ipv6-status')
 const tcpStatusSpan    = document.getElementById('tcp-status')
 const countSpan        = document.getElementById('count')
-
-// handle tabs
-const updateTab = tab => {
-  if (tab === undefined) {
-    tab = window.location.hash === '#more' ? 'more' : 'results'
-  }
-  history.replaceState(null, '', window.location.pathname + (tab === 'results' ? '' : `#${tab}`))
-  document.querySelectorAll('.active').forEach(el => el.classList.remove('active'))
-  document.getElementById(`tab-${tab}`)?.classList.add('active')
-  document.getElementById(`content-${tab}`)?.classList.add('active')
-  document.getElementById(`status-${tab}`)?.classList.add('active')
-}
-updateTab()
-window.addEventListener('hashchange', () => updateTab())
-document.querySelectorAll('a.tab').forEach(el => {
-  const tab = el.id.slice(4) // 'tab-'
-  el.addEventListener('click', e => {
-    e.preventDefault()
-    updateTab(tab)
-  })
-})
 
 // generates some DNS requests from the browser to the given subdomain
 const makeQuery = (subdomain, timeout, abortSignal) => {
@@ -195,17 +174,17 @@ const ipList = objs => {
     }
   })
   Object.keys(byReg).sort((a, b) => a ? b ? a.localeCompare(b) : -1 : 1).forEach(reg => {
-    html += `<div class="subtitle bold">${reg ? encode(reg) : '<i>Unknown</i>'}</div>` +
+    html += `<div class="subtitle">${reg ? encode(reg) : '<i>Unknown</i>'}</div>` +
       `<ul class="ip-list">${byReg[reg].sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   })
   const reserved = objs.filter(({ reserved }) => reserved)
   if (reserved.length) {
-    html += '<div class="subtitle bold"><i>Nonpublic Reserved IP Space</i></div>' +
+    html += '<div class="subtitle"><i>Nonpublic Reserved IP Space</i></div>' +
       `<ul class="ip-list">${reserved.sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   }
   const pending = objs.filter(({ pending }) => pending)
   if (pending.length) {
-    html += '<div class="subtitle bold"><i>Pending</i></div>' +
+    html += '<div class="subtitle"><i>Pending</i></div>' +
       `<ul class="ip-list">${pending.map(ipItem).join('')}</ul>`
   }
   return html
@@ -505,20 +484,20 @@ const monitorResizes = () => {
   let minWidth
   const obsvr = new ResizeObserver(() => {
     requestAnimationFrame(() => {
-      if (resultsDiv.classList.contains('ip-list-tabular')) {
-        if (resultsDiv.scrollWidth > resultsDiv.clientWidth) {
-          minWidth = resultsDiv.scrollWidth
-          resultsDiv.classList.remove('ip-list-tabular')
+      if (contentDiv.classList.contains('ip-list-tabular')) {
+        if (contentDiv.scrollWidth > contentDiv.clientWidth) {
+          minWidth = contentDiv.scrollWidth
+          contentDiv.classList.remove('ip-list-tabular')
         }
         return
       }
-      if (resultsDiv.clientWidth >= minWidth) {
-        resultsDiv.classList.add('ip-list-tabular')
+      if (contentDiv.clientWidth >= minWidth) {
+        contentDiv.classList.add('ip-list-tabular')
       }
     })
   })
-  obsvr.observe(resultsDiv)
-  obsvr.observe(resultsDiv.firstElementChild)
+  obsvr.observe(contentDiv)
+  obsvr.observe(contentDiv.firstElementChild)
 }
 
 // let's go!!!

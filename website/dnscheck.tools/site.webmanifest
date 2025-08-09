@@ -8,5 +8,6 @@
     }
   ],
   "name": "dnscheck.tools",
-  "short_name": "dnscheck"
+  "short_name": "dnscheck",
+  "start_url": "/"
 }

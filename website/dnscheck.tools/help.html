@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ebebeb">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#222222">
+<meta name="description" content="A tool to test for DNS leaks, DNSSEC validation, and more">
+<meta name="robots" content="noarchive">
+<title>dnscheck.tools/help</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="stylesheet" href="/main.css">
+<header>
+  <div></div>
+  <div><h1><a href="https://dnscheck.tools/">dnscheck.tools</a></h1>/<a class="green" href="/help">help</a></div>
+  <div></div>
+</header>
+<div class="content">
+  <div class="content-inner">
+    <div class="section">
+      <h2>ABOUT</h2>
+      <p>
+        dnscheck.tools is a tool to test for <a href="https://en.wikipedia.org/wiki/DNS_leak">DNS leaks</a>,
+        <a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions">DNSSEC</a> validation, and more.
+    </div>
+    <div class="section">
+      <h2>USAGE</h2>
+      <p>
+        Load <a href="https://dnscheck.tools/">dnscheck.tools</a> in any web browser to identify your current DNS
+        resolvers and check DNSSEC validation.
+      <h3>DNS TEST QUERIES</h3>
+      <p>
+        At its core, dnscheck.tools is a custom DNS test server. Make test queries like:
+      <p class="break">
+        $ dig -t txt <strong>[<var>OPTIONS</var>.]test[-<var>DNSSEC</var>][-<var>NET</var>].dnscheck.tools</strong>
+      <p>
+        By default, both IPv4 and IPv6 authoritative nameservers are offered and responses are signed using ECDSA P-256
+        with SHA-256.
+      <ul class="indent">
+        <li><strong><var>DNSSEC</var></strong> sets the DNSSEC signing algorithm:
+        <li><ul class="options indent">
+          <li><span>alg13</span>                      <span>sign the zone using ECDSA P-256 with SHA-256
+                                                        (default)</span>
+          <li><span>alg14</span>                      <span>sign the zone using ECDSA P-384 with SHA-384</span>
+          <li><span>alg15</span>                      <span>sign the zone using Ed25519</span>
+        </ul>
+      </ul>
+      <ul class="indent">
+        <li><strong><var>NET</var></strong> may be:
+        <li><ul class="options indent">
+          <li><span>ipv4</span>                       <span>offer only IPv4 authoritative nameservers</span>
+          <li><span>ipv6</span>                       <span>offer only IPv6 authoritative nameservers</span>
+        </ul>
+      </ul>
+      <p>
+        <strong><var>OPTIONS</var></strong> is a hyphen-separated list containing:
+      <ul class="indent">
+        <li>any of:
+        <li><ul class="options indent">
+          <li><span><var>random</var></span>          <span>a random number, up to 8 hex digits, useful for cache
+                                                        busting, identifies requests to
+                                                        <a href="/watch">/watch</a></span>
+          <li><span>compress</span>                   <span>force the use of DNS message compression in the
+                                                        response</span>
+          <li><span>[no]truncate</span>               <span>force or disable message truncation for responses over
+                                                        UDP</span>
+        </ul>
+      </ul>
+      <ul class="indent">
+        <li>up to one of:
+        <li><ul class="options indent">
+          <li><span>badsig</span>                     <span>provide an invalid DNSSEC signature in the response</span>
+          <li><span>expiredsig[<var>t</var>]</span>   <span>provide an expired DNSSEC signature in the response,
+                                                        <var>t</var> seconds in the past (default 1 day)</span>
+          <li><span>nosig</span>                      <span>do not provide any DNSSEC signature in the response</span>
+        </ul>
+      </ul>
+      <ul class="indent">
+        <li>up to one of:
+        <li><ul class="options indent">
+          <li><span>nullip</span>                     <span>provide only the all-zero IP in A and AAAA responses</span>
+          <li><span>nxdomain</span>                   <span>respond as if the domain does not exist</span>
+          <li><span>refused</span>                    <span>refuse the query</span>
+          <li><span>txtfill<var>n</var></span>        <span>add <var>n</var> bytes, up to 4096, of data to TXT
+                                                        responses</span>
+        </ul>
+      </ul>
+      <h3>EXAMPLES</h3>
+      <p class="break">
+        $ dig -t txt test.dnscheck.tools
+      <p class="break">
+        $ open https://dnscheck.tools/watch/123
+      <p class="break">
+        $ dig 123.test.dnscheck.tools
+      <p class="break">
+        $ dig 123-truncate.test.dnscheck.tools
+      <p class="break">
+        $ dig 123-badsig.test-alg15.dnscheck.tools
+    </div>
+    <div class="section">
+      <h2>SEE ALSO</h2>
+      <p>
+        <a href="https://addr.tools/">addr.tools</a>
+    </div>
+    <div class="section">
+      <h2>SOURCE</h2>
+      <p>
+        See <a href="https://github.com/brianshea2/addr.tools">GitHub</a>.
+        Bug reports and pull requests welcome.
+    </div>
+    <div class="section">
+      <h2>THIRD-PARTY DATA</h2>
+      <p>
+        IP addresses are grouped by their network registrants as discovered by the
+        <a href="https://en.wikipedia.org/wiki/Registration_Data_Access_Protocol">Registration Data Access Protocol</a>.
+      <p>
+        Hostnames (pointer records) and authoritative nameservers are discovered by
+        <a href="https://en.wikipedia.org/wiki/Reverse_DNS_lookup">reverse DNS resolution</a>.
+      <p>
+        IP geolocation data is provided by <a href="https://ipinfo.io/">ipinfo.io</a>.
+    </div>
+    <div class="section">
+      <h2>PRIVACY POLICY</h2>
+      <p>
+        No personal data is collected. This site doesn't use cookies. Cheers!
+    </div>
+  </div>
+</div>
