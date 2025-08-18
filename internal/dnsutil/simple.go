@@ -15,13 +15,14 @@ type UpdateHandler interface {
 }
 
 type SimpleHandler struct {
+	RecordGenerator
+	UpdateHandler
+	*DnssecProvider
 	Zone           string
 	Ns             []string
 	HostMasterMbox string
 	StaticRecords  StaticRecords
-	RecordGenerator
-	UpdateHandler
-	*DnssecProvider
+	soaSig         dns.RR
 }
 
 func (h *SimpleHandler) Init(privKeyBytes []byte) *SimpleHandler {
@@ -56,14 +57,26 @@ func (h *SimpleHandler) Init(privKeyBytes []byte) *SimpleHandler {
 		if err != nil {
 			log.Fatal(err)
 		}
+		sigs, err := h.DnssecProvider.Sign(h.SOA(nil, false), h.DnssecProvider.KeySig.Inception, h.DnssecProvider.KeySig.Expiration)
+		if err != nil {
+			log.Fatal(err)
+		}
+		h.soaSig = sigs[0]
 	}
 	return h
 }
 
-func (h *SimpleHandler) SOA(q *dns.Question) *dns.SOA {
-	return &dns.SOA{
+func (h *SimpleHandler) SOA(q *dns.Question, includeSig bool) []dns.RR {
+	var name string
+	if q == nil {
+		name = h.Zone
+	} else {
+		name = q.Name[len(q.Name)-len(h.Zone):]
+	}
+	rrs := make([]dns.RR, 1, 2)
+	rrs[0] = &dns.SOA{
 		Hdr: dns.RR_Header{
-			Name:   q.Name[len(q.Name)-len(h.Zone):],
+			Name:   name,
 			Rrtype: dns.TypeSOA,
 			Class:  dns.ClassINET,
 			Ttl:    300,
@@ -71,11 +84,16 @@ func (h *SimpleHandler) SOA(q *dns.Question) *dns.SOA {
 		Ns:      h.Ns[0],
 		Mbox:    h.HostMasterMbox,
 		Serial:  1,
-		Refresh: 0,
-		Retry:   0,
-		Expire:  0,
+		Refresh: 300,
+		Retry:   300,
+		Expire:  600,
 		Minttl:  300,
 	}
+	if includeSig && h.soaSig != nil {
+		rrs = append(rrs, dns.Copy(h.soaSig))
+		rrs[1].Header().Name = name
+	}
+	return rrs
 }
 
 func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
@@ -142,7 +160,8 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	// defer adding SOA if no answers
 	defer func() {
 		if (resp.Rcode == dns.RcodeSuccess && len(resp.Answer) == 0) || resp.Rcode == dns.RcodeNameError {
-			resp.Ns = append(resp.Ns, h.SOA(q))
+			opt := req.IsEdns0()
+			resp.Ns = append(resp.Ns, h.SOA(q, opt != nil && opt.Do())...)
 		}
 	}()
 	// defer adding default ANY response
@@ -167,7 +186,8 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		resp.Rcode = dns.RcodeSuccess
 		switch q.Qtype {
 		case dns.TypeSOA:
-			resp.Answer = append(resp.Answer, h.SOA(q))
+			opt := req.IsEdns0()
+			resp.Answer = append(resp.Answer, h.SOA(q, opt != nil && opt.Do())...)
 		case dns.TypeNS:
 			for _, ns := range h.Ns {
 				resp.Answer = append(resp.Answer, &dns.NS{
