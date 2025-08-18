@@ -9,8 +9,7 @@ $CERTBOT certonly                                                               
   --manual                                                                                                              \
   --manual-auth-hook "$AUTHHOOK"                                                                                        \
   --preferred-challenges dns                                                                                            \
-  -d dns.addr.tools                     -d '*.dns.addr.tools'                                                           \
-  -d dns.myaddr.tools                   -d dns.myaddr.dev                       -d dns.myaddr.io
+  -d dns.addr.tools                     -d '*.dns.addr.tools'
 
 $CERTBOT certonly                                                                                                       \
   --cert-name addr.tools                                                                                                \
