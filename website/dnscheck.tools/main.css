@@ -314,3 +314,8 @@ table.dnssec .pending > span:nth-child(2) {
 table.dnssec .pending > span:nth-child(3) {
   animation-delay: 1s;
 }
+@media not (display-mode: standalone) {
+  .standalone-only {
+    display: none;
+  }
+}
