@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"log"
 	"sync/atomic"
-	"time"
 
 	"github.com/miekg/dns"
 )
@@ -27,8 +26,6 @@ func MsgAcceptFunc(dh dns.Header) dns.MsgAcceptAction {
 
 type LoggingResponseWriter struct {
 	dns.ResponseWriter
-	Start     time.Time
-	End       time.Time
 	Rcode     int
 	AnCount   int
 	NsCount   int
@@ -38,7 +35,6 @@ type LoggingResponseWriter struct {
 }
 
 func (w *LoggingResponseWriter) WriteMsg(m *dns.Msg) error {
-	w.End = time.Now()
 	w.Rcode = m.Rcode
 	w.AnCount = len(m.Answer)
 	w.NsCount = len(m.Ns)
@@ -65,7 +61,7 @@ func (h *LoggingHandler) RequestCount() uint64 {
 }
 
 func (h *LoggingHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
-	lw := &LoggingResponseWriter{ResponseWriter: w, Start: time.Now()}
+	lw := &LoggingResponseWriter{ResponseWriter: w}
 	h.Next.ServeDNS(lw, req)
 	h.count.Add(1)
 	var status string
@@ -79,8 +75,7 @@ func (h *LoggingHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		logger = log.Default()
 	}
 	logger.Printf(
-		"%vµs %s %s %s %s %s %s an:%v ns:%v ex:%v %s",
-		lw.End.Sub(lw.Start).Microseconds(),
+		"%s %s %s %s %s %s an:%v ns:%v ex:%v %s",
 		GetProtocol(w),
 		status,
 		dns.OpcodeToString[req.Opcode],
