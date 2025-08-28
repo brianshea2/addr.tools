@@ -7,7 +7,14 @@ const header_echo_content = r => {
   }
   let content = `# ${r.variables.remote_addr}.${r.variables.remote_port} > ${r.variables.server_addr}.${r.variables.server_port}\n`
   if (r.variables.ssl_cipher) {
-    content += `# ${r.variables.ssl_cipher} ${r.variables.ssl_curve}\n`
+    content += `# ${r.variables.ssl_cipher} ${r.variables.ssl_curve}`
+    if (r.variables.ssl_session_reused === "r") {
+      content += " Reused"
+    }
+    if (r.variables.ssl_early_data) {
+      content += " 0-RTT"
+    }
+    content += "\n"
   }
   content += `${r.variables.request}\n`
   content += r.rawHeadersIn.map(hdr => `${hdr[0]}: ${hdr[1]}\n`).join("")
