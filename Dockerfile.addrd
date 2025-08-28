@@ -6,7 +6,7 @@ COPY internal ./internal/
 RUN go mod tidy
 RUN go build -v -o addrd
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 RUN apt-get update
 RUN apt-get install -y ca-certificates
 COPY --from=build /build/addrd /usr/bin/
