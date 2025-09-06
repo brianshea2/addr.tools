@@ -475,6 +475,9 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				"tlsVersion: "+tls.VersionName(cstate.Version),
 				"tlsCipherSuite: "+tls.CipherSuiteName(cstate.CipherSuite),
 			)
+			if cstate.CurveID != 0 {
+				txts = append(txts, "tlsNamedGroup: "+cstate.CurveID.String())
+			}
 			if len(cstate.ServerName) > 0 {
 				txts = append(txts, "tlsServerName: "+dnsutil.ToPrintableAscii(cstate.ServerName))
 			}

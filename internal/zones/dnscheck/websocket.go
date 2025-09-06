@@ -43,6 +43,7 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 		ClientSubnet          string `json:"clientSubnet,omitempty"`
 		TLSVersion            string `json:"tlsVersion,omitempty"`
 		TLSCipherSuite        string `json:"tlsCipherSuite,omitempty"`
+		TLSNamedGroup         string `json:"tlsNamedGroup,omitempty"`
 		TLSServerName         string `json:"tlsServerName,omitempty"`
 		TLSNegotiatedProtocol string `json:"tlsNegotiatedProtocol,omitempty"`
 		TLSDidResume          bool   `json:"tlsDidResume,omitempty"`
@@ -77,6 +78,9 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 		r.TLSServerName = msg.cstate.ServerName
 		r.TLSNegotiatedProtocol = msg.cstate.NegotiatedProtocol
 		r.TLSDidResume = msg.cstate.DidResume
+		if msg.cstate.CurveID != 0 {
+			r.TLSNamedGroup = msg.cstate.CurveID.String()
+		}
 	}
 	return json.Marshal(r)
 }
