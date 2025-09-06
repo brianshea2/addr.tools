@@ -31,11 +31,7 @@ $CERTBOT certonly                                                               
   -d '*.test-alg13.dnscheck.tools'      -d '*.test-alg13-ipv4.dnscheck.tools'   -d '*.test-alg13-ipv6.dnscheck.tools'   \
   -d '*.test-alg14.dnscheck.tools'      -d '*.test-alg14-ipv4.dnscheck.tools'   -d '*.test-alg14-ipv6.dnscheck.tools'   \
   -d '*.test-alg15.dnscheck.tools'      -d '*.test-alg15-ipv4.dnscheck.tools'   -d '*.test-alg15-ipv6.dnscheck.tools'   \
-  -d '*.go.dnscheck.tools'              -d '*.go-ipv4.dnscheck.tools'           -d '*.go-ipv6.dnscheck.tools'           \
-  -d '*.go-alg13.dnscheck.tools'        -d '*.go-alg13-ipv4.dnscheck.tools'     -d '*.go-alg13-ipv6.dnscheck.tools'     \
-  -d '*.go-alg14.dnscheck.tools'        -d '*.go-alg14-ipv4.dnscheck.tools'     -d '*.go-alg14-ipv6.dnscheck.tools'     \
-  -d '*.go-alg15.dnscheck.tools'        -d '*.go-alg15-ipv4.dnscheck.tools'     -d '*.go-alg15-ipv6.dnscheck.tools'     \
-  -d '*.go-unsigned.dnscheck.tools'     -d '*.go-unsigned-ipv4.dnscheck.tools'  -d '*.go-unsigned-ipv6.dnscheck.tools'
+  -d '*.go.dnscheck.tools'
 
 $CERTBOT certonly                                                                                                       \
   --cert-name myaddr.tools                                                                                              \
