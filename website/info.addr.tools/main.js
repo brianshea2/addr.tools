@@ -67,12 +67,11 @@ const htmlify = (obj, quoteStrings) => JSON.stringify(obj, jsonReplacer, 2)
   .replace(/\[\n\s*(.*?)\n\s*\]/g, '[ $1 ]')
 
 const dnsLookup = (() => {
-  const headers = { Accept: 'application/dns-json' }
-  let fetcher = (name, type, signal) => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, { headers, signal }).catch(() => {
-    fetcher = (name, type, signal) => fetchOk(`https://doh-proxy.addr.tools/dns-query?name=${name}&type=${type}`, { headers, signal })
-    return fetcher(name, type, signal)
+  let fetcher = (name, type, { signal }) => fetchOk(`https://dns.google/resolve?name=${name}&type=${type}`, { signal }).catch(() => {
+    fetcher = (name, type, { signal }) => fetchOk(`https://doh-proxy.addr.tools/resolve?name=${name}&type=${type}`, { signal })
+    return fetcher(name, type, { signal })
   })
-  return (name, type, { signal }) => fetcher(name, type, signal).then(r => r.json())
+  return (name, type, { signal }) => fetcher(name, type, { signal }).then(r => r.json())
 })()
 const dnsTypes = { 1: 'A', 2: 'NS', 5: 'CNAME', 6: 'SOA', 12: 'PTR', 15: 'MX', 16: 'TXT', 28: 'AAAA', 65: 'HTTPS' }
 const dnsSortOrder = [ 5, 1, 28, 65, 15, 16, 12, 2, 6 ]
@@ -181,7 +180,7 @@ const loadInfo = async () => {
     if (query instanceof IPAddr) {
       await dnsLookup(query.reverseZone(), 'ptr', { signal }).then(handleDnsResponse).catch(handleDnsError)
     } else {
-      await Promise.all([ 'a', 'aaaa', 'mx', 'txt' ].map(type =>
+      await Promise.all([ 'a', 'aaaa', 'https', 'mx', 'txt' ].map(type =>
         dnsLookup(query, type, { signal }).then(handleDnsResponse).catch(handleDnsError)
       ))
       if (nxdomain) {

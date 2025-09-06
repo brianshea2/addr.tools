@@ -28,7 +28,7 @@
 <p>
   <samp class="pre-line break">
     <i>$</i> <kbd>sha224=$(echo -n '1SuperSecret' | shasum -a 224 | cut -c 1-56)</kbd>
-    <i>$</i> <kbd>dig -t txt +short $sha224.challenges.addr.tools</kbd>
+    <i>$</i> <kbd>dig txt +short $sha224.challenges.addr.tools</kbd>
     "foo"
   </samp>
 

@@ -107,9 +107,8 @@ const getGeo = (() => {
 
 // returns promise of PTR name or SOA NS for given IPAddr
 const getPtr = (() => {
-  const headers = { Accept: 'application/dns-json' }
-  let fetcher = name => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=ptr`, { headers }).catch(() => {
-    fetcher = name => fetchOk(`https://doh-proxy.addr.tools/dns-query?name=${name}&type=ptr`, { headers })
+  let fetcher = name => fetchOk(`https://dns.google/resolve?name=${name}&type=ptr`).catch(() => {
+    fetcher = name => fetchOk(`https://doh-proxy.addr.tools/resolve?name=${name}&type=ptr`)
     return fetcher(name)
   })
   return ip => fetcher(ip.reverseZone()).then(r => r.json()).then(({ Answer, Authority }) => ({

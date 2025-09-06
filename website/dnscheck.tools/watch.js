@@ -34,9 +34,8 @@ contentDiv.addEventListener('scroll', () => {
 // returns cached promise of PTR name for given IP string
 const getPtr = (() => {
   const cache = {}
-  const headers = { Accept: 'application/dns-json' }
-  let fetcher = name => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=ptr`, { headers }).catch(() => {
-    fetcher = name => fetchOk(`https://doh-proxy.addr.tools/dns-query?name=${name}&type=ptr`, { headers })
+  let fetcher = name => fetchOk(`https://dns.google/resolve?name=${name}&type=ptr`).catch(() => {
+    fetcher = name => fetchOk(`https://doh-proxy.addr.tools/resolve?name=${name}&type=ptr`)
     return fetcher(name)
   })
   return ip => {
@@ -68,7 +67,7 @@ const handleOpen = () => {
   // set content
   if (count === 0) {
     requestsDiv.innerHTML = '<p>listening for requests...' +
-      `<p>try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig -t txt ${clientId}.test.dnscheck.tools</span>\`` +
+      `<p>try \`<span ondblclick="window.getSelection().selectAllChildren(this)">dig txt ${clientId}.test.dnscheck.tools</span>\`` +
       `<p>or <a href="https://${clientId}.test.dnscheck.tools/" onclick="fetch(this.href).catch(() => {});return false">click here</a>.`
   }
 }
@@ -89,7 +88,10 @@ const handleMessage = ({ data }) => {
     `<br>;; CLIENT: ${ipLink}#${request.remotePort}<span id="ptr-${tmpId}">(<i>pending</i>)</span>` +
     `<span id="rdap-${tmpId}"> (<i>pending</i>)</span> (${request.proto})`
   if (request.tlsVersion) {
-    html += `<br>;; TLS: version ${request.tlsVersion}; cipherSuite: ${request.tlsCipherSuite}`
+    html += `<br>;; TLS: version ${request.tlsVersion.replace(/^TLS ?/, '')}; cipherSuite: ${request.tlsCipherSuite}`
+    if (request.tlsNamedGroup) {
+      html += `; namedGroup: ${encode(request.tlsNamedGroup)}`
+    }
     if (request.tlsDidResume) {
       html += '; sessionReuse: true'
     }
