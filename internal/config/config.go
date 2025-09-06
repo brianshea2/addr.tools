@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
 	"strconv"
@@ -62,6 +63,7 @@ type Config struct {
 	}
 	IPZone struct {
 		*dnsutil.SimpleHandler
+		Blocked    []netip.Prefix
 		PrivateKey string
 	}
 	CnameZone struct {
@@ -209,6 +211,7 @@ func (config *Config) Run() {
 		config.IPZone.SimpleHandler.RecordGenerator = &ipzone.RecordGenerator{
 			IPv4:           config.ResponseAddrs.IPv4,
 			IPv6:           config.ResponseAddrs.IPv6,
+			Blocked:        config.IPZone.Blocked,
 			ChallengeStore: challengeStore,
 		}
 		config.IPZone.SimpleHandler.UpdateHandler = &ipzone.UpdateHandler{
@@ -308,6 +311,7 @@ func (config *Config) Run() {
 						tls.X25519,
 						tls.CurveP256,
 						tls.CurveP384,
+						tls.X25519MLKEM768,
 					},
 					CipherSuites: []uint16{
 						tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,

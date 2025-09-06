@@ -2,6 +2,7 @@ package ip
 
 import (
 	"net"
+	"net/netip"
 
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
@@ -11,6 +12,7 @@ import (
 type RecordGenerator struct {
 	IPv4           []net.IP
 	IPv6           []net.IP
+	Blocked        []netip.Prefix
 	ChallengeStore ttlstore.TtlStore
 }
 
@@ -83,6 +85,15 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 	}
 	if ip := ParseIP(sub); ip != nil {
 		validName = true
+		if len(g.Blocked) > 0 {
+			addr, _ := netip.AddrFromSlice(ip)
+			addr = addr.Unmap()
+			for _, prefix := range g.Blocked {
+				if prefix.Contains(addr) {
+					return
+				}
+			}
+		}
 		switch q.Qtype {
 		case dns.TypeA:
 			if ip.To4() == nil {
