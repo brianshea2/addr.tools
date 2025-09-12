@@ -8,20 +8,17 @@ const header_echo_content = r => {
   r.return(200, `${r.variables.request}\n${r.rawHeadersIn.map(hdr => `${hdr[0]}: ${hdr[1]}\n`).join("")}`)
 }
 
-const disallowedHeaderNames = /^(Connection|Content-Length|Transfer-Encoding)$/i
+const disallowedHeaderNames = /^(Connection|Content-Length|Transfer-Encoding|X-Robots-Tag)$/i
 const validHeaderName = /^[a-zA-Z0-9_-]+$/
 const validHeaderValue = /^[ -~]+$/
 const validStatusCode = /^[2-5][0-9][0-9]$/
 const header_echo = r => {
+  if (r.status === 200 && typeof r.args["status-code"] === "string" && validStatusCode.test(r.args["status-code"])) {
+    r.status = +r.args["status-code"]
+  }
   const headersOut = {}
   for (const key in r.args) {
-    if (key === "status-code") {
-      continue
-    }
-    if (disallowedHeaderNames.test(key)) {
-      continue
-    }
-    if (!validHeaderName.test(key)) {
+    if (key === "status-code" || disallowedHeaderNames.test(key) || !validHeaderName.test(key)) {
       continue
     }
     const name = key.toLowerCase()
@@ -31,19 +28,15 @@ const header_echo = r => {
         continue
       }
       if (headersOut[name] === undefined) {
-        headersOut[name] = values[i]
-      } else if (Array.isArray(headersOut[name])) {
-        headersOut[name].push(values[i])
+        headersOut[name] = [values[i]]
       } else {
-        headersOut[name] = [headersOut[name], values[i]]
+        headersOut[name].push(values[i])
       }
     }
   }
+  r.headersOut["X-Robots-Tag"] = "noindex"
   for (const key in headersOut) {
     r.headersOut[key] = headersOut[key]
-  }
-  if (r.status === 200 && typeof r.args["status-code"] === "string" && validStatusCode.test(r.args["status-code"])) {
-    r.status = +r.args["status-code"]
   }
 }
 
