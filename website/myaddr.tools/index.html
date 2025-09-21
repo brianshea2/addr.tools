@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="A minimalist dynamic DNS service">
-<title>myaddr - Dynamic DNS</title>
+<title>myaddr.tools - Dynamic DNS</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link
   rel="stylesheet"
@@ -24,18 +24,20 @@
 </script>
 <nav class="navbar sticky-top bg-body-tertiary">
   <div class="container">
-    <a class="navbar-brand" href="https://myaddr.tools">myaddr<span class="text-body-secondary">.{tools,dev,io}</span></a>
+    <a class="navbar-brand" href="https://myaddr.tools">myaddr<span class="text-body-secondary">.tools</span></a>
     <a class="btn btn-primary" href="/claim">Claim your name</a>
   </div>
 </nav>
 <div class="container my-3">
-  <h1>myaddr<small class="text-body-secondary">.{tools,dev,io}</small></h1>
+  <h1>myaddr<span class="text-body-secondary">.tools</span></h1>
   <p class="lead">A minimalist dynamic DNS service</p>
   <h2>Features</h2>
   <ul>
     <li>No ads, no tracking, no nonsense</li>
     <li>Get a subdomain name in seconds, no account required</li>
     <li>Easy, forgiving HTTP-based API</li>
+    <li>ACME <code>dns-01</code> challenge support for TLS certificates from CAs like <a href="https://letsencrypt.org">Let's Encrypt</a></li>
+    <li>Suffixes added to the <a href="https://publicsuffix.org">Public Suffix List</a></li>
     <li>
       Multiple domains (all resolve the same):
       <ul>
@@ -45,7 +47,6 @@
         <li>and all subdomains of above</li>
       </ul>
     </li>
-    <li>ACME <code>dns-01</code> challenge support for TLS certificates from CAs like <a href="https://letsencrypt.org">Let's Encrypt</a></li>
   </ul>
   <h2>Getting Started</h2>
   <p>First, <a href="/claim">claim your name</a>. If the name is available, you will be given a secret key.</p>
