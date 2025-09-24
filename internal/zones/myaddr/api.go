@@ -128,7 +128,7 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		if ctime := h.DataStore.Get(h.KeyPrefix + name + ":ctime"); ctime == nil {
-			http.Error(w, "registration not found", http.StatusNotFound)
+			http.Error(w, "registration not found", http.StatusBadRequest)
 			return
 		}
 		hashKey := h.DataStore.Find([]byte(name), h.KeyPrefix+"hash:")
@@ -202,10 +202,9 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		hash := fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
 		name := string(h.DataStore.Get(h.KeyPrefix + "hash:" + hash))
 		if len(name) == 0 {
-			http.Error(w, "registration not found", http.StatusNotFound)
+			http.Error(w, "invalid value for \"key\"", http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("myaddr-name", name)
 		switch req.Method {
 		case http.MethodGet:
 			// get
@@ -309,7 +308,6 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			return
 		}
 		// success
-		w.Header().Set("myaddr-name", name)
 		w.Header().Set("Content-Type", "application/json")
 		created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
 		json.NewEncoder(w).Encode(
@@ -416,10 +414,9 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
 	name := string(h.DataStore.Get(h.KeyPrefix + "hash:" + hash))
 	if len(name) == 0 {
-		http.Error(w, "registration not found", http.StatusNotFound)
+		http.Error(w, "invalid value for \"key\"", http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("myaddr-name", name)
 	switch req.Method {
 	case http.MethodDelete:
 		// prohibit "ip" and "acme_challenge"
