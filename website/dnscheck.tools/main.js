@@ -346,7 +346,7 @@ const testIPs = async () => {
 // detects DNS resolvers and DNSSEC validation
 const testDNS = () => new Promise(done => {
   // listen for DNS requests via WebSocket
-  const socket = new WebSocket(`wss://${window.location.host}/watch/${clientId}`)
+  const socket = new WebSocket(`wss://ws.dnscheck.tools/watch/${clientId}`)
 
   // abort all requests on close
   const abortController = new AbortController()
