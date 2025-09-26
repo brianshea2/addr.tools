@@ -34,13 +34,12 @@ contentDiv.addEventListener('scroll', () => {
 // returns cached promise of PTR name for given IP string
 const getPtr = (() => {
   const cache = {}
-  let fetcher = name => fetchOk(`https://dns.google/resolve?name=${name}&type=ptr`).catch(() => {
-    fetcher = name => fetchOk(`https://doh-proxy.addr.tools/resolve?name=${name}&type=ptr`)
-    return fetcher(name)
-  })
   return ip => {
     if (cache[ip] === undefined) {
-      cache[ip] = fetcher(new IPAddr(ip).reverseZone())
+      cache[ip] = fetchOk(
+          `https://cloudflare-dns.com/dns-query?name=${new IPAddr(ip).reverseZone()}&type=ptr`,
+          { headers: { Accept: 'application/dns-json' } }
+        )
         .then(r => r.json())
         .then(({ Answer }) => Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1))
     }

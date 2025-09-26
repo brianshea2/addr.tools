@@ -106,16 +106,15 @@ const getGeo = (() => {
 })()
 
 // returns promise of PTR name or SOA NS for given IPAddr
-const getPtr = (() => {
-  let fetcher = name => fetchOk(`https://dns.google/resolve?name=${name}&type=ptr`).catch(() => {
-    fetcher = name => fetchOk(`https://doh-proxy.addr.tools/resolve?name=${name}&type=ptr`)
-    return fetcher(name)
-  })
-  return ip => fetcher(ip.reverseZone()).then(r => r.json()).then(({ Answer, Authority }) => ({
+const getPtr = ip => fetchOk(
+    `https://cloudflare-dns.com/dns-query?name=${ip.reverseZone()}&type=ptr`,
+    { headers: { Accept: 'application/dns-json' } }
+  )
+  .then(r => r.json())
+  .then(({ Answer, Authority }) => ({
     ptr: Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1),
     ns: Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1),
   }))
-})()
 
 // returns cached promise of combined geo, ptr, and rdap reg data for given IP or CIDR string
 const getIPData = str => {
