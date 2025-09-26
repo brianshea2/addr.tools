@@ -66,7 +66,7 @@ const htmlify = (obj, quoteStrings) => JSON.stringify(obj, jsonReplacer, 2)
   })
   .replace(/\[\n\s*(.*?)\n\s*\]/g, '[ $1 ]')
 
-const dnsLookup = (name, type, { signal }) => fetchOk(`https://dns.google/resolve?name=${name}&type=${type}`, { signal }).then(r => r.json())
+const dnsLookup = (name, type, { signal }) => fetchOk(`/dns/${name}/${type}`, { signal }).then(r => r.json())
 const dnsTypes = { 1: 'A', 2: 'NS', 5: 'CNAME', 6: 'SOA', 12: 'PTR', 15: 'MX', 16: 'TXT', 28: 'AAAA', 65: 'HTTPS' }
 const dnsSortOrder = [ 5, 1, 28, 65, 15, 16, 12, 2, 6 ]
 const drawDns = (records, div) => {
