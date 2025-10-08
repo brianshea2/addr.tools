@@ -50,7 +50,9 @@ const makeQuery = (subdomain, timeout, abortSignal) => {
     })
 }
 
-// tests if the given IPAddr or entire IPRange is contained within a nonpublic IP space
+// reserved IP ranges
+// https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml
+// https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml
 const reservedRanges = [
   new IPRange('0.0.0.0/8'),             // current network
   new IPRange('10.0.0.0/8'),            // private
@@ -69,6 +71,7 @@ const reservedRanges = [
   new IPRange('::/127'),                // unspecified, loopback
   new IPRange('64:ff9b:1::/48'),        // local-use ipv4/ipv6 translation
   new IPRange('100::/64'),              // discard
+  new IPRange('100:0:0:1::/64'),        // dummy prefix
   new IPRange('2001::/23'),             // protocol assignments
   new IPRange('2001:db8::/32'),         // documentation
   new IPRange('2002::/16'),             // 6to4
@@ -78,6 +81,8 @@ const reservedRanges = [
   new IPRange('fe80::/10'),             // link-local
   new IPRange('ff00::/8'),              // multicast
 ]
+
+// tests if the given IPAddr or entire IPRange is contained within a reserved IP range
 const isReserved = ipOrRange => reservedRanges.some(r => r.contains(ipOrRange))
 
 // returns promise of RDAP registrant name or other identifier for given IPAddr or IPRange
@@ -177,7 +182,7 @@ const ipList = objs => {
   })
   const reserved = objs.filter(({ reserved }) => reserved)
   if (reserved.length) {
-    html += '<div class="subtitle"><i>Nonpublic Reserved IP Space</i></div>' +
+    html += '<div class="subtitle"><i>Reserved</i></div>' +
       `<ul class="ip-list">${reserved.sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   }
   const pending = objs.filter(({ pending }) => pending)
@@ -273,19 +278,19 @@ const drawDNSSEC = (() => {
       if (error) {
         // a dnssec-valid domain failed to connect
         dnssecDiv.firstElementChild.innerHTML = `Hmm... There was a network issue while checking ${link}. ` +
-          'The result is inconclusive:'
+          'The result is inconclusive.'
         dnssecStatusSpan.innerHTML = makeStatus('An error occurred', 'yellow')
         return
       }
       if (fail) {
         // a dnssec-invalid domain connected
-        dnssecDiv.firstElementChild.innerHTML = `Oh no! Your DNS responses are not authenticated with ${link}:`
+        dnssecDiv.firstElementChild.innerHTML = `Oh no! Your DNS responses are not authenticated with ${link}.`
         dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are not authenticated', 'red')
         return
       }
       if (done) {
         // all tests passed
-        dnssecDiv.firstElementChild.innerHTML = `Great! Your DNS responses are authenticated with ${link}:`
+        dnssecDiv.firstElementChild.innerHTML = `Great! Your DNS responses are authenticated with ${link}.`
         dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are authenticated', 'green')
         return
       }
