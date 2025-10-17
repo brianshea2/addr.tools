@@ -15,21 +15,23 @@
 <h2>SYNOPSIS</h2>
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl -v -H 'Request-Header: foo' 'https://header-echo.addr.tools/?response-header=bar'</kbd>
-    &lt; HTTP/2 200
-    &lt; response-header: bar
-    &lt;
-    GET /?response-header=bar HTTP/2.0
-    Host: header-echo.addr.tools
-    User-Agent: curl/8.2.1
-    Accept: */*
-    Request-Header: foo
+    <i>$</i> <kbd>curl -i 'https://header-echo.addr.tools/?response-header=foo' -H 'Request-Header: bar'</kbd>
+    HTTP/2 200
+    content-type: text/plain
+    content-length: 119
+    response-header: foo
+
+    GET /?response-header=foo HTTP/2.0
+    host: header-echo.addr.tools
+    user-agent: curl/8.5.0
+    accept: */*
+    request-header: bar
   </samp>
 
 <h2>DESCRIPTION</h2>
 <p>
-  All HTTP and HTTPS requests sent to header-echo.addr.tools (and all subdomains) are answered by echoing the request
-  headers to the response body.
+  All HTTP and HTTPS requests sent to header-echo.addr.tools are answered by echoing the request headers to the response
+  body.
 
 <p>
   Query string parameters from the request URL are used to generate response headers.

@@ -18,7 +18,6 @@ $CERTBOT certonly                                                               
   --preferred-challenges dns                                                                                            \
   -d addr.tools                         -d '*.addr.tools'                                                               \
   -d ipv4.dyn.addr.tools                -d ipv6.dyn.addr.tools                                                          \
-  -d '*.header-echo.addr.tools'                                                                                         \
   -d self.ip.addr.tools                 -d self6.ip.addr.tools
 
 $CERTBOT certonly                                                                                                       \
