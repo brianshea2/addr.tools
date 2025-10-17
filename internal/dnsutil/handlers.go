@@ -64,27 +64,25 @@ func (h *LoggingHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	lw := &LoggingResponseWriter{ResponseWriter: w}
 	h.Next.ServeDNS(lw, req)
 	h.count.Add(1)
-	var status string
-	if lw.Written {
-		status = dns.RcodeToString[lw.Rcode]
-	} else {
-		status = "NOREPLY"
+	if h.Logger != nil {
+		var status string
+		if lw.Written {
+			status = dns.RcodeToString[lw.Rcode]
+		} else {
+			status = "NOREPLY"
+		}
+		h.Logger.Printf(
+			"%s %s %s %s %s %s an:%v ns:%v ex:%v %s",
+			GetProtocol(w),
+			status,
+			dns.OpcodeToString[req.Opcode],
+			dns.Class(req.Question[0].Qclass),
+			dns.Type(req.Question[0].Qtype),
+			req.Question[0].Name,
+			lw.AnCount,
+			lw.NsCount,
+			lw.ExCount,
+			lw.RemoteAddr(),
+		)
 	}
-	logger := h.Logger
-	if logger == nil {
-		logger = log.Default()
-	}
-	logger.Printf(
-		"%s %s %s %s %s %s an:%v ns:%v ex:%v %s",
-		GetProtocol(w),
-		status,
-		dns.OpcodeToString[req.Opcode],
-		dns.Class(req.Question[0].Qclass),
-		dns.Type(req.Question[0].Qtype),
-		req.Question[0].Name,
-		lw.AnCount,
-		lw.NsCount,
-		lw.ExCount,
-		lw.RemoteAddr(),
-	)
 }
