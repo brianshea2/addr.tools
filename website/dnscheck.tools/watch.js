@@ -133,7 +133,7 @@ const handleMessage = ({ data }) => {
 
 // socket close handler
 const handleClose = e => {
-  console.log('WebSocket closed', e)
+  console.log(`WebSocket closed (${e.code})`)
   // set status
   wsStatusSpan.innerHTML = 'done'
   wsStatusSpan.className = 'red'

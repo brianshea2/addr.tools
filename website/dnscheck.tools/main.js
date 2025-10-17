@@ -311,8 +311,8 @@ const testIPs = async () => {
   const urls = [
     'https://myipv4.addr.tools/',
     'https://myipv6.addr.tools/',
+    'stun:addr.tools:3478',
     'stun:stun.l.google.com:19302',
-    'stun:stun.cloudflare.com:3478',
   ]
   const handleIP = str => {
     if (clientIPs[str] !== undefined) {
@@ -347,6 +347,11 @@ const testIPs = async () => {
       handleIP(new IPAddr(parts[4]).toString(true))
     } catch(e) {
       // ignore invalid (i.e., .local) addresses
+    }
+  })
+  peerConn.addEventListener('icegatheringstatechange', () => {
+    if (peerConn.iceGatheringState === 'complete') {
+      peerConn.close()
     }
   })
   peerConn.createDataChannel('dummy')
@@ -460,7 +465,7 @@ const testDNS = () => new Promise(done => {
 
   // on close
   socket.addEventListener('close', e => {
-    console.log('WebSocket closed', e)
+    console.log(`WebSocket closed (${e.code})`)
     if (e.code === 4000) { // clientId is already in use
       abortController.abort()
     }
