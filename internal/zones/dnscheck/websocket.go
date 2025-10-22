@@ -133,11 +133,10 @@ type WebsocketHandler struct {
 func NewWebsocketHandler(watcherHub WatcherHub) *WebsocketHandler {
 	return &WebsocketHandler{
 		Upgrader: &websocket.Upgrader{
-			ReadBufferSize:    1024,
-			WriteBufferSize:   1024,
-			Subprotocols:      []string{"full"},
-			CheckOrigin:       func(_ *http.Request) bool { return true },
-			EnableCompression: true,
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			Subprotocols:    []string{"full"},
+			CheckOrigin:     func(_ *http.Request) bool { return true },
 		},
 		WatcherHub: watcherHub,
 	}
@@ -181,8 +180,6 @@ func (h *WebsocketHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	defer h.Unregister(watcherId)
 	// set websocket options
-	conn.EnableWriteCompression(true)
-	conn.SetCompressionLevel(6)
 	conn.SetReadLimit(512)
 	// setup context
 	ctx, cancel := context.WithDeadline(req.Context(), time.Now().Add(WebsocketWatcherMaxLife))
