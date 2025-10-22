@@ -370,16 +370,15 @@ const testDNS = () => new Promise(done => {
   socket.addEventListener('open', async () => {
     console.log('WebSocket opened')
     // generate some DNS requests
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       await makeQuery(`${String.fromCharCode(97 + i)}.nullip-${clientId}.test`, 10000, abortController.signal)
-      await makeQuery(`${String.fromCharCode(97 + i)}.nullip-${clientId}.test-ipv4`, 10000, abortController.signal)
     }
     // test IPv6 support
     if (!seenIPv6) {
       await makeQuery(`nullip-${clientId}.test-ipv6`, 10000, abortController.signal)
     }
     if (!seenIPv6) {
-      ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach IPv6 nameservers">IPv6</span>'
+      ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach nameservers over IPv6">IPv6</span>'
     }
     // test TCP fallback
     const usesTCP = await makeQuery(`truncate-${clientId}.test`, 10000, abortController.signal)
@@ -440,9 +439,6 @@ const testDNS = () => new Promise(done => {
       udpSizes.sort((a, b) => a - b)
       ednsStatusSpan.innerHTML = `<span class="${udpSizes[0] < 1200 ? 'yellow' : 'green'}" ` +
         `title="Extension Mechanisms for DNS\n\nAdvertised UDP buffer sizes: ${udpSizes.join(', ')}">EDNS</span>`
-    }
-    if (count === 1 && udpSizes.length === 0) {
-      ednsStatusSpan.innerHTML = '<span class="red" title="Extension Mechanisms for DNS\n\nNot advertised">EDNS</span>'
     }
     // discover ECS
     if (request.clientSubnet && !request.clientSubnet.endsWith('/0') && clientSubnets[request.clientSubnet] === undefined) {
