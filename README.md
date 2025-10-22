@@ -2,11 +2,8 @@
 
 ## This repo contains the source code for:
 - [challenges.addr.tools](https://challenges.addr.tools/) - dns-01 ACME challenge helper zone
-- [cname.addr.tools](https://cname.addr.tools/) - construct domain name aliases
 - [dyn.addr.tools](https://dyn.addr.tools/) - simple dynamic DNS for your own domains, no account required
-- [header-echo.addr.tools](https://header-echo.addr.tools/help) - view HTTP request headers, craft HTTP response headers
 - [info.addr.tools](https://info.addr.tools/) - explore identifying information for domain names and IP addresses
-- [ip.addr.tools](https://ip.addr.tools/) - construct domain names that resolve to any given IP address
 - [myip.addr.tools](https://myip.addr.tools/help) - get your public IP address
 - [dnscheck.tools](https://dnscheck.tools/) - identifies your DNS resolvers, checks DNSSEC validation, and more
 - [myaddr.tools](https://myaddr.tools/) - yet another dynamic DNS service, custom names included

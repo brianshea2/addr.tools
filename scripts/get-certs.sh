@@ -17,8 +17,7 @@ $CERTBOT certonly                                                               
   --manual-auth-hook "$AUTHHOOK"                                                                                        \
   --preferred-challenges dns                                                                                            \
   -d addr.tools                         -d '*.addr.tools'                                                               \
-  -d ipv4.dyn.addr.tools                -d ipv6.dyn.addr.tools                                                          \
-  -d self.ip.addr.tools                 -d self6.ip.addr.tools
+  -d ipv4.dyn.addr.tools                -d ipv6.dyn.addr.tools
 
 $CERTBOT certonly                                                                                                       \
   --cert-name dnscheck.tools                                                                                            \
@@ -29,8 +28,7 @@ $CERTBOT certonly                                                               
   -d '*.test.dnscheck.tools'            -d '*.test-ipv4.dnscheck.tools'         -d '*.test-ipv6.dnscheck.tools'         \
   -d '*.test-alg13.dnscheck.tools'      -d '*.test-alg13-ipv4.dnscheck.tools'   -d '*.test-alg13-ipv6.dnscheck.tools'   \
   -d '*.test-alg14.dnscheck.tools'      -d '*.test-alg14-ipv4.dnscheck.tools'   -d '*.test-alg14-ipv6.dnscheck.tools'   \
-  -d '*.test-alg15.dnscheck.tools'      -d '*.test-alg15-ipv4.dnscheck.tools'   -d '*.test-alg15-ipv6.dnscheck.tools'   \
-  -d '*.go.dnscheck.tools'
+  -d '*.test-alg15.dnscheck.tools'      -d '*.test-alg15-ipv4.dnscheck.tools'   -d '*.test-alg15-ipv6.dnscheck.tools'
 
 $CERTBOT certonly                                                                                                       \
   --cert-name myaddr.tools                                                                                              \
