@@ -20,6 +20,10 @@ func CheckAndSetEdns(req, resp *dns.Msg) error {
 			return fmt.Errorf("bad edns version: %v", opt.Version())
 		}
 		resp.SetEdns0(MaxUdpMsgSize, opt.Do())
+		// compact answers
+		if opt.Co() {
+			resp.IsEdns0().SetCo()
+		}
 		// ecs
 		for _, o := range opt.Option {
 			if o.Option() == dns.EDNS0SUBNET {

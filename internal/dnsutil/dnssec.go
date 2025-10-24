@@ -254,7 +254,8 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 		return nil
 	}
 	// stop here if signing isn't requested
-	if opt := req.IsEdns0(); opt == nil || !opt.Do() {
+	opt := req.IsEdns0()
+	if opt == nil || !opt.Do() {
 		return nil
 	}
 	// sign answer section
@@ -262,7 +263,9 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 		// prove non-existence
 		var types []uint16
 		if resp.Rcode == dns.RcodeNameError {
-			resp.Rcode = dns.RcodeSuccess
+			if !opt.Co() {
+				resp.Rcode = dns.RcodeSuccess
+			}
 			types = []uint16{dns.TypeRRSIG, dns.TypeNSEC, dns.TypeNXNAME}
 		} else {
 			if p.NsecTypes == nil {
