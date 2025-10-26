@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -421,20 +422,16 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			break // no more txts
 		}
 		var ip string
-		var port int
 		switch a := w.RemoteAddr().(type) {
 		case *net.UDPAddr:
 			ip = a.IP.String()
-			port = a.Port
 		case *net.TCPAddr:
 			ip = a.IP.String()
-			port = a.Port
 		}
 		txts := []string{
-			fmt.Sprintf("id: %d", req.Id),
+			"id: " + strconv.Itoa(int(req.Id)),
 			"proto: " + dnsutil.GetProtocol(w),
-			"remoteIp: " + ip,
-			fmt.Sprintf("remotePort: %d", port),
+			"resolver: " + ip,
 		}
 		if h.IPInfoClient != nil {
 			info, err := h.IPInfoClient.GetIPInfo(ip)
@@ -443,24 +440,23 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 			if info != nil {
 				if geo := info.GeoString(); len(geo) > 0 {
-					txts = append(txts, "remoteGeo: "+dnsutil.ToPrintableAscii(geo))
+					txts = append(txts, "resolverGeo: "+dnsutil.ToPrintableAscii(geo))
 				}
 				if len(info.Org) > 0 {
-					txts = append(txts, "remoteOrg: "+dnsutil.ToPrintableAscii(info.Org))
+					txts = append(txts, "resolverOrg: "+dnsutil.ToPrintableAscii(info.Org))
 				}
 			}
 		}
 		if opt := req.IsEdns0(); opt != nil {
-			var flags string
+			s := "edns0: flags:"
 			if opt.Do() {
-				flags = " do"
+				s += " do"
 			}
-			txts = append(txts, fmt.Sprintf(
-				"edns: version: %d, flags:%s; udp: %d",
-				opt.Version(),
-				flags,
-				opt.UDPSize(),
-			))
+			if opt.Co() {
+				s += " co"
+			}
+			s += "; udp: " + strconv.Itoa(int(opt.UDPSize()))
+			txts = append(txts, s)
 			for _, o := range opt.Option {
 				if o.Option() == dns.EDNS0SUBNET {
 					subnet := o.(*dns.EDNS0_SUBNET)
