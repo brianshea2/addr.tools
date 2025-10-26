@@ -34,9 +34,9 @@ const tcpStatusSpan    = document.getElementById('tcp-status')
 const countSpan        = document.getElementById('count')
 
 // generates some DNS requests from the browser to the given subdomain
-const makeQuery = (subdomain, timeout, abortSignal) => {
+const makeQuery = async (subdomain, timeout, abortSignal) => {
   if (abortSignal.aborted) {
-    return Promise.resolve(false)
+    return false
   }
   const controller = new AbortController()
   const abortFn = () => controller.abort()

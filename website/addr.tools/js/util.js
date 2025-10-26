@@ -6,13 +6,9 @@ export class HTTPError extends Error {
   }
 }
 export class Mutex {
-  #queue
-  #locked
-  constructor() {
-    this.#queue = []
-    this.#locked = false
-  }
-  lock() {
+  #queue = []
+  #locked = false
+  async lock() {
     return new Promise(resolve => {
       if (this.#locked) {
         this.#queue.push({ resolve })
@@ -34,7 +30,7 @@ export class Mutex {
 export function encode(str) {
   return str?.replace(/["&<>]/g, match => `&#${match.charCodeAt(0)};`)
 }
-export function fetchOk(resource, opts) {
+export async function fetchOk(resource, opts) {
   return fetch(resource, Object.assign({ referrerPolicy: 'no-referrer' }, opts))
     .then(response => response.ok ? response : (() => { throw new HTTPError(response.status) })())
 }

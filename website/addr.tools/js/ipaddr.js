@@ -2,16 +2,24 @@ export class IPAddr {
   constructor(value) {
     if (typeof value === 'bigint') {
       this.value = value
-    } else if (this.constructor.v4Regex.test(value)) {
+    } else if (this.constructor.isValidIPv4(value)) {
       const buffer = new DataView(new ArrayBuffer(4))
       value.split('.').forEach((octet, i) => buffer.setUint8(i, octet))
       this.value = BigInt(buffer.getUint32(0)) | 0xffff00000000n
-    } else if (this.constructor.v6Regex.test(value)) {
+    } else if (this.constructor.isValidIPv6(value)) {
       const buffer = new DataView(new ArrayBuffer(16))
-      const parts = value.split('::')
-      parts[0].split(':').forEach((wyde, i) => wyde && buffer.setUint16(2*i, parseInt(wyde, 16)))
-      if (parts[1]) {
-        parts[1].split(':').reverse().forEach((wyde, i) => wyde && buffer.setUint16(14-2*i, parseInt(wyde, 16)))
+      const hextets = value.split(':')
+      for (let i = 0; i < hextets.length; i++) {
+        if (hextets[i] !== '') {
+          buffer.setUint16(2*i, parseInt(hextets[i], 16))
+        } else if (i > 0) {
+          for (let j = hextets.length - 1, k = 7; j > i; j--, k--) {
+            if (hextets[j] !== '') {
+              buffer.setUint16(2*k, parseInt(hextets[j], 16))
+            }
+          }
+          break
+        }
       }
       this.value = (buffer.getBigUint64(0) << 64n) | buffer.getBigUint64(8)
     } else {
@@ -41,9 +49,9 @@ export class IPAddr {
     }
     let str = this.#hexString().match(/.{4}/g).join(':')
     if (short6) {
-      const contiguousZeroWydes = [ ...str.matchAll(/:?(0000(?::0000)+):?/g) ]
-      if (contiguousZeroWydes.length) {
-        const longestMatch = contiguousZeroWydes.reduce((a, b) => b[1].length > a[1].length ? b : a)
+      const consecutiveZeroHextets = [ ...str.matchAll(/:?(0000(?::0000)+):?/g) ]
+      if (consecutiveZeroHextets.length) {
+        const longestMatch = consecutiveZeroHextets.reduce((a, b) => b[1].length > a[1].length ? b : a)
         str = str.slice(0, longestMatch.index) + '::' + str.slice(longestMatch.index + longestMatch[0].length)
       }
       str = str.replace(/^0{1,3}/, '').replace(/:0{1,3}/g, ':')
@@ -54,21 +62,27 @@ export class IPAddr {
     return this.value
   }
   static v4Pattern = Array(4).fill('(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])').join('\\.')
+  static #v4Regex = new RegExp(`^${this.v4Pattern}$`)
+  static isValidIPv4(str) {
+    return this.#v4Regex.test(str)
+  }
   static v6Pattern = `(?:${[
     '(?:[0-9a-fA-F]{1,4}:){7}(?:[0-9a-fA-F]{1,4}|:)',
     ...Array.from(Array(6), (_, i) => `(?:[0-9a-fA-F]{1,4}:){${6-i}}(?:(?::[0-9a-fA-F]{1,4}){1,${i+1}}|:)`),
     ':(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)',
   ].join('|')})`
-  static v4Regex = new RegExp(`^${this.v4Pattern}$`)
-  static v6Regex = new RegExp(`^${this.v6Pattern}$`)
+  static #v6Regex = new RegExp(`^${this.v6Pattern}$`)
+  static isValidIPv6(str) {
+    return this.#v6Regex.test(str)
+  }
 }
 export class IPRange {
   constructor(str, end) {
     if (end === undefined) {
       let hostBits
-      if (this.constructor.cidr4Regex.test(str)) {
+      if (this.constructor.isValidCIDRv4(str)) {
         hostBits = 0x000000000000000000000000ffffffffn
-      } else if (this.constructor.cidr6Regex.test(str)) {
+      } else if (this.constructor.isValidCIDRv6(str)) {
         hostBits = 0xffffffffffffffffffffffffffffffffn
       } else {
         throw new Error(`Cannot parse ${str} as CIDR notation`)
@@ -113,7 +127,13 @@ export class IPRange {
     return `${this.start.toString(short6)}/${this.start.is4() ? prefixLength - 96 : prefixLength}`
   }
   static cidr4Pattern = `${IPAddr.v4Pattern}/(?:3[0-2]|[1-2][0-9]|[0-9])`
+  static #cidr4Regex = new RegExp(`^${this.cidr4Pattern}$`)
+  static isValidCIDRv4(str) {
+    return this.#cidr4Regex.test(str)
+  }
   static cidr6Pattern = `${IPAddr.v6Pattern}/(?:12[0-8]|1[0-1][0-9]|[1-9][0-9]|[0-9])`
-  static cidr4Regex = new RegExp(`^${this.cidr4Pattern}$`)
-  static cidr6Regex = new RegExp(`^${this.cidr6Pattern}$`)
+  static #cidr6Regex = new RegExp(`^${this.cidr6Pattern}$`)
+  static isValidCIDRv6(str) {
+    return this.#cidr6Regex.test(str)
+  }
 }
