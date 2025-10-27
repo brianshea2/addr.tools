@@ -35,6 +35,9 @@ export class IPAddr {
   compareTo(other) {
     return this.value < other.value ? -1 : this.value > other.value ? 1 : 0
   }
+  equals(other) {
+    return this.value === other.value
+  }
   is4() {
     return (this.value & 0xffffffffffffffffffffffff00000000n) === 0xffff00000000n
   }
