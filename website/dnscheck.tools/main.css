@@ -44,14 +44,6 @@ body, code, kbd, samp, var {
     font-size: 14px;
   }
 }
-abbr {
-  text-decoration: underline dotted;
-}
-@media (hover: none) {
-  abbr {
-    text-decoration: none;
-  }
-}
 var {
   font-style: italic;
 }
