@@ -64,7 +64,7 @@ const htmlify = (obj, quoteStrings) => JSON.stringify(obj, jsonReplacer, 2)
     }
     return `<span class="${type} value">${value}</span>`
   })
-  .replace(/\[\n\s*(.*?)\n\s*\]/g, '[ $1 ]')
+  .replace(/\[\n\s*(.*?)\n\s*\]|\{\n\s*(.*?)\n\s*\}/g, (_, arr, obj) => arr !== undefined ? `[ ${arr} ]` : `{ ${obj} }`)
 
 const dnsLookup = (name, type, { signal }) => fetchOk(`/dns/${name}/${type}`, { signal }).then(r => r.json())
 const dnsTypes = { 1: 'A', 2: 'NS', 5: 'CNAME', 6: 'SOA', 12: 'PTR', 15: 'MX', 16: 'TXT', 28: 'AAAA', 65: 'HTTPS' }
