@@ -117,6 +117,9 @@ ul.ip-list li > span:nth-child(n+2) {
     padding-left: 4ch;
   }
 }
+.unverified-ptr {
+  text-decoration: underline wavy #c00;
+}
 ul.options li > span:nth-child(1) {
   font-weight: bold;
 }

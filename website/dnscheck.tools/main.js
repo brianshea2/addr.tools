@@ -114,17 +114,22 @@ const getGeo = (() => {
 // returns promise of PTR name or SOA NS for given IPAddr
 const getPtr = (() => {
   const headers = { Accept: 'application/dns-json' }
-  let fetcher = name => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=ptr`, { headers })
+  let fetcher = (name, type) => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, { headers })
     .catch(() => {
-      fetcher = name => fetchOk(`https://info.addr.tools/dns/${name}/ptr`)
-      return fetcher(name)
+      fetcher = (name, type) => fetchOk(`https://info.addr.tools/dns/${name}/${type}`)
+      return fetcher(name, type)
     })
-  return ip => fetcher(ip.reverseZone())
-    .then(r => r.json())
-    .then(({ Answer, Authority }) => ({
-      ptr: Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1),
-      ns: Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1),
-    }))
+  return async ip => {
+    const { Answer, Authority } = await fetcher(ip.reverseZone(), 'ptr').then(r => r.json())
+    const ptr = Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1)
+    const ns = Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1)
+    let ptrFwdOk
+    if (ptr) {
+      const { Answer } = await fetcher(ptr, ip.is4() ? 'a' : 'aaaa').then(r => r.json())
+      ptrFwdOk = Answer?.some(({ type, data }) => [ 1, 28 ].includes(type) && ip.equals(new IPAddr(data)))
+    }
+    return { ptr, ptrFwdOk, ns }
+  }
 })()
 
 // returns cached promise of combined geo, ptr, and rdap reg data for given IP or CIDR string
@@ -148,7 +153,7 @@ const getIPData = str => {
 }
 
 // generates HTML for an IP list item
-const ipItem = ({ str, reserved, ptr, ns, geo }) => {
+const ipItem = ({ str, reserved, ptr, ptrFwdOk, ns, geo }) => {
   let html = '<li>'
   if (reserved) {
     html += `<span>${str}</span>`
@@ -156,9 +161,21 @@ const ipItem = ({ str, reserved, ptr, ns, geo }) => {
     html += `<span><a class="no-ul" href="https://info.addr.tools/${str}">${str}</a></span>`
   }
   if (ptr) {
-    html += ` <span class="blue"><abbr title="PTR record (reverse DNS)">ptr</abbr>: ${encode(ptr)}</span>`
+    html += ' <span class="blue" title="PTR record (reverse DNS) for this IP'
+    if (!ptrFwdOk) {
+      html += '\n\nWarning: The claimed hostname does not resolve to this IP'
+    }
+    html += '">ptr: '
+    if (!ptrFwdOk) {
+      html += '<span class="unverified-ptr">'
+    }
+    html += encode(ptr)
+    if (!ptrFwdOk) {
+      html += '</span>'
+    }
+    html += '</span>'
   } else if (ns) {
-    html += ` <span class="violet"><abbr title="NameServer for the reverse DNS zone">ns</abbr>: ${encode(ns)}</span>`
+    html += ` <span class="violet" title="Authoritative nameserver for this IP's reverse DNS">ns: ${encode(ns)}</span>`
   } else {
     html += '<span></span>'
   }
@@ -252,7 +269,7 @@ const drawDNSSEC = (() => {
     const link = '<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" ' +
       'title="Domain Name System Security Extensions">DNSSEC</a>'
     const makeStatus = (text, className) =>
-      `<span class="${className}" title="DNS Security Extensions\n\n${text}">DNSSEC</span>`
+      `<span class="${className}" title="Domain Name System Security Extensions\n\n${text}">DNSSEC</span>`
     f = () => {
       let done = true
       let error = false
