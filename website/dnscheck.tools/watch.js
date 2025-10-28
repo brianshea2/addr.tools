@@ -90,18 +90,18 @@ const handleMessage = ({ data }) => {
     `<br>;; CLIENT: ${ipLink}#${request.remotePort}<span id="ptr-${tmpId}">(<i>pending</i>)</span>` +
     `<span id="rdap-${tmpId}"> (<i>pending</i>)</span> (${request.proto})`
   if (request.tlsVersion) {
-    html += `<br>;; TLS: version ${request.tlsVersion.replace(/^TLS ?/, '')}; cipherSuite: ${request.tlsCipherSuite}`
+    html += `<br>;; TLS: version: ${request.tlsVersion.replace(/^TLS ?/, '')}, cipherSuite: ${request.tlsCipherSuite}`
     if (request.tlsNamedGroup) {
-      html += `; namedGroup: ${encode(request.tlsNamedGroup)}`
+      html += `, namedGroup: ${encode(request.tlsNamedGroup)}`
     }
     if (request.tlsDidResume) {
-      html += '; sessionReuse: true'
+      html += ', sessionReuse: true'
     }
     if (request.tlsServerName) {
-      html += `; serverName: ${encode(request.tlsServerName)}`
+      html += `, serverName: ${encode(request.tlsServerName)}`
     }
     if (request.tlsNegotiatedProtocol) {
-      html += `; alpn: ${encode(request.tlsNegotiatedProtocol)}`
+      html += `, alpn: ${encode(request.tlsNegotiatedProtocol)}`
     }
   }
   html += `<br>;; WHEN: ${new Date(request.time * 1000).toLocaleString()}</div></div>`
