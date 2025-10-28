@@ -12,11 +12,14 @@ class Response {
     this.query = query
     this.data = data
   }
-  findEntityByRole(role) {
-    return this.data?.entities?.find(({ roles }) => roles?.includes(role))
+  findEntitiesByRole(role) {
+    return this.data?.entities?.filter(({ roles }) => roles?.includes(role)) ?? []
   }
   get registrantName() {
-    return this.findEntityByRole('registrant')?.vcardArray?.[1]?.find(([ name ]) => name === 'fn')?.[3]
+    const vcards = this.findEntitiesByRole('registrant')
+      .map(({ vcardArray }) => Object.fromEntries(vcardArray?.[1]?.map(([ name, , , value ]) => [ name, value ])))
+      .filter(({ fn }) => fn)
+    return vcards.find(({ kind }) => kind === 'org')?.fn ?? vcards[0]?.fn
   }
 }
 class DomainService {
