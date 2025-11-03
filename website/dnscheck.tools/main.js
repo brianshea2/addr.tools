@@ -388,11 +388,11 @@ const testDNS = () => new Promise(done => {
     console.log('WebSocket opened')
     // generate some DNS requests
     for (let i = 0; i < 4; i++) {
-      await makeQuery(`${String.fromCharCode(97 + i)}.refused-${clientId}.test`, 10000, abortController.signal)
+      await makeQuery(`${String.fromCharCode(97 + i)}.nullip-${clientId}.test`, 10000, abortController.signal)
     }
     // test IPv6 support
     if (!seenIPv6) {
-      await makeQuery(`refused-${clientId}.test-ipv6`, 10000, abortController.signal)
+      await makeQuery(`nullip-${clientId}.test-ipv6`, 10000, abortController.signal)
     }
     if (!seenIPv6) {
       ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach nameservers over IPv6">IPv6</span>'
