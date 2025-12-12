@@ -26,6 +26,7 @@ const connectionDiv    = document.getElementById('connection-results')
 const clientSubnetsDiv = document.getElementById('ecs-results')
 const resolversDiv     = document.getElementById('resolver-results')
 const dnssecDiv        = document.getElementById('dnssec-results')
+const doneMsgDiv       = document.getElementById('done-msg')
 const rttStatusSpan    = document.getElementById('rtt-status')
 const ednsStatusSpan   = document.getElementById('edns-status')
 const dnssecStatusSpan = document.getElementById('dnssec-status')
@@ -158,7 +159,7 @@ const ipItem = ({ str, reserved, ptr, ptrFwdOk, ns, geo }) => {
   if (reserved) {
     html += `<span>${str}</span>`
   } else {
-    html += `<span><a class="no-ul" href="https://info.addr.tools/${str}">${str}</a></span>`
+    html += `<span><a class="no-ul" href="https://info.addr.tools/${str}" target="_blank">${str}</a></span>`
   }
   if (ptr) {
     html += ' <span class="blue" title="PTR record (reverse DNS) for this IP'
@@ -417,6 +418,7 @@ const testDNS = () => new Promise(done => {
     }
     // finished
     countSpan.classList.remove('light')
+    doneMsgDiv.classList.remove('hidden')
     setTimeout(
       () => {
         if (socket.readyState === 1) {

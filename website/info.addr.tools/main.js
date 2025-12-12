@@ -134,11 +134,11 @@ const loadInfo = async () => {
   document.body.innerHTML = `<header><h1>${htmlify(name, false)}</h1></header>`
   if (!(query instanceof IPRange)) {
     document.body.innerHTML += `<div id="dns-container">` +
-      `<h2><abbr title="Domain Name System">DNS</abbr> records</h2>` +
+      `<h2><span title="Domain Name System">DNS</span> records</h2>` +
       `<div id="dns-data">loading...</div></div>`
   }
   document.body.innerHTML += `<div id="rdap-container">` +
-    `<h2><abbr title="Registration Data Access Protocol">RDAP</abbr> data</h2>` +
+    `<h2><span title="Registration Data Access Protocol">RDAP</span> data</h2>` +
     `<div id="rdap-data">loading...</div></div>`
   document.body.innerHTML += footer
 

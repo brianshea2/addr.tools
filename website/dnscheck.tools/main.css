@@ -175,9 +175,9 @@ header {
   grid-template-columns: 1fr max-content 1fr;
   gap: 1ch;
   padding-top: calc(0.65em + env(safe-area-inset-top));
-  padding-right: calc(3ch + env(safe-area-inset-right));
+  padding-right: 3ch;
   padding-bottom: 0.65em;
-  padding-left: calc(3ch + env(safe-area-inset-left));
+  padding-left: 3ch;
   position: fixed;
   top: 0;
   left: 0;
@@ -196,9 +196,9 @@ header h1 {
 }
 .content {
   padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
+  padding-right: 0;
   padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
+  padding-left: 0;
 }
 .content-inner {
   display: inline-flex;
@@ -215,9 +215,9 @@ body:not(:has(> .status)) .content-inner {
   align-items: center;
   gap: 2ch;
   padding-top: 0.5em;
-  padding-right: calc(3ch + env(safe-area-inset-right));
+  padding-right: 3ch;
   padding-bottom: calc(0.5em + env(safe-area-inset-bottom));
-  padding-left: calc(3ch + env(safe-area-inset-left));
+  padding-left: 3ch;
   position: fixed;
   bottom: 0;
   left: 0;
