@@ -175,9 +175,9 @@ header {
   grid-template-columns: 1fr max-content 1fr;
   gap: 1ch;
   padding-top: calc(0.65em + env(safe-area-inset-top));
-  padding-right: 3ch;
+  padding-right: 2ch;
   padding-bottom: 0.65em;
-  padding-left: 3ch;
+  padding-left: 2ch;
   position: fixed;
   top: 0;
   left: 0;
@@ -204,7 +204,7 @@ header h1 {
   display: inline-flex;
   flex-direction: column;
   gap: 1.6em;
-  padding: 3.9em 3ch 3.9em 1ch;
+  padding: 3.9em 2ch;
 }
 body:not(:has(> .status)) .content-inner {
   padding-bottom: 1.6em;
@@ -215,9 +215,9 @@ body:not(:has(> .status)) .content-inner {
   align-items: center;
   gap: 2ch;
   padding-top: 0.5em;
-  padding-right: 3ch;
+  padding-right: 2ch;
   padding-bottom: calc(0.5em + env(safe-area-inset-bottom));
-  padding-left: 3ch;
+  padding-left: 2ch;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -247,14 +247,6 @@ body:not(:has(> .status)) .content-inner {
 }
 .section.hidden {
   display: none;
-}
-.section .lead {
-  padding-left: 2ch;
-  text-indent: -2ch;
-}
-.section .lead::before {
-  content: '> ';
-  font-weight: bold;
 }
 .section :is(h2, h3, .title, .subtitle) {
   margin-bottom: -1.3em;

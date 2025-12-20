@@ -301,20 +301,19 @@ const drawDNSSEC = (() => {
       })
       if (error) {
         // a dnssec-valid domain failed to connect
-        dnssecDiv.firstElementChild.innerHTML = `Hmm... There was a network issue while checking ${link}. ` +
-          'The result is inconclusive.'
+        dnssecDiv.firstElementChild.innerHTML = `Hmm... There was a network issue while checking ${link}:`
         dnssecStatusSpan.innerHTML = makeStatus('An error occurred', 'yellow')
         return
       }
       if (fail) {
         // a dnssec-invalid domain connected
-        dnssecDiv.firstElementChild.innerHTML = `Oh no! Your DNS responses are not authenticated with ${link}.`
+        dnssecDiv.firstElementChild.innerHTML = `Oh no! Your DNS responses are not authenticated with ${link}:`
         dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are not authenticated', 'red')
         return
       }
       if (done) {
         // all tests passed
-        dnssecDiv.firstElementChild.innerHTML = `Great! Your DNS responses are authenticated with ${link}.`
+        dnssecDiv.firstElementChild.innerHTML = `Great! Your DNS responses are authenticated with ${link}:`
         dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are authenticated', 'green')
         return
       }
