@@ -328,7 +328,7 @@ const testIPs = async () => {
   const urls = [
     'https://myipv4.addr.tools/',
     'https://myipv6.addr.tools/',
-    'stun:addr.tools:3478',
+    'stun:myip.addr.tools:3478',
     'stun:stun.l.google.com:19302',
   ]
   const handleIP = str => {
