@@ -282,6 +282,7 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		} else if !verified {
+			log.Printf("[warn] myaddr.RegistrationHandler.ServeHTTP: invalid challenge from %s", req.Header.Get("X-Real-IP"))
 			http.Error(w, "invalid value for \"challenge\"", http.StatusBadRequest)
 			return
 		}
@@ -308,6 +309,7 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			return
 		}
 		// success
+		log.Printf("[info] myaddr.RegistrationHandler.ServeHTTP: new registration: %s (%s)", name, req.Header.Get("X-Real-IP"))
 		w.Header().Set("Content-Type", "application/json")
 		created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
 		json.NewEncoder(w).Encode(

@@ -55,7 +55,6 @@ func (srv *Server) serve(conn net.PacketConn) error {
 
 func (srv *Server) handleMessage(conn net.PacketConn, addr net.Addr, msg *stun.Message) {
 	if msg.Type.Method != stun.MethodBinding || msg.Type.Class != stun.ClassRequest {
-		log.Printf("[warn] stun: Unexpected message type: %s (%s)", msg.Type, addr)
 		return
 	}
 	msg.Type.Class = stun.ClassSuccessResponse
