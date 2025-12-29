@@ -5,11 +5,12 @@ CERTBOT="docker run --rm -it -v /data/letsencrypt:/etc/letsencrypt certbot/certb
 AUTHHOOK="wget -q -O - \"https://challenges.addr.tools/?secret=$SECRET&txt=\$CERTBOT_VALIDATION\""
 
 $CERTBOT certonly                                                                                                       \
-  --cert-name dns                                                                                                       \
+  --cert-name dns.addr.tools                                                                                            \
   --manual                                                                                                              \
   --manual-auth-hook "$AUTHHOOK"                                                                                        \
   --preferred-challenges dns                                                                                            \
-  -d dns.addr.tools                     -d '*.dns.addr.tools'
+  -d dns.addr.tools                     -d '*.dns.addr.tools'                                                           \
+  -d dns.myaddr.tools                   -d dns.myaddr.dev                       -d dns.myaddr.io
 
 $CERTBOT certonly                                                                                                       \
   --cert-name addr.tools                                                                                                \
