@@ -4,9 +4,11 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
@@ -58,7 +60,29 @@ type DnscheckHandler struct {
 	Watchers             WatcherHub
 	IPInfoClient         *httputil.IPInfoClient
 	BadDnssecProvider    *BadDnssecProvider
-	soaSig               dns.RR
+	soaSig               atomic.Pointer[dns.RRSIG]
+}
+
+func (h *DnscheckHandler) initSoaSig() {
+	soa := h.SOA(nil, false)
+	ttl := soa[0].Header().Ttl
+	now := uint32(time.Now().Unix())
+	sigs, err := h.DnssecProvider.Sign(soa, now-3600, now+3600+2*ttl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	h.soaSig.Store(sigs[0].(*dns.RRSIG))
+	go func() {
+		for {
+			time.Sleep(time.Duration(rand.Int63n(int64(ttl/2))+int64(ttl/2)) * time.Second)
+			now = uint32(time.Now().Unix())
+			sigs, err = h.DnssecProvider.Sign(soa, now-3600, now+3600+2*ttl)
+			if err != nil {
+				log.Fatal(err)
+			}
+			h.soaSig.Store(sigs[0].(*dns.RRSIG))
+		}
+	}()
 }
 
 func (h *DnscheckHandler) Init(privKeyBytes []byte) *DnscheckHandler {
@@ -104,23 +128,23 @@ func (h *DnscheckHandler) Init(privKeyBytes []byte) *DnscheckHandler {
 		if err != nil {
 			log.Fatal(err)
 		}
-		sigs, err := h.DnssecProvider.Sign(h.SOA(nil, false), h.DnssecProvider.KeySig.Inception, h.DnssecProvider.KeySig.Expiration)
-		if err != nil {
-			log.Fatal(err)
-		}
-		h.soaSig = sigs[0]
+		h.initSoaSig()
 	}
 	return h
 }
 
-func (h *DnscheckHandler) SOA(q *dns.Question, includeSig bool) []dns.RR {
+func (h *DnscheckHandler) SOA(q *dns.Question, includeSig bool) (rrs []dns.RR) {
 	var name string
 	if q == nil {
 		name = h.Zone
 	} else {
 		name = q.Name[len(q.Name)-len(h.Zone):]
 	}
-	rrs := make([]dns.RR, 1, 2)
+	if includeSig {
+		rrs = make([]dns.RR, 1, 2)
+	} else {
+		rrs = make([]dns.RR, 1)
+	}
 	rrs[0] = &dns.SOA{
 		Hdr: dns.RR_Header{
 			Name:   name,
@@ -136,11 +160,14 @@ func (h *DnscheckHandler) SOA(q *dns.Question, includeSig bool) []dns.RR {
 		Expire:  600,
 		Minttl:  300,
 	}
-	if includeSig && h.soaSig != nil {
-		rrs = append(rrs, dns.Copy(h.soaSig))
+	if !includeSig {
+		return
+	}
+	if sig := h.soaSig.Load(); sig != nil {
+		rrs = append(rrs, dns.Copy(sig))
 		rrs[1].Header().Name = name
 	}
-	return rrs
+	return
 }
 
 func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
