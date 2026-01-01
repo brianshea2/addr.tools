@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"log"
 	"sync/atomic"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -26,11 +27,11 @@ func MsgAcceptFunc(dh dns.Header) dns.MsgAcceptAction {
 
 type LoggingResponseWriter struct {
 	dns.ResponseWriter
+	Start     time.Time
 	Rcode     int
 	AnCount   int
 	NsCount   int
 	ExCount   int
-	Written   bool
 	connState *tls.ConnectionState
 }
 
@@ -39,7 +40,6 @@ func (w *LoggingResponseWriter) WriteMsg(m *dns.Msg) error {
 	w.AnCount = len(m.Answer)
 	w.NsCount = len(m.Ns)
 	w.ExCount = len(m.Extra)
-	w.Written = true
 	return w.ResponseWriter.WriteMsg(m)
 }
 
@@ -61,20 +61,18 @@ func (h *LoggingHandler) RequestCount() uint64 {
 }
 
 func (h *LoggingHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
-	lw := &LoggingResponseWriter{ResponseWriter: w}
+	lw := &LoggingResponseWriter{
+		ResponseWriter: w,
+		Start:          time.Now(),
+	}
 	h.Next.ServeDNS(lw, req)
 	h.count.Add(1)
 	if h.Logger != nil {
-		var status string
-		if lw.Written {
-			status = dns.RcodeToString[lw.Rcode]
-		} else {
-			status = "NOREPLY"
-		}
 		h.Logger.Printf(
-			"%s %s %s %s %s %s an:%v ns:%v ex:%v %s",
+			"%vms %s %s %s %s %s %s an:%v ns:%v ex:%v %s",
+			time.Since(lw.Start).Milliseconds(),
 			GetProtocol(w),
-			status,
+			dns.RcodeToString[lw.Rcode],
 			dns.OpcodeToString[req.Opcode],
 			dns.Class(req.Question[0].Qclass),
 			dns.Type(req.Question[0].Qtype),
