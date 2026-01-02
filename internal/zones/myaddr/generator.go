@@ -22,20 +22,15 @@ type RecordGenerator struct {
 
 func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
 	sub := q.Name[:len(q.Name)-len(zone)]
-	var https, ipv4Only, ipv6Only bool
+	var ipv4Only, ipv6Only bool
 	switch {
 	case len(sub) == 0, dnsutil.EqualsAsciiIgnoreCase(sub, "www."):
 		validName = true
-		https = true
-	case dnsutil.EqualsAsciiIgnoreCase(sub, "dns."):
-		validName = true
 	case dnsutil.EqualsAsciiIgnoreCase(sub, "ipv4."):
 		validName = true
-		https = true
 		ipv4Only = true
 	case dnsutil.EqualsAsciiIgnoreCase(sub, "ipv6."):
 		validName = true
-		https = true
 		ipv6Only = true
 	}
 	if validName {
@@ -71,9 +66,6 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				})
 			}
 		case dns.TypeHTTPS:
-			if !https {
-				break
-			}
 			https := &dns.HTTPS{dns.SVCB{
 				Hdr: dns.RR_Header{
 					Name:   q.Name,
