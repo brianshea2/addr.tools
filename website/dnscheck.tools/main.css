@@ -178,7 +178,7 @@ header {
   padding-right: 2ch;
   padding-bottom: 0.65em;
   padding-left: 2ch;
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
