@@ -204,15 +204,15 @@ const ipList = objs => {
     html += `<div class="subtitle">${reg ? encode(reg) : '<i>Unknown</i>'}</div>` +
       `<ul class="ip-list">${byReg[reg].sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   })
-  const reserved = objs.filter(({ reserved }) => reserved)
-  if (reserved.length) {
-    html += '<div class="subtitle"><i>Reserved</i></div>' +
-      `<ul class="ip-list">${reserved.sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
-  }
   const pending = objs.filter(({ pending }) => pending)
   if (pending.length) {
     html += '<div class="subtitle"><i>Pending</i></div>' +
       `<ul class="ip-list">${pending.map(ipItem).join('')}</ul>`
+  }
+  const reserved = objs.filter(({ reserved }) => reserved)
+  if (reserved.length) {
+    html += '<div class="subtitle"><i>Reserved</i></div>' +
+      `<ul class="ip-list">${reserved.sort((a, b) => a.ipOrRange.compareTo(b.ipOrRange)).map(ipItem).join('')}</ul>`
   }
   return html
 }
@@ -325,12 +325,6 @@ const drawDNSSEC = (() => {
 
 // detects client's IPv4 and IPv6 addresses via HTTP requests and WebRTC ICE candidates
 const testIPs = async () => {
-  const urls = [
-    'https://myipv4.addr.tools/',
-    'https://myipv6.addr.tools/',
-    'stun:myip.addr.tools:3478',
-    'stun:stun.l.google.com:19302',
-  ]
   const handleIP = str => {
     if (clientIPs[str] !== undefined) {
       return
@@ -342,37 +336,79 @@ const testIPs = async () => {
       drawIPs()
     })
   }
-  for (const url of urls) {
-    if (!url.startsWith('https:')) {
-      continue
-    }
-    fetchOk(url)
-      .then(r => r.text())
-      .then(s => s.trim())
-      .then(handleIP)
-      .catch(() => {})
+  fetchOk('https://myipv4.addr.tools/plain').then(r => r.text()).then(handleIP).catch(() => {})
+  fetchOk('https://myipv6.addr.tools/plain').then(r => r.text()).then(handleIP).catch(() => {})
+  const makePeerConn = () => {
+    const peerConn = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:myip.addr.tools:3478' },
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
+    })
+    peerConn.addEventListener('icecandidate', ({ candidate }) => {
+      if (!candidate || !candidate.candidate) {
+        return
+      }
+      const parts = candidate.candidate.split(' ')
+      console.log(`WebRTC candidate: ${parts[4]}`, candidate)
+      let ip
+      try {
+        ip = new IPAddr(parts[4])
+      } catch(e) {
+        // ignore invalid (i.e., .local) addresses
+      }
+      if (ip) {
+        handleIP(ip.toString(true))
+      }
+    })
+    peerConn.addEventListener('icegatheringstatechange', () => {
+      if (peerConn.iceGatheringState === 'complete') {
+        console.log('WebRTC candidate gathering complete')
+        peerConn.close()
+      }
+    })
+    peerConn.addEventListener('negotiationneeded', () => {
+      peerConn.createOffer().then(desc => peerConn.setLocalDescription(desc))
+    })
+    return peerConn
   }
-  const iceServers = urls.filter(url => url.startsWith('stun:')).map(urls => ({ urls }))
-  const peerConn = new RTCPeerConnection({ iceServers })
-  peerConn.addEventListener('icecandidate', ({ candidate }) => {
-    if (!candidate || !candidate.candidate) {
-      return
+  // obtain microphone stream
+  let stream
+  try {
+    const { state } = await navigator.permissions.query({ name: 'microphone' })
+    if (state === 'granted') {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     }
-    const parts = candidate.candidate.split(' ')
-    console.log(`ICE candidate: ${parts[4]}`, candidate)
-    try {
-      handleIP(new IPAddr(parts[4]).toString(true))
-    } catch(e) {
-      // ignore invalid (i.e., .local) addresses
+  } catch(e) {
+    // ignore
+  }
+  if (stream) {
+    // auto stop microphone track
+    setTimeout(() => stream.getTracks().forEach(track => track.stop()), 3000)
+  } else {
+    // show link to ask for microphone permission
+    window.askForMicPermission = () => {
+      const msg = 'Websites with camera and/or microphone permission may have access to additional IP addresses.\n\n' +
+        'Grant microphone permission to detect these additional IP addresses.\n\nNo audio will be recorded or transmitted.'
+      if (window.confirm(msg)) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            connectionDiv.firstElementChild.innerHTML = 'Your IP addresses:'
+            setTimeout(() => stream.getTracks().forEach(track => track.stop()), 3000)
+            makePeerConn().addTrack(stream.getTracks()[0], stream)
+          })
+          .catch(() => {})
+      }
     }
-  })
-  peerConn.addEventListener('icegatheringstatechange', () => {
-    if (peerConn.iceGatheringState === 'complete') {
-      peerConn.close()
-    }
-  })
-  peerConn.createDataChannel('dummy')
-  peerConn.setLocalDescription(await peerConn.createOffer())
+    connectionDiv.firstElementChild.innerHTML = 'Your IP addresses (<span class="link" onclick="askForMicPermission()">permission needed</span>):'
+  }
+  // start WebRTC candidate gathering
+  const peerConn = makePeerConn()
+  if (stream) {
+    peerConn.addTrack(stream.getTracks()[0], stream)
+  } else {
+    peerConn.createDataChannel('dummy')
+  }
 }
 
 // detects DNS resolvers and DNSSEC validation
@@ -433,6 +469,7 @@ const testDNS = () => new Promise(done => {
   socket.addEventListener('message', ({ data }) => {
     // parse data
     const request = JSON.parse(data)
+    console.log(`DNS: ${request.question}`, request)
     // increment count
     countSpan.innerHTML = ++count
     // add resolver if new
@@ -493,13 +530,15 @@ const testDNS = () => new Promise(done => {
 
 // detects DNS average round trip time
 const testRTT = async () => {
-  let rand, start, avg
+  let name, start, rtt, avg
   for (let i = 0; i < 5; i++) {
     for (const tld of [ 'com', 'net', 'org' ]) {
-      rand = Math.random().toString(36).slice(2)
+      name = `test-${Math.random().toString(36).slice(2)}.null-addr.${tld}`
       start = Date.now()
-      await fetch(`https://test-${rand}.null-addr.${tld}/`).catch(() => {})
-      rtts.push(Date.now() - start)
+      await fetch('https://' + name).catch(() => {})
+      rtt = Date.now() - start
+      console.log(`RTT: ${name}\t${rtt}ms`)
+      rtts.push(rtt)
       avg = Math.round(rtts.reduce((sum, x) => sum + x) / rtts.length)
       rttStatusSpan.innerHTML = `<span class="${avg <= 150 ? 'green' : avg <= 500 ? 'yellow' : 'red'}">${avg}ms</span>`
     }
