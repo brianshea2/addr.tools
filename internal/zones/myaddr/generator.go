@@ -122,45 +122,37 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 				})
 			}
 		case dns.TypeTXT:
-			if len(sub) > 16 && dnsutil.EqualsAsciiIgnoreCase(sub[:16], "_acme-challenge.") {
-				for _, v := range g.ChallengeStore.Values(g.KeyPrefix + dnsutil.ToLowerAscii(name)) {
-					rrs = append(rrs, &dns.TXT{
-						Hdr: dns.RR_Header{
-							Name:   q.Name,
-							Rrtype: dns.TypeTXT,
-							Class:  dns.ClassINET,
-							Ttl:    1,
-						},
-						Txt: dnsutil.SplitForTxt(string(v)),
-					})
-				}
-			} else {
+			txts := []string{"v=spf1 -all"}
+			if len(sub) == len(name)+1 {
 				name = dnsutil.ToLowerAscii(name)
 				created, _, expires := GetRegistrationInfo(name, g.DataStore, g.KeyPrefix)
 				if created > 0 {
-					txts := []string{
-						"v=spf1 -all",
+					txts = append(txts,
 						fmt.Sprintf("registered %s", time.Unix(int64(created), 0).UTC()),
 						fmt.Sprintf("expires %s", time.Unix(int64(expires), 0).UTC()),
-					}
+					)
 					if mtime := g.DataStore.Get(g.KeyPrefix + name + ":ip4mtime"); mtime != nil {
 						txts = append(txts, fmt.Sprintf("ipv4 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()))
 					}
 					if mtime := g.DataStore.Get(g.KeyPrefix + name + ":ip6mtime"); mtime != nil {
 						txts = append(txts, fmt.Sprintf("ipv6 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()))
 					}
-					for _, txt := range txts {
-						rrs = append(rrs, &dns.TXT{
-							Hdr: dns.RR_Header{
-								Name:   q.Name,
-								Rrtype: dns.TypeTXT,
-								Class:  dns.ClassINET,
-								Ttl:    1,
-							},
-							Txt: dnsutil.SplitForTxt(txt),
-						})
-					}
 				}
+			} else if len(sub) > 16 && dnsutil.EqualsAsciiIgnoreCase(sub[:16], "_acme-challenge.") {
+				for _, v := range g.ChallengeStore.Values(g.KeyPrefix + dnsutil.ToLowerAscii(name)) {
+					txts = append(txts, string(v))
+				}
+			}
+			for _, txt := range txts {
+				rrs = append(rrs, &dns.TXT{
+					Hdr: dns.RR_Header{
+						Name:   q.Name,
+						Rrtype: dns.TypeTXT,
+						Class:  dns.ClassINET,
+						Ttl:    1,
+					},
+					Txt: dnsutil.SplitForTxt(txt),
+				})
 			}
 		}
 	}
