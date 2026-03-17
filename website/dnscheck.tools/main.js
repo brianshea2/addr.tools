@@ -341,7 +341,7 @@ const testIPs = async () => {
   const makePeerConn = () => {
     const peerConn = new RTCPeerConnection({
       iceServers: [
-        { urls: 'stun:myip.addr.tools:3478' },
+        { urls: 'stun:addr.tools:3478' },
         { urls: 'stun:stun.l.google.com:19302' },
       ],
     })
@@ -388,7 +388,7 @@ const testIPs = async () => {
   } else {
     // show link to ask for microphone permission
     window.askForMicPermission = () => {
-      const msg = 'Websites with camera and/or microphone permission may have access to additional IP addresses.\n\n' +
+      const msg = 'Websites with camera and/or microphone permission may have access to additional IP addresses (RFC 8828).\n\n' +
         'Grant microphone permission to detect these additional IP addresses.\n\nNo audio will be recorded or transmitted.'
       if (window.confirm(msg)) {
         navigator.mediaDevices.getUserMedia({ audio: true })

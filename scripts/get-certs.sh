@@ -27,7 +27,7 @@ $CERTBOT certonly                                                               
   --manual                                                                                                              \
   --manual-auth-hook "$AUTHHOOK"                                                                                        \
   --preferred-challenges dns                                                                                            \
-  -d dnscheck.tools                     -d '*.dnscheck.tools'                                                           \
+  -d dnscheck.tools                     -d '*.dnscheck.tools'                   -d '*.go.dnscheck.tools'                \
   -d '*.test.dnscheck.tools'            -d '*.test-ipv4.dnscheck.tools'         -d '*.test-ipv6.dnscheck.tools'         \
   -d '*.test-alg13.dnscheck.tools'      -d '*.test-alg13-ipv4.dnscheck.tools'   -d '*.test-alg13-ipv6.dnscheck.tools'   \
   -d '*.test-alg14.dnscheck.tools'      -d '*.test-alg14-ipv4.dnscheck.tools'   -d '*.test-alg14-ipv6.dnscheck.tools'   \
