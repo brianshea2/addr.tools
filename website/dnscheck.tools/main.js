@@ -469,7 +469,7 @@ const testDNS = () => new Promise(done => {
   socket.addEventListener('message', ({ data }) => {
     // parse data
     const request = JSON.parse(data)
-    console.log(`DNS: ${request.question}`, request)
+    console.log(`DNS: ${request.qname} IN ${request.qtype}`, request)
     // increment count
     countSpan.innerHTML = ++count
     // add resolver if new
