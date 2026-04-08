@@ -86,10 +86,25 @@ const reservedRanges = [
 // tests if the given IPAddr or entire IPRange is contained within a reserved IP range
 const isReserved = ipOrRange => reservedRanges.some(r => r.contains(ipOrRange))
 
+// known IP ranges published by providers, promise of
+const knownRanges = fetchOk('/known-ipranges.json')
+  .then(r => r.json())
+  .then(objs => objs.flatMap(({ desc, ranges }) => ranges.map(cidr => ({ desc, range: new IPRange(cidr) }))))
+  .catch(() => [])
+
 // returns promise of RDAP registrant name or other identifier for given IPAddr or IPRange
-const getReg = ipOrRange => rdapClient.lookupIP(ipOrRange).then(
-  r => r.registrantName?.replace(/(?:\s+|,\s*)(?:llc|l\.l\.c\.|ltd\.?|inc\.?)$/i, '') || r.data.name || r.data.handle
-)
+const getReg = async ipOrRange => {
+  const known = (await knownRanges).find(({ range }) => range.contains(ipOrRange))
+  if (known && !known.desc.includes('{}')) {
+    return known.desc
+  }
+  const rdap = await rdapClient.lookupIP(ipOrRange)
+  const reg = rdap.registrantName?.replace(/,?\s+(?:l\.?l\.?c\.?|ltd\.?|inc\.?)$/i, '') || rdap.data.name || rdap.data.handle
+  if (known) {
+    return known.desc.replace('{}', reg)
+  }
+  return reg
+}
 
 // returns cached promise of geolocation for given IPAddr or IPRange
 const getGeo = (() => {
