@@ -12,7 +12,7 @@ import (
 )
 
 func keygen(zone string, alg uint8) {
-	dnssecProvider, err := dnsutil.GenerateDnssecProvider(dns.CanonicalName(zone), alg, 300)
+	dnssecProvider, err := dnsutil.GenerateDnssecProvider(dns.CanonicalName(zone), alg, 1800)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

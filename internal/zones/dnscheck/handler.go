@@ -99,7 +99,7 @@ func (h *DnscheckHandler) Init(privKeyBytes []byte) *DnscheckHandler {
 		h.DnssecProvider.SigningKey.Hdr.Name = h.Zone
 		h.DnssecProvider.SigningKey.Hdr.Rrtype = dns.TypeDNSKEY
 		h.DnssecProvider.SigningKey.Hdr.Class = dns.ClassINET
-		h.DnssecProvider.SigningKey.Hdr.Ttl = 300
+		h.DnssecProvider.SigningKey.Hdr.Ttl = 1800
 		h.DnssecProvider.SigningKey.Flags = 257  // Secure Entry Point
 		h.DnssecProvider.SigningKey.Protocol = 3 // DNSSEC
 		err := h.DnssecProvider.SetPrivKeyBytes(privKeyBytes)
@@ -137,15 +137,15 @@ func (h *DnscheckHandler) SOA(q *dns.Question, includeSig bool) (rrs []dns.RR) {
 			Name:   name,
 			Rrtype: dns.TypeSOA,
 			Class:  dns.ClassINET,
-			Ttl:    300,
+			Ttl:    1800,
 		},
 		Ns:      h.Ns[0],
 		Mbox:    h.HostMasterMbox,
 		Serial:  1,
-		Refresh: 300,
-		Retry:   300,
-		Expire:  600,
-		Minttl:  300,
+		Refresh: 1800,
+		Retry:   1800,
+		Expire:  3600,
+		Minttl:  1800,
 	}
 	if !includeSig {
 		return
@@ -288,7 +288,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 						Name:   q.Name,
 						Rrtype: dns.TypeNS,
 						Class:  dns.ClassINET,
-						Ttl:    300,
+						Ttl:    1800,
 					},
 					Ns: ns,
 				})
@@ -330,7 +330,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				Name:   q.Name,
 				Rrtype: dns.TypeHINFO,
 				Class:  dns.ClassINET,
-				Ttl:    300,
+				Ttl:    1800,
 			},
 			Cpu: "RFC8482",
 			Os:  "",
