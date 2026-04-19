@@ -61,23 +61,12 @@ func (h *SimpleHandler) Init(privKeyBytes []byte) *SimpleHandler {
 		h.HostMasterMbox = dns.CanonicalName(h.HostMasterMbox)
 	}
 	if h.DnssecProvider != nil {
-		for _, rr := range []dns.RR{h.DnssecProvider.Ksk, h.DnssecProvider.Zsk, h.DnssecProvider.KeySig} {
-			hdr := rr.Header()
-			hdr.Name = h.Zone
-			hdr.Class = dns.ClassINET
-			hdr.Ttl = 300
-		}
-		for _, rr := range []*dns.DNSKEY{h.DnssecProvider.Ksk, h.DnssecProvider.Zsk} {
-			rr.Hdr.Rrtype = dns.TypeDNSKEY
-			rr.Flags = 256
-			rr.Protocol = 3 // DNSSEC
-		}
-		h.DnssecProvider.Ksk.Flags |= 1 // Secure Entry Point
-		h.DnssecProvider.KeySig.Hdr.Rrtype = dns.TypeRRSIG
-		h.DnssecProvider.KeySig.TypeCovered = dns.TypeDNSKEY
-		h.DnssecProvider.KeySig.Labels = uint8(dns.CountLabel(h.Zone))
-		h.DnssecProvider.KeySig.OrigTtl = h.DnssecProvider.Ksk.Hdr.Ttl
-		h.DnssecProvider.KeySig.SignerName = h.Zone
+		h.DnssecProvider.SigningKey.Hdr.Name = h.Zone
+		h.DnssecProvider.SigningKey.Hdr.Rrtype = dns.TypeDNSKEY
+		h.DnssecProvider.SigningKey.Hdr.Class = dns.ClassINET
+		h.DnssecProvider.SigningKey.Hdr.Ttl = 300
+		h.DnssecProvider.SigningKey.Flags = 257  // Secure Entry Point
+		h.DnssecProvider.SigningKey.Protocol = 3 // DNSSEC
 		err := h.DnssecProvider.SetPrivKeyBytes(privKeyBytes)
 		if err != nil {
 			log.Fatal(err)
@@ -174,10 +163,7 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	defer func() {
 		ResizeForTransport(req, resp, GetProtocol(w))
 	}()
-	// provide dnssec keys, defer dnssec proof
-	if h.ProvideKeys(req, resp) {
-		return // no further answers
-	}
+	// defer dnssec proof
 	defer func() {
 		err := h.Prove(req, resp, 0, 0)
 		if err != nil {
@@ -185,6 +171,10 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			resp = new(dns.Msg).SetRcode(req, dns.RcodeServerFailure)
 		}
 	}()
+	// provide dnssec keys
+	if h.ProvideKeys(req, resp) {
+		return // no further answers
+	}
 	// defer adding SOA if no answers
 	defer func() {
 		if (resp.Rcode == dns.RcodeSuccess && len(resp.Answer) == 0) || resp.Rcode == dns.RcodeNameError {

@@ -27,135 +27,102 @@ var DefaultNsecTypes = []uint16{
 }
 
 type DnssecProvider struct {
-	Ksk        *dns.DNSKEY
-	Zsk        *dns.DNSKEY
-	ZskPrivKey crypto.Signer
-	KeySig     *dns.RRSIG
+	SigningKey *dns.DNSKEY
+	PrivateKey crypto.Signer
 	NsecTypes  []uint16
 }
 
-func GenerateDnssecProvider(name string, algo uint8, rrTtl, validFrom, validTo uint32) (*DnssecProvider, error) {
-	var bits int
+func GenerateDnssecProvider(name string, algo uint8, rrTtl uint32) (*DnssecProvider, error) {
+	p := &DnssecProvider{
+		SigningKey: &dns.DNSKEY{
+			Hdr: dns.RR_Header{
+				Name:   name,
+				Rrtype: dns.TypeDNSKEY,
+				Class:  dns.ClassINET,
+				Ttl:    rrTtl,
+			},
+			Flags:     257, // Secure Entry Point
+			Protocol:  3,   // DNSSEC
+			Algorithm: algo,
+		},
+	}
 	switch algo {
-	case dns.ECDSAP256SHA256, dns.ED25519:
-		bits = 256
+	case dns.ECDSAP256SHA256:
+		key, err := p.SigningKey.Generate(256)
+		if err != nil {
+			return nil, err
+		}
+		p.PrivateKey = key.(*ecdsa.PrivateKey)
 	case dns.ECDSAP384SHA384:
-		bits = 384
+		key, err := p.SigningKey.Generate(384)
+		if err != nil {
+			return nil, err
+		}
+		p.PrivateKey = key.(*ecdsa.PrivateKey)
+	case dns.ED25519:
+		key, err := p.SigningKey.Generate(256)
+		if err != nil {
+			return nil, err
+		}
+		p.PrivateKey = key.(ed25519.PrivateKey)
 	default:
 		return nil, fmt.Errorf("unsupported algorithm: %v", algo)
-	}
-	p := &DnssecProvider{
-		Ksk: &dns.DNSKEY{
-			Hdr: dns.RR_Header{
-				Name:   name,
-				Rrtype: dns.TypeDNSKEY,
-				Class:  dns.ClassINET,
-				Ttl:    rrTtl,
-			},
-			Flags:     257, // Secure Entry Point (SEP) set for KSK
-			Protocol:  3,   // DNSSEC
-			Algorithm: algo,
-		},
-		Zsk: &dns.DNSKEY{
-			Hdr: dns.RR_Header{
-				Name:   name,
-				Rrtype: dns.TypeDNSKEY,
-				Class:  dns.ClassINET,
-				Ttl:    rrTtl,
-			},
-			Flags:     256, // Secure Entry Point (SEP) not set for ZSK
-			Protocol:  3,   // DNSSEC
-			Algorithm: algo,
-		},
-		KeySig: &dns.RRSIG{
-			Hdr:        dns.RR_Header{Ttl: rrTtl},
-			Algorithm:  algo,
-			Expiration: validTo,
-			Inception:  validFrom,
-			SignerName: name,
-		},
-	}
-	kskPrivateKey, err := p.Ksk.Generate(bits)
-	if err != nil {
-		return nil, err
-	}
-	zskPrivateKey, err := p.Zsk.Generate(bits)
-	if err != nil {
-		return nil, err
-	}
-	var keySigner crypto.Signer
-	switch algo {
-	case dns.ECDSAP256SHA256, dns.ECDSAP384SHA384:
-		keySigner = kskPrivateKey.(*ecdsa.PrivateKey)
-		p.ZskPrivKey = zskPrivateKey.(*ecdsa.PrivateKey)
-	case dns.ED25519:
-		keySigner = kskPrivateKey.(ed25519.PrivateKey)
-		p.ZskPrivKey = zskPrivateKey.(ed25519.PrivateKey)
-	}
-	p.KeySig.KeyTag = p.Ksk.KeyTag()
-	err = p.KeySig.Sign(keySigner, []dns.RR{p.Ksk, p.Zsk})
-	if err != nil {
-		return nil, err
 	}
 	return p, nil
 }
 
 func (p *DnssecProvider) DS() (*dns.DS, error) {
-	if p == nil || p.Ksk == nil {
-		return nil, fmt.Errorf("ksk must be populated")
+	if p == nil || p.SigningKey == nil {
+		return nil, fmt.Errorf("missing signing key")
 	}
-	var h uint8
-	switch p.Ksk.Algorithm {
+	switch p.SigningKey.Algorithm {
 	case dns.ECDSAP256SHA256, dns.ED25519:
-		h = dns.SHA256
+		return p.SigningKey.ToDS(dns.SHA256), nil
 	case dns.ECDSAP384SHA384:
-		h = dns.SHA384
+		return p.SigningKey.ToDS(dns.SHA384), nil
 	default:
-		return nil, fmt.Errorf("unsupported ksk algorithm: %v", p.Ksk.Algorithm)
+		return nil, fmt.Errorf("unsupported algorithm: %v", p.SigningKey.Algorithm)
 	}
-	return p.Ksk.ToDS(h), nil
 }
 
 func (p *DnssecProvider) PrivKeyBytes() ([]byte, error) {
-	if p == nil || p.Zsk == nil {
-		return nil, fmt.Errorf("zsk must be populated")
+	if p == nil || p.SigningKey == nil {
+		return nil, fmt.Errorf("missing signing key")
 	}
-	var b []byte
-	switch p.Zsk.Algorithm {
+	switch p.SigningKey.Algorithm {
 	case dns.ECDSAP256SHA256, dns.ECDSAP384SHA384:
-		b = p.ZskPrivKey.(*ecdsa.PrivateKey).D.Bytes()
+		return p.PrivateKey.(*ecdsa.PrivateKey).D.Bytes(), nil
 	case dns.ED25519:
-		b = p.ZskPrivKey.(ed25519.PrivateKey).Seed()
+		return p.PrivateKey.(ed25519.PrivateKey).Seed(), nil
 	default:
-		return nil, fmt.Errorf("unsupported zsk algorithm: %v", p.Zsk.Algorithm)
+		return nil, fmt.Errorf("unsupported algorithm: %v", p.SigningKey.Algorithm)
 	}
-	return b, nil
 }
 
 func (p *DnssecProvider) SetPrivKeyBytes(b []byte) error {
-	if p == nil || p.Zsk == nil {
-		return fmt.Errorf("zsk must be populated")
+	if p == nil || p.SigningKey == nil {
+		return fmt.Errorf("missing signing key")
 	}
-	switch p.Zsk.Algorithm {
+	switch p.SigningKey.Algorithm {
 	case dns.ECDSAP256SHA256, dns.ECDSAP384SHA384:
-		pubBytes, err := base64.StdEncoding.DecodeString(p.Zsk.PublicKey)
+		pubBytes, err := base64.StdEncoding.DecodeString(p.SigningKey.PublicKey)
 		if err != nil {
-			return fmt.Errorf("cannot decode zsk public key: %w", err)
+			return fmt.Errorf("cannot decode public key: %w", err)
 		}
 		var curve elliptic.Curve
-		switch p.Zsk.Algorithm {
+		switch p.SigningKey.Algorithm {
 		case dns.ECDSAP256SHA256:
 			if len(pubBytes) != 64 {
-				return fmt.Errorf("wrong zsk public key length: %v", len(pubBytes))
+				return fmt.Errorf("wrong public key length: %v", len(pubBytes))
 			}
 			curve = elliptic.P256()
 		case dns.ECDSAP384SHA384:
 			if len(pubBytes) != 96 {
-				return fmt.Errorf("wrong zsk public key length: %v", len(pubBytes))
+				return fmt.Errorf("wrong public key length: %v", len(pubBytes))
 			}
 			curve = elliptic.P384()
 		}
-		p.ZskPrivKey = &ecdsa.PrivateKey{
+		p.PrivateKey = &ecdsa.PrivateKey{
 			PublicKey: ecdsa.PublicKey{
 				Curve: curve,
 				X:     new(big.Int).SetBytes(pubBytes[:len(pubBytes)/2]),
@@ -164,16 +131,16 @@ func (p *DnssecProvider) SetPrivKeyBytes(b []byte) error {
 			D: new(big.Int).SetBytes(b),
 		}
 	case dns.ED25519:
-		p.ZskPrivKey = ed25519.NewKeyFromSeed(b)
+		p.PrivateKey = ed25519.NewKeyFromSeed(b)
 	default:
-		return fmt.Errorf("unsupported zsk algorithm: %v", p.Zsk.Algorithm)
+		return fmt.Errorf("unsupported algorithm: %v", p.SigningKey.Algorithm)
 	}
 	return nil
 }
 
 func (p *DnssecProvider) Sign(rrs []dns.RR, validFrom, validTo uint32) (sigs []dns.RR, err error) {
-	if p == nil || p.Zsk == nil {
-		return nil, fmt.Errorf("zsk must be populated")
+	if p == nil || p.SigningKey == nil {
+		return nil, fmt.Errorf("missing signing key")
 	}
 	if len(rrs) == 0 {
 		return
@@ -205,13 +172,13 @@ func (p *DnssecProvider) Sign(rrs []dns.RR, validFrom, validTo uint32) (sigs []d
 		}
 		sig := &dns.RRSIG{
 			Hdr:        dns.RR_Header{Ttl: rrsOfSameType[0].Header().Ttl},
-			Algorithm:  p.Zsk.Algorithm,
+			Algorithm:  p.SigningKey.Algorithm,
 			Expiration: expiration,
 			Inception:  validFrom,
-			KeyTag:     p.Zsk.KeyTag(),
-			SignerName: p.Zsk.Hdr.Name,
+			KeyTag:     p.SigningKey.KeyTag(),
+			SignerName: p.SigningKey.Hdr.Name,
 		}
-		err = sig.Sign(p.ZskPrivKey, rrsOfSameType)
+		err = sig.Sign(p.PrivateKey, rrsOfSameType)
 		if err != nil {
 			return
 		}
@@ -220,20 +187,15 @@ func (p *DnssecProvider) Sign(rrs []dns.RR, validFrom, validTo uint32) (sigs []d
 	return
 }
 
-// adds DNSSEC keys (and keysig) to resp if requested by req, returns true iff keys were added
+// adds DNSKEY to resp if requested by req, returns true iff key was added
 func (p *DnssecProvider) ProvideKeys(req, resp *dns.Msg) bool {
-	if p == nil || p.Ksk == nil || p.Zsk == nil {
+	if p == nil || p.SigningKey == nil {
 		return false
 	}
 	q := &req.Question[0]
-	if q.Qclass == dns.ClassINET && q.Qtype == dns.TypeDNSKEY && EqualsAsciiIgnoreCase(q.Name, p.Ksk.Hdr.Name) {
-		resp.Answer = append(resp.Answer, dns.Copy(p.Ksk), dns.Copy(p.Zsk))
-		resp.Answer[len(resp.Answer)-2].Header().Name = q.Name
+	if q.Qclass == dns.ClassINET && q.Qtype == dns.TypeDNSKEY && EqualsAsciiIgnoreCase(q.Name, p.SigningKey.Hdr.Name) {
+		resp.Answer = append(resp.Answer, dns.Copy(p.SigningKey))
 		resp.Answer[len(resp.Answer)-1].Header().Name = q.Name
-		if opt := req.IsEdns0(); opt != nil && opt.Do() {
-			resp.Answer = append(resp.Answer, dns.Copy(p.KeySig))
-			resp.Answer[len(resp.Answer)-1].Header().Name = q.Name
-		}
 		return true
 	}
 	return false
@@ -241,7 +203,7 @@ func (p *DnssecProvider) ProvideKeys(req, resp *dns.Msg) bool {
 
 // adds DNSSEC signatures to resp
 func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) error {
-	if p == nil || p.ZskPrivKey == nil {
+	if p == nil || p.PrivateKey == nil {
 		return nil
 	}
 	// only prove successful answers (including non-existence)
@@ -275,7 +237,7 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 				types = make([]uint16, len(p.NsecTypes))
 				copy(types, p.NsecTypes)
 			}
-			isApex := EqualsAsciiIgnoreCase(q.Name, p.Ksk.Hdr.Name)
+			isApex := EqualsAsciiIgnoreCase(q.Name, p.SigningKey.Hdr.Name)
 			for i := 0; i < len(types); {
 				if types[i] == q.Qtype || (!isApex && (types[i] == dns.TypeNS ||
 					types[i] == dns.TypeSOA || types[i] == dns.TypeDNSKEY)) {
@@ -290,7 +252,7 @@ func (p *DnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32) er
 				Name:   q.Name,
 				Rrtype: dns.TypeNSEC,
 				Class:  dns.ClassINET,
-				Ttl:    p.Ksk.Hdr.Ttl,
+				Ttl:    p.SigningKey.Hdr.Ttl,
 			},
 			NextDomain: "\\000." + ToLowerAscii(q.Name),
 			TypeBitMap: types,

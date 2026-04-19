@@ -14,20 +14,9 @@
         {
             "Zone": "test.dnscheck.tools.",
             "Ns": ["dns.addr.tools."],
-            "Ksk": {
+            "SigningKey": {
                 "Algorithm": 13,
                 "PublicKey": ""
-            },
-            "Zsk": {
-                "Algorithm": 13,
-                "PublicKey": ""
-            },
-            "KeySig": {
-                "Algorithm": 13,
-                "Expiration": 0,
-                "Inception": 0,
-                "KeyTag": 0,
-                "Signature": ""
             },
             "PrivateKey": ""
         }

@@ -30,7 +30,7 @@ func (p *BadDnssecProvider) Prove(req, resp *dns.Msg, validFrom, validTo uint32)
 	if err != nil {
 		return err
 	}
-	ourKeyTag := p.Zsk.KeyTag()
+	ourKeyTag := p.SigningKey.KeyTag()
 	for _, rr := range resp.Answer {
 		if rr.Header().Rrtype == dns.TypeRRSIG {
 			if rr.(*dns.RRSIG).KeyTag == ourKeyTag {
@@ -96,34 +96,21 @@ func (h *DnscheckHandler) Init(privKeyBytes []byte) *DnscheckHandler {
 		h.HostMasterMbox = dns.CanonicalName(h.HostMasterMbox)
 	}
 	if h.DnssecProvider != nil {
-		for _, rr := range []dns.RR{h.DnssecProvider.Ksk, h.DnssecProvider.Zsk, h.DnssecProvider.KeySig} {
-			hdr := rr.Header()
-			hdr.Name = h.Zone
-			hdr.Class = dns.ClassINET
-			hdr.Ttl = 300
-		}
-		for _, rr := range []*dns.DNSKEY{h.DnssecProvider.Ksk, h.DnssecProvider.Zsk} {
-			rr.Hdr.Rrtype = dns.TypeDNSKEY
-			rr.Flags = 256
-			rr.Protocol = 3 // DNSSEC
-		}
-		h.DnssecProvider.Ksk.Flags |= 1 // Secure Entry Point
-		h.DnssecProvider.KeySig.Hdr.Rrtype = dns.TypeRRSIG
-		h.DnssecProvider.KeySig.TypeCovered = dns.TypeDNSKEY
-		h.DnssecProvider.KeySig.Labels = uint8(dns.CountLabel(h.Zone))
-		h.DnssecProvider.KeySig.OrigTtl = h.DnssecProvider.Ksk.Hdr.Ttl
-		h.DnssecProvider.KeySig.SignerName = h.Zone
+		h.DnssecProvider.SigningKey.Hdr.Name = h.Zone
+		h.DnssecProvider.SigningKey.Hdr.Rrtype = dns.TypeDNSKEY
+		h.DnssecProvider.SigningKey.Hdr.Class = dns.ClassINET
+		h.DnssecProvider.SigningKey.Hdr.Ttl = 300
+		h.DnssecProvider.SigningKey.Flags = 257  // Secure Entry Point
+		h.DnssecProvider.SigningKey.Protocol = 3 // DNSSEC
 		err := h.DnssecProvider.SetPrivKeyBytes(privKeyBytes)
 		if err != nil {
 			log.Fatal(err)
 		}
-		h.BadDnssecProvider = &BadDnssecProvider{KeyTagOverride: h.DnssecProvider.Zsk.KeyTag()}
+		h.BadDnssecProvider = &BadDnssecProvider{KeyTagOverride: h.DnssecProvider.SigningKey.KeyTag()}
 		h.BadDnssecProvider.DnssecProvider, err = dnsutil.GenerateDnssecProvider(
 			h.Zone,
-			h.DnssecProvider.Zsk.Algorithm,
-			h.DnssecProvider.Zsk.Hdr.Ttl,
-			h.DnssecProvider.KeySig.Inception,
-			h.DnssecProvider.KeySig.Expiration,
+			h.DnssecProvider.SigningKey.Algorithm,
+			h.DnssecProvider.SigningKey.Hdr.Ttl,
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -248,10 +235,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 		}
 	}()
-	// provide dnssec keys, defer dnssec proof
-	if h.ProvideKeys(req, resp) {
-		return // no further answers
-	}
+	// defer dnssec proof
 	defer func() {
 		if opts != nil && opts.NoSig {
 			return
@@ -266,20 +250,21 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				validFrom -= resp.Ns[0].Header().Ttl
 			}
 		}
-		var provider interface {
-			Prove(req, resp *dns.Msg, validFrom, validTo uint32) error
-		}
+		var err error
 		if opts != nil && opts.BadSig {
-			provider = h.BadDnssecProvider
+			err = h.BadDnssecProvider.Prove(req, resp, validFrom, validTo)
 		} else {
-			provider = h.DnssecProvider
+			err = h.DnssecProvider.Prove(req, resp, validFrom, validTo)
 		}
-		err := provider.Prove(req, resp, validFrom, validTo)
 		if err != nil {
 			log.Printf("[error] DnssecProvider.Prove: %v", err)
 			resp = new(dns.Msg).SetRcode(req, dns.RcodeServerFailure)
 		}
 	}()
+	// provide dnssec keys
+	if h.ProvideKeys(req, resp) {
+		return // no further answers
+	}
 	// defer adding SOA if no answers
 	defer func() {
 		if (resp.Rcode == dns.RcodeSuccess && len(resp.Answer) == 0) || resp.Rcode == dns.RcodeNameError {
