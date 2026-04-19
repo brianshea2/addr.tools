@@ -198,7 +198,7 @@ header h1 {
   display: inline-flex;
   flex-direction: column;
   gap: 1.6em;
-  padding: 5em 2ch;
+  padding: 5em 2ch 4em 2ch;
 }
 body:not(:has(> .status)) .content-inner {
   padding-bottom: 2.6em;
