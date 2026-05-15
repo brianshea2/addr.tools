@@ -21,7 +21,6 @@ import (
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/brianshea2/addr.tools/internal/httputil"
 	"github.com/brianshea2/addr.tools/internal/status"
-	"github.com/brianshea2/addr.tools/internal/stun"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
 	"github.com/brianshea2/addr.tools/internal/zones/challenges"
 	"github.com/brianshea2/addr.tools/internal/zones/cname"
@@ -324,15 +323,6 @@ func (config *Config) Run() {
 			}).ListenAndServe())
 		}()
 	}
-	// start stun listener
-	stunServer := new(stun.Server)
-	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
-		return []status.Status{{Title: "stun requests", Value: strconv.FormatUint(stunServer.RequestCount(), 10)}}
-	}))
-	go func() {
-		log.Print("[info] starting stun listener")
-		log.Fatal(stunServer.ListenAndServe())
-	}()
 	// start http socket listener
 	if len(config.HTTPSocketPath) > 0 {
 		go func() {

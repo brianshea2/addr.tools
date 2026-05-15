@@ -356,7 +356,7 @@ const testIPs = async () => {
   const makePeerConn = () => {
     const peerConn = new RTCPeerConnection({
       iceServers: [
-        { urls: 'stun:addr.tools:3478' },
+        { urls: 'stun:myip.addr.tools:3478' },
         { urls: 'stun:stun.l.google.com:19302' },
       ],
     })
