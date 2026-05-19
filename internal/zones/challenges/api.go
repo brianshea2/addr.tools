@@ -102,7 +102,12 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		// delete
-		h.ChallengeStore.Remove(domain, []byte(txt))
+		err = h.ChallengeStore.Remove(domain, []byte(txt))
+		if err != nil {
+			log.Printf("[error] challenges.HTTPHandler.ServeHTTP: delete challenge: %v", err)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		// write domain if "txt" not specified

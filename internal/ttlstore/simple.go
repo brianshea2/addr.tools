@@ -53,7 +53,7 @@ func (s *SimpleTtlStore) Set(key string, val []byte, ttl uint32) error {
 	return s.add(key, val, ttl)
 }
 
-func (s *SimpleTtlStore) List(prefix string) (keys []string) {
+func (s *SimpleTtlStore) List(prefix string) (keys []string, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for key := range s.m {
@@ -64,40 +64,19 @@ func (s *SimpleTtlStore) List(prefix string) (keys []string) {
 	return
 }
 
-func (s *SimpleTtlStore) Find(val []byte, prefix string) string {
+func (s *SimpleTtlStore) Exists(key string) (exists bool, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	now := uint32(time.Now().Unix())
-	for key := range s.m {
-		if strings.HasPrefix(key, prefix) {
-			for _, r := range s.m[key] {
-				if r.Expires > now && bytes.Equal(r.Value, val) {
-					return key
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func (s *SimpleTtlStore) FindAll(val []byte, prefix string) (keys []string) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	now := uint32(time.Now().Unix())
-	for key := range s.m {
-		if strings.HasPrefix(key, prefix) {
-			for _, r := range s.m[key] {
-				if r.Expires > now && bytes.Equal(r.Value, val) {
-					keys = append(keys, key)
-					break
-				}
-			}
+	for _, r := range s.m[key] {
+		if r.Expires > now {
+			return true, nil
 		}
 	}
 	return
 }
 
-func (s *SimpleTtlStore) Values(key string) (vals [][]byte) {
+func (s *SimpleTtlStore) Values(key string) (vals [][]byte, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	now := uint32(time.Now().Unix())
@@ -109,19 +88,19 @@ func (s *SimpleTtlStore) Values(key string) (vals [][]byte) {
 	return
 }
 
-func (s *SimpleTtlStore) Get(key string) []byte {
+func (s *SimpleTtlStore) Get(key string) (val []byte, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	now := uint32(time.Now().Unix())
 	for _, r := range s.m[key] {
 		if r.Expires > now {
-			return r.Value
+			return r.Value, nil
 		}
 	}
-	return nil
+	return
 }
 
-func (s *SimpleTtlStore) Remove(key string, val []byte) {
+func (s *SimpleTtlStore) Remove(key string, val []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rs := s.m[key]
@@ -143,9 +122,10 @@ func (s *SimpleTtlStore) Remove(key string, val []byte) {
 		}
 		s.dirty = true
 	}
+	return nil
 }
 
-func (s *SimpleTtlStore) Delete(key string) {
+func (s *SimpleTtlStore) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.m[key] != nil {
@@ -153,6 +133,7 @@ func (s *SimpleTtlStore) Delete(key string) {
 		delete(s.m, key)
 		s.dirty = true
 	}
+	return nil
 }
 
 func (s *SimpleTtlStore) Size() int {

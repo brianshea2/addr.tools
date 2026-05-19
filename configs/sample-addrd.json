@@ -29,14 +29,6 @@
         "Zone": "dyn.addr.tools.",
         "Ns": ["dns.addr.tools."]
     },
-    "IPZone": {
-        "Zone": "ip.addr.tools.",
-        "Ns": ["dns.addr.tools."]
-    },
-    "CnameZone": {
-        "Zone": "cname.addr.tools.",
-        "Ns": ["dns.addr.tools."]
-    },
     "MyaddrZones": [
         {
             "Zone": "myaddr.tools.",

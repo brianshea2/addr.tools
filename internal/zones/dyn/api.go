@@ -16,6 +16,66 @@ import (
 
 const AddressTtl = 90 * 86400
 
+type AddressRecord struct {
+	Updated uint32
+	IP      net.IP
+}
+
+func (r *AddressRecord) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 4+len(r.IP))
+	binary.BigEndian.PutUint32(data, r.Updated)
+	copy(data[4:], r.IP)
+	return
+}
+
+func (r *AddressRecord) UnmarshalBinary(data []byte) error {
+	if !(len(data) == 8 || len(data) == 20) {
+		return fmt.Errorf("invalid AddressRecord length (%d)", len(data))
+	}
+	r.Updated = binary.BigEndian.Uint32(data)
+	r.IP = make(net.IP, len(data)-4)
+	copy(r.IP, data[4:])
+	return nil
+}
+
+func LoadIPv4(name string, store ttlstore.TtlStore) (ip *AddressRecord, err error) {
+	var data []byte
+	data, err = store.Get(name + ":ip4")
+	if err == nil && data != nil {
+		ip = new(AddressRecord)
+		err = ip.UnmarshalBinary(data)
+	}
+	return
+}
+
+func LoadIPv6(name string, store ttlstore.TtlStore) (ip *AddressRecord, err error) {
+	var data []byte
+	data, err = store.Get(name + ":ip6")
+	if err == nil && data != nil {
+		ip = new(AddressRecord)
+		err = ip.UnmarshalBinary(data)
+	}
+	return
+}
+
+func UpdateIP(name string, ip net.IP, store ttlstore.TtlStore) error {
+	var suffix string
+	if ip4 := ip.To4(); ip4 != nil {
+		ip = ip4
+		suffix = ":ip4"
+	} else {
+		suffix = ":ip6"
+	}
+	data, err := (&AddressRecord{
+		Updated: uint32(time.Now().Unix()),
+		IP:      ip,
+	}).MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return store.Set(name+suffix, data, AddressTtl)
+}
+
 type HTTPHandler struct {
 	DataStore ttlstore.TtlStore
 	Zone      string
@@ -93,10 +153,15 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		// delete
-		h.DataStore.Delete(domain + ":ip4")
-		h.DataStore.Delete(domain + ":ip4mtime")
-		h.DataStore.Delete(domain + ":ip6")
-		h.DataStore.Delete(domain + ":ip6mtime")
+		err = h.DataStore.Delete(domain + ":ip4")
+		if err == nil {
+			err = h.DataStore.Delete(domain + ":ip6")
+		}
+		if err != nil {
+			log.Printf("[error] dyn.HTTPHandler.ServeHTTP: Delete: %v", err)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		// write domain if "ip" not specified
@@ -105,22 +170,10 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			fmt.Fprintln(w, domain)
 			return
 		}
-		// set
-		now := make([]byte, 4)
-		binary.BigEndian.PutUint32(now, uint32(time.Now().Unix()))
-		var ipKey, mtimeKey string
-		if ip4 := ip.To4(); ip4 != nil {
-			ip = ip4
-			ipKey, mtimeKey = domain+":ip4", domain+":ip4mtime"
-		} else {
-			ipKey, mtimeKey = domain+":ip6", domain+":ip6mtime"
-		}
-		err = h.DataStore.Set(ipKey, ip, AddressTtl)
-		if err == nil {
-			err = h.DataStore.Set(mtimeKey, now, AddressTtl)
-		}
+		// update ip
+		err = UpdateIP(domain, ip, h.DataStore)
 		if err != nil {
-			log.Printf("[error] dyn.HTTPHandler.ServeHTTP: set ip: %v", err)
+			log.Printf("[error] dyn.HTTPHandler.ServeHTTP: UpdateIP: %v", err)
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}

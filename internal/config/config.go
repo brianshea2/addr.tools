@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/netip"
 	"os"
 	"os/signal"
 	"strconv"
@@ -23,10 +22,8 @@ import (
 	"github.com/brianshea2/addr.tools/internal/status"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
 	"github.com/brianshea2/addr.tools/internal/zones/challenges"
-	"github.com/brianshea2/addr.tools/internal/zones/cname"
 	"github.com/brianshea2/addr.tools/internal/zones/dnscheck"
 	"github.com/brianshea2/addr.tools/internal/zones/dyn"
-	ipzone "github.com/brianshea2/addr.tools/internal/zones/ip"
 	"github.com/brianshea2/addr.tools/internal/zones/myaddr"
 	"github.com/miekg/dns"
 	"golang.org/x/time/rate"
@@ -34,7 +31,6 @@ import (
 
 const (
 	MaxTemporaryChallenges       = 10000
-	MaxChallengesUpdateRate      = 100 // per second
 	MaxDnscheckWatchers          = 100
 	MaxDnscheckLargeResponseRate = 10 // per second
 )
@@ -58,15 +54,6 @@ type Config struct {
 		PrivateKey string
 	}
 	DynZone struct {
-		*dnsutil.SimpleHandler
-		PrivateKey string
-	}
-	IPZone struct {
-		*dnsutil.SimpleHandler
-		Blocked    []netip.Prefix
-		PrivateKey string
-	}
-	CnameZone struct {
 		*dnsutil.SimpleHandler
 		PrivateKey string
 	}
@@ -144,13 +131,9 @@ func (config *Config) Run() {
 			log.Fatal(persistentStore.WriteFilePeriodically(config.DatabasePath, time.Minute))
 		}()
 	}
-	http.Handle("/admin/db/{key...}", &ttlstore.AdminHandler{Store: persistentStore})
 	// init temporary challenge record store
 	challengeStore := &ttlstore.SimpleTtlStore{MaxSize: MaxTemporaryChallenges}
 	go challengeStore.PrunePeriodically(time.Minute)
-	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
-		return []status.Status{{Title: "challenges", Value: strconv.Itoa(challengeStore.Size())}}
-	}))
 	// init dnscheck watcher hub
 	watcherHub := &dnscheck.SimpleWatcherHub{MaxSize: MaxDnscheckWatchers}
 	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
@@ -204,77 +187,44 @@ func (config *Config) Run() {
 			Zone:      config.DynZone.SimpleHandler.Zone,
 		})
 	}
-	// init and set ip zone handler
-	if config.IPZone.SimpleHandler != nil {
-		config.IPZone.SimpleHandler.RecordGenerator = &ipzone.RecordGenerator{
-			IPv4:           config.ResponseAddrs.IPv4,
-			IPv6:           config.ResponseAddrs.IPv6,
-			Blocked:        config.IPZone.Blocked,
-			ChallengeStore: challengeStore,
-		}
-		config.IPZone.SimpleHandler.UpdateHandler = &ipzone.UpdateHandler{
-			ChallengeStore: challengeStore,
-			UpdateLimiter:  rate.NewLimiter(rate.Limit(MaxChallengesUpdateRate), MaxChallengesUpdateRate),
-		}
-		config.IPZone.SimpleHandler.Init(ParsePrivateKey(config.IPZone.PrivateKey))
-		dns.Handle(config.IPZone.SimpleHandler.Zone, config.IPZone.SimpleHandler)
-	}
-	// init and set cname zone handler
-	if config.CnameZone.SimpleHandler != nil {
-		config.CnameZone.SimpleHandler.RecordGenerator = &cname.RecordGenerator{
-			IPv4: config.ResponseAddrs.IPv4,
-			IPv6: config.ResponseAddrs.IPv6,
-		}
-		config.CnameZone.SimpleHandler.Init(ParsePrivateKey(config.CnameZone.PrivateKey))
-		dns.Handle(config.CnameZone.SimpleHandler.Zone, config.CnameZone.SimpleHandler)
-	}
 	// init and set myaddr handlers
 	for _, h := range config.MyaddrZones {
 		h.SimpleHandler.RecordGenerator = &myaddr.RecordGenerator{
 			IPv4:           config.ResponseAddrs.IPv4,
 			IPv6:           config.ResponseAddrs.IPv6,
-			DataStore:      persistentStore,
-			ChallengeStore: challengeStore,
-			KeyPrefix:      "myaddr:",
+			DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
+			ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
 		}
 		h.SimpleHandler.Init(ParsePrivateKey(h.PrivateKey))
 		dns.Handle(h.SimpleHandler.Zone, h.SimpleHandler)
 	}
 	http.Handle("/admin/myaddr", &myaddr.AdminHandler{
-		DataStore:      persistentStore,
-		ChallengeStore: challengeStore,
-		KeyPrefix:      "myaddr:",
+		DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
+		ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
 	})
 	http.Handle("/myaddr-reg", &myaddr.RegistrationHandler{
-		DataStore:      persistentStore,
-		ChallengeStore: challengeStore,
-		KeyPrefix:      "myaddr:",
+		DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
+		ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
 		TurnstileClient: &httputil.TurnstileClient{
 			Secret:     config.MyaddrTurnstileSecret,
 			HttpClient: http.Client{Timeout: 5 * time.Second},
 		},
 	})
 	http.Handle("/myaddr-update", &myaddr.UpdateHandler{
-		DataStore:      persistentStore,
-		ChallengeStore: challengeStore,
-		KeyPrefix:      "myaddr:",
+		DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
+		ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
 	})
 	// set dns lookup handler
 	if len(config.LookupUpstream) > 0 {
 		http.Handle("/dns/{name}/{type}", &dns2json.LookupHandler{Upstream: config.LookupUpstream})
 	}
 	// start dns listeners
-	var tsigSecrets map[string]string
-	if config.IPZone.SimpleHandler != nil {
-		tsigSecrets = map[string]string{config.IPZone.SimpleHandler.Zone: ipzone.TsigSecret}
-	}
 	go func() {
 		log.Print("[info] starting dns udp listener")
 		log.Fatal((&dns.Server{
 			Addr:          ":53",
 			Net:           "udp",
 			MsgAcceptFunc: dnsutil.MsgAcceptFunc,
-			TsigSecret:    tsigSecrets,
 			Handler:       dnsHandler,
 		}).ListenAndServe())
 	}()
@@ -284,7 +234,6 @@ func (config *Config) Run() {
 			Addr:          ":53",
 			Net:           "tcp",
 			MsgAcceptFunc: dnsutil.MsgAcceptFunc,
-			TsigSecret:    tsigSecrets,
 			Handler:       dnsHandler,
 		}).ListenAndServe())
 	}()
@@ -299,7 +248,6 @@ func (config *Config) Run() {
 				Addr:          ":853",
 				Net:           "tcp-tls",
 				MsgAcceptFunc: dnsutil.MsgAcceptFunc,
-				TsigSecret:    tsigSecrets,
 				Handler:       dnsHandler,
 				TLSConfig: &tls.Config{
 					NextProtos:   []string{"dot"},

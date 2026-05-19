@@ -1,7 +1,6 @@
 package myaddr
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
+	"github.com/brianshea2/addr.tools/internal/zones/dyn"
 	"github.com/miekg/dns"
 )
 
@@ -17,10 +17,9 @@ type RecordGenerator struct {
 	IPv6           []net.IP
 	DataStore      ttlstore.TtlStore
 	ChallengeStore ttlstore.TtlStore
-	KeyPrefix      string
 }
 
-func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
+func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool, err error) {
 	sub := q.Name[:len(q.Name)-len(zone)]
 	var ipv4Only, ipv6Only bool
 	switch {
@@ -98,7 +97,11 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		validName = true
 		switch q.Qtype {
 		case dns.TypeA:
-			if ip := g.DataStore.Get(g.KeyPrefix + dnsutil.ToLowerAscii(name) + ":ip4"); ip != nil {
+			ip, err := dyn.LoadIPv4(dnsutil.ToLowerAscii(name), g.DataStore)
+			if err != nil {
+				return nil, false, err
+			}
+			if ip != nil {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -106,11 +109,15 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Class:  dns.ClassINET,
 						Ttl:    300,
 					},
-					A: ip,
+					A: ip.IP,
 				})
 			}
 		case dns.TypeAAAA:
-			if ip := g.DataStore.Get(g.KeyPrefix + dnsutil.ToLowerAscii(name) + ":ip6"); ip != nil {
+			ip, err := dyn.LoadIPv6(dnsutil.ToLowerAscii(name), g.DataStore)
+			if err != nil {
+				return nil, false, err
+			}
+			if ip != nil {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -118,29 +125,49 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Class:  dns.ClassINET,
 						Ttl:    300,
 					},
-					AAAA: ip,
+					AAAA: ip.IP,
 				})
 			}
 		case dns.TypeTXT:
-			txts := []string{"v=spf1 -all"}
+			var txts []string
 			if len(sub) == len(name)+1 {
+				txts = make([]string, 1, 5)
+				txts[0] = "v=spf1 -all"
 				name = dnsutil.ToLowerAscii(name)
-				created, _, expires := GetRegistrationInfo(name, g.DataStore, g.KeyPrefix)
-				if created > 0 {
+				reg, err := LoadRegistration(name, g.DataStore)
+				if err != nil {
+					return nil, false, err
+				}
+				if reg != nil {
 					txts = append(txts,
-						fmt.Sprintf("registered %s", time.Unix(int64(created), 0).UTC()),
-						fmt.Sprintf("expires %s", time.Unix(int64(expires), 0).UTC()),
+						fmt.Sprintf("registered %s", time.Unix(int64(reg.Created), 0).UTC()),
+						fmt.Sprintf("expires %s", time.Unix(int64(reg.Expires()), 0).UTC()),
 					)
-					if mtime := g.DataStore.Get(g.KeyPrefix + name + ":ip4mtime"); mtime != nil {
-						txts = append(txts, fmt.Sprintf("ipv4 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()))
-					}
-					if mtime := g.DataStore.Get(g.KeyPrefix + name + ":ip6mtime"); mtime != nil {
-						txts = append(txts, fmt.Sprintf("ipv6 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()))
-					}
+				}
+				ip, err := dyn.LoadIPv4(name, g.DataStore)
+				if err != nil {
+					return nil, false, err
+				}
+				if ip != nil {
+					txts = append(txts, fmt.Sprintf("ipv4 last updated %s", time.Unix(int64(ip.Updated), 0).UTC()))
+				}
+				ip, err = dyn.LoadIPv6(name, g.DataStore)
+				if err != nil {
+					return nil, false, err
+				}
+				if ip != nil {
+					txts = append(txts, fmt.Sprintf("ipv6 last updated %s", time.Unix(int64(ip.Updated), 0).UTC()))
 				}
 			} else if len(sub) > 16 && dnsutil.EqualsAsciiIgnoreCase(sub[:16], "_acme-challenge.") {
-				for _, v := range g.ChallengeStore.Values(g.KeyPrefix + dnsutil.ToLowerAscii(name)) {
-					txts = append(txts, string(v))
+				vals, err := g.ChallengeStore.Values(dnsutil.ToLowerAscii(name))
+				if err != nil {
+					return nil, false, err
+				}
+				if len(vals) > 0 {
+					txts = make([]string, len(vals))
+					for i, v := range vals {
+						txts[i] = string(v)
+					}
 				}
 			}
 			for _, txt := range txts {

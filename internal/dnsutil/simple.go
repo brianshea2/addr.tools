@@ -10,16 +10,11 @@ import (
 )
 
 type RecordGenerator interface {
-	GenerateRecords(question *dns.Question, zone string) (rrs []dns.RR, validName bool)
-}
-
-type UpdateHandler interface {
-	HandleUpdate(w dns.ResponseWriter, req *dns.Msg, zone string)
+	GenerateRecords(question *dns.Question, zone string) (rrs []dns.RR, validName bool, err error)
 }
 
 type SimpleHandler struct {
 	RecordGenerator
-	UpdateHandler
 	*DnssecProvider
 	Zone           string
 	Ns             []string
@@ -114,11 +109,6 @@ func (h *SimpleHandler) SOA(q *dns.Question, includeSig bool) (rrs []dns.RR) {
 }
 
 func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
-	// handle updates
-	if req.Opcode == dns.OpcodeUpdate && h.UpdateHandler != nil {
-		h.HandleUpdate(w, req, h.Zone)
-		return
-	}
 	// queries only
 	if req.Opcode != dns.OpcodeQuery {
 		w.WriteMsg(new(dns.Msg).SetRcode(req, dns.RcodeNotImplemented))
@@ -232,7 +222,12 @@ func (h *SimpleHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	// generate records
 	if h.RecordGenerator != nil {
-		rrs, validName := h.GenerateRecords(q, h.Zone)
+		rrs, validName, err := h.GenerateRecords(q, h.Zone)
+		if err != nil {
+			log.Printf("[error] SimpleHandler.GenerateRecords (%v): %v", h.Zone, err)
+			resp = new(dns.Msg).SetRcode(req, dns.RcodeServerFailure)
+			return
+		}
 		if len(rrs) > 0 {
 			resp.Answer = append(resp.Answer, rrs...)
 		}

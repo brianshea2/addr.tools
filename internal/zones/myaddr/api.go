@@ -17,14 +17,81 @@ import (
 	"github.com/brianshea2/addr.tools/internal/httputil"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
 	"github.com/brianshea2/addr.tools/internal/zones/challenges"
+	"github.com/brianshea2/addr.tools/internal/zones/dyn"
 )
 
 const (
 	PendingTtl      = 3600
 	RegistrationTtl = 120 * 86400
-	AddressTtl      = 90 * 86400
-	ChallengeTtl    = 120
 )
+
+type RegistrationRecord struct {
+	Created uint32
+	Updated uint32
+	Hash    string
+}
+
+func (r *RegistrationRecord) Expires() uint32 {
+	if r.Created == r.Updated {
+		return r.Updated + PendingTtl
+	}
+	return r.Updated + RegistrationTtl
+}
+
+func (r *RegistrationRecord) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 4+4+len(r.Hash))
+	binary.BigEndian.PutUint32(data, r.Created)
+	binary.BigEndian.PutUint32(data[4:], r.Updated)
+	copy(data[8:], r.Hash)
+	return
+}
+
+func (r *RegistrationRecord) UnmarshalBinary(data []byte) error {
+	if len(data) < 8 {
+		return fmt.Errorf("invalid RegistrationRecord length (%d)", len(data))
+	}
+	r.Created = binary.BigEndian.Uint32(data)
+	r.Updated = binary.BigEndian.Uint32(data[4:])
+	r.Hash = string(data[8:])
+	return nil
+}
+
+func LoadRegistration(name string, store ttlstore.TtlStore) (reg *RegistrationRecord, err error) {
+	var data []byte
+	data, err = store.Get(name + ":reg")
+	if err == nil && data != nil {
+		reg = new(RegistrationRecord)
+		err = reg.UnmarshalBinary(data)
+	}
+	return
+}
+
+func UpdateRegistration(hash, name string, store ttlstore.TtlStore) error {
+	now := uint32(time.Now().Unix())
+	reg, err := LoadRegistration(name, store)
+	if err != nil {
+		return err
+	}
+	var ttl uint32
+	if reg == nil {
+		reg = new(RegistrationRecord)
+		reg.Created = now
+		ttl = PendingTtl
+	} else {
+		ttl = RegistrationTtl
+	}
+	reg.Updated = now
+	reg.Hash = hash
+	data, err := reg.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	err = store.Set(name+":reg", data, ttl)
+	if err == nil && len(hash) > 0 {
+		err = store.Set("hash:"+hash, []byte(name), ttl)
+	}
+	return err
+}
 
 func IsValidName(s string) bool {
 	// Names must:
@@ -50,106 +117,79 @@ func IsValidName(s string) bool {
 	return true
 }
 
-func UpdateRegistration(hash, name string, store ttlstore.TtlStore, prefix string) error {
-	var ttl uint32
-	now := uint32(time.Now().Unix())
-	// get ctime
-	ctime := store.Get(prefix + name + ":ctime")
-	if ctime == nil {
-		// new
-		ttl = PendingTtl
-		ctime = make([]byte, 4)
-		binary.BigEndian.PutUint32(ctime, now)
-	} else {
-		// update
-		ttl = RegistrationTtl
-	}
-	// (re-)set ctime
-	err := store.Set(prefix+name+":ctime", ctime, ttl)
-	if err != nil {
-		return err
-	}
-	// set new mtime
-	mtime := make([]byte, 4)
-	binary.BigEndian.PutUint32(mtime, now)
-	err = store.Set(prefix+name+":mtime", mtime, ttl)
-	if err != nil {
-		return err
-	}
-	// (re-)set hash -> name
-	if len(hash) > 0 {
-		err = store.Set(prefix+"hash:"+hash, []byte(name), ttl)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func GetRegistrationInfo(name string, store ttlstore.TtlStore, prefix string) (created, updated, expires uint32) {
-	if ctime := store.Get(prefix + name + ":ctime"); ctime != nil {
-		created = binary.BigEndian.Uint32(ctime)
-		if mtime := store.Get(prefix + name + ":mtime"); mtime != nil {
-			updated = binary.BigEndian.Uint32(mtime)
-			if created == updated {
-				expires = updated + PendingTtl
-			} else {
-				expires = updated + RegistrationTtl
-			}
-		}
-	}
-	return
-}
-
 type AdminHandler struct {
 	DataStore      ttlstore.TtlStore
 	ChallengeStore ttlstore.TtlStore
-	KeyPrefix      string
 }
 
 func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodGet:
+		name := req.URL.Query().Get("name")
+		if len(name) > 0 {
+			reg, err := LoadRegistration(name, h.DataStore)
+			if err != nil {
+				log.Printf("[error] myaddr.AdminHandler.ServeHTTP: LoadRegistration: %v", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(reg)
+			return
+		}
+		keys, err := h.DataStore.List("")
+		if err != nil {
+			log.Printf("[error] myaddr.AdminHandler.ServeHTTP: List: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		var names []string
-		keys := h.DataStore.List(h.KeyPrefix)
 		for _, key := range keys {
-			if strings.HasSuffix(key, ":ctime") {
-				names = append(names, key[len(h.KeyPrefix):len(key)-6])
+			if strings.HasSuffix(key, ":reg") {
+				names = append(names, key[:len(key)-4])
 			}
 		}
 		w.Header().Set("Content-Type", "application/json")
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		enc.Encode(names)
+		json.NewEncoder(w).Encode(names)
 	case http.MethodDelete, "SUSPEND":
 		name := req.URL.Query().Get("name")
 		if len(name) == 0 {
 			http.Error(w, "missing \"name\"", http.StatusBadRequest)
 			return
 		}
-		if ctime := h.DataStore.Get(h.KeyPrefix + name + ":ctime"); ctime == nil {
+		reg, err := LoadRegistration(name, h.DataStore)
+		if err != nil {
+			log.Printf("[error] myaddr.AdminHandler.ServeHTTP: LoadRegistration: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if reg == nil {
 			http.Error(w, "registration not found", http.StatusBadRequest)
 			return
 		}
-		hashKey := h.DataStore.Find([]byte(name), h.KeyPrefix+"hash:")
-		if len(hashKey) > 0 {
-			h.DataStore.Delete(hashKey)
+		if len(reg.Hash) > 0 {
+			err = h.DataStore.Delete("hash:" + reg.Hash)
 		}
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip4")
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip4mtime")
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip6")
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip6mtime")
-		h.ChallengeStore.Delete(h.KeyPrefix + name)
-		if req.Method == "SUSPEND" {
-			err := UpdateRegistration("", name, h.DataStore, h.KeyPrefix)
-			if err != nil {
-				log.Printf("[error] myaddr.AdminHandler.ServeHTTP: UpdateRegistration: %v", err)
-				http.Error(w, "server error", http.StatusInternalServerError)
-				return
+		if err == nil {
+			err = h.DataStore.Delete(name + ":ip4")
+		}
+		if err == nil {
+			err = h.DataStore.Delete(name + ":ip6")
+		}
+		if err == nil {
+			err = h.ChallengeStore.Delete(name)
+		}
+		if err == nil {
+			if req.Method == "SUSPEND" {
+				err = UpdateRegistration("", name, h.DataStore)
+			} else {
+				err = h.DataStore.Delete(name + ":reg")
 			}
-		} else {
-			h.DataStore.Delete(h.KeyPrefix + name + ":ctime")
-			h.DataStore.Delete(h.KeyPrefix + name + ":mtime")
+		}
+		if err != nil {
+			log.Printf("[error] myaddr.AdminHandler.ServeHTTP: %v: %v", req.Method, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 	default:
@@ -161,7 +201,6 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 type RegistrationHandler struct {
 	DataStore       ttlstore.TtlStore
 	ChallengeStore  ttlstore.TtlStore
-	KeyPrefix       string
 	TurnstileClient *httputil.TurnstileClient
 }
 
@@ -200,43 +239,81 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 		// find name
 		hash := fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
-		name := string(h.DataStore.Get(h.KeyPrefix + "hash:" + hash))
-		if len(name) == 0 {
+		nameBytes, err := h.DataStore.Get("hash:" + hash)
+		if err != nil {
+			log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: find name: %v", err)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		if nameBytes == nil {
 			http.Error(w, "invalid value for \"key\"", http.StatusBadRequest)
 			return
 		}
+		name := string(nameBytes)
 		switch req.Method {
 		case http.MethodGet:
 			// get
+			out := struct {
+				Name       string `json:"name"`
+				Registered uint32 `json:"registered"`
+				Updated    uint32 `json:"updated"`
+				Expires    uint32 `json:"expires"`
+				IPv4       net.IP `json:"ip4,omitempty"`
+				IPv6       net.IP `json:"ip6,omitempty"`
+			}{
+				Name: name,
+			}
+			reg, err := LoadRegistration(name, h.DataStore)
+			if err != nil {
+				log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: LoadRegistration: %v", err)
+				http.Error(w, "server error", http.StatusInternalServerError)
+				return
+			}
+			if reg != nil {
+				out.Registered = reg.Created
+				out.Updated = reg.Updated
+				out.Expires = reg.Expires()
+			}
+			ip, err := dyn.LoadIPv4(name, h.DataStore)
+			if err != nil {
+				log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: LoadIPv4: %v", err)
+				http.Error(w, "server error", http.StatusInternalServerError)
+				return
+			}
+			if ip != nil {
+				out.IPv4 = ip.IP
+			}
+			ip, err = dyn.LoadIPv6(name, h.DataStore)
+			if err != nil {
+				log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: LoadIPv6: %v", err)
+				http.Error(w, "server error", http.StatusInternalServerError)
+				return
+			}
+			if ip != nil {
+				out.IPv6 = ip.IP
+			}
 			w.Header().Set("Content-Type", "application/json")
-			created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
-			json.NewEncoder(w).Encode(
-				struct {
-					Name       string `json:"name"`
-					Registered uint32 `json:"registered"`
-					Updated    uint32 `json:"updated"`
-					Expires    uint32 `json:"expires"`
-					IPv4       net.IP `json:"ip4,omitempty"`
-					IPv6       net.IP `json:"ip6,omitempty"`
-				}{
-					Name:       name,
-					Registered: created,
-					Updated:    updated,
-					Expires:    expires,
-					IPv4:       h.DataStore.Get(h.KeyPrefix + name + ":ip4"),
-					IPv6:       h.DataStore.Get(h.KeyPrefix + name + ":ip6"),
-				},
-			)
+			json.NewEncoder(w).Encode(out)
 		case http.MethodDelete:
 			// delete
-			h.DataStore.Delete(h.KeyPrefix + "hash:" + hash)
-			h.DataStore.Delete(h.KeyPrefix + name + ":ctime")
-			h.DataStore.Delete(h.KeyPrefix + name + ":mtime")
-			h.DataStore.Delete(h.KeyPrefix + name + ":ip4")
-			h.DataStore.Delete(h.KeyPrefix + name + ":ip4mtime")
-			h.DataStore.Delete(h.KeyPrefix + name + ":ip6")
-			h.DataStore.Delete(h.KeyPrefix + name + ":ip6mtime")
-			h.ChallengeStore.Delete(h.KeyPrefix + name)
+			err = h.DataStore.Delete(name + ":ip4")
+			if err == nil {
+				err = h.DataStore.Delete(name + ":ip6")
+			}
+			if err == nil {
+				err = h.DataStore.Delete(name + ":reg")
+			}
+			if err == nil {
+				err = h.DataStore.Delete("hash:" + hash)
+			}
+			if err == nil {
+				err = h.ChallengeStore.Delete(name)
+			}
+			if err != nil {
+				log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: Delete: %v", err)
+				http.Error(w, "server error", http.StatusInternalServerError)
+				return
+			}
 			w.WriteHeader(http.StatusNoContent)
 		}
 	case http.MethodPost:
@@ -288,7 +365,11 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 		// check if name already exists
 		name = dnsutil.ToLowerAscii(name) // all names stored in lowercase
-		if ctime := h.DataStore.Get(h.KeyPrefix + name + ":ctime"); ctime != nil {
+		if exists, err := h.DataStore.Exists(name + ":reg"); err != nil {
+			log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: name exists: %v", err)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		} else if exists {
 			http.Error(w, "name already exists", http.StatusConflict)
 			return
 		}
@@ -302,7 +383,7 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 		key := fmt.Sprintf("%x", keyBytes)
 		hash := fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
-		err = UpdateRegistration(hash, name, h.DataStore, h.KeyPrefix)
+		err = UpdateRegistration(hash, name, h.DataStore)
 		if err != nil {
 			log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: UpdateRegistration: %v", err)
 			http.Error(w, "server error", http.StatusInternalServerError)
@@ -311,20 +392,13 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		// success
 		log.Printf("[info] myaddr.RegistrationHandler.ServeHTTP: new registration: %s (%s)", name, req.Header.Get("X-Real-IP"))
 		w.Header().Set("Content-Type", "application/json")
-		created, updated, expires := GetRegistrationInfo(name, h.DataStore, h.KeyPrefix)
 		json.NewEncoder(w).Encode(
 			struct {
-				Name       string `json:"name"`
-				Key        string `json:"key"`
-				Registered uint32 `json:"registered"`
-				Updated    uint32 `json:"updated"`
-				Expires    uint32 `json:"expires"`
+				Name string `json:"name"`
+				Key  string `json:"key"`
 			}{
-				Name:       name,
-				Key:        key,
-				Registered: created,
-				Updated:    updated,
-				Expires:    expires,
+				Name: name,
+				Key:  key,
 			},
 		)
 	}
@@ -333,7 +407,6 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 type UpdateHandler struct {
 	DataStore      ttlstore.TtlStore
 	ChallengeStore ttlstore.TtlStore
-	KeyPrefix      string
 }
 
 func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -414,11 +487,17 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	// find name
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
-	name := string(h.DataStore.Get(h.KeyPrefix + "hash:" + hash))
-	if len(name) == 0 {
+	nameBytes, err := h.DataStore.Get("hash:" + hash)
+	if err != nil {
+		log.Printf("[error] myaddr.UpdateHandler.ServeHTTP: find name: %v", err)
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+	if nameBytes == nil {
 		http.Error(w, "invalid value for \"key\"", http.StatusBadRequest)
 		return
 	}
+	name := string(nameBytes)
 	switch req.Method {
 	case http.MethodDelete:
 		// prohibit "ip" and "acme_challenge"
@@ -427,10 +506,15 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		// delete
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip4")
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip4mtime")
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip6")
-		h.DataStore.Delete(h.KeyPrefix + name + ":ip6mtime")
+		err = h.DataStore.Delete(name + ":ip4")
+		if err == nil {
+			err = h.DataStore.Delete(name + ":ip6")
+		}
+		if err != nil {
+			log.Printf("[error] myaddr.UpdateHandler.ServeHTTP: Delete: %v", err)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		// require "ip" xor "acme_challenge"
@@ -440,28 +524,16 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		switch {
 		case ip != nil:
-			// set ip
-			now := make([]byte, 4)
-			binary.BigEndian.PutUint32(now, uint32(time.Now().Unix()))
-			var ipKey, mtimeKey string
-			if ip4 := ip.To4(); ip4 != nil {
-				ip = ip4
-				ipKey, mtimeKey = h.KeyPrefix+name+":ip4", h.KeyPrefix+name+":ip4mtime"
-			} else {
-				ipKey, mtimeKey = h.KeyPrefix+name+":ip6", h.KeyPrefix+name+":ip6mtime"
-			}
-			err = h.DataStore.Set(ipKey, ip, AddressTtl)
-			if err == nil {
-				err = h.DataStore.Set(mtimeKey, now, AddressTtl)
-			}
+			// update ip
+			err = dyn.UpdateIP(name, ip, h.DataStore)
 			if err != nil {
-				log.Printf("[error] myaddr.UpdateHandler.ServeHTTP: set ip: %v", err)
+				log.Printf("[error] myaddr.UpdateHandler.ServeHTTP: UpdateIP: %v", err)
 				http.Error(w, "server error", http.StatusInternalServerError)
 				return
 			}
 		case len(challenge) > 0:
 			// add challenge
-			err = h.ChallengeStore.Add(h.KeyPrefix+name, []byte(challenge), ChallengeTtl)
+			err = h.ChallengeStore.Add(name, []byte(challenge), challenges.ChallengeTtl)
 			if err != nil {
 				log.Printf("[error] myaddr.UpdateHandler.ServeHTTP: add challenge: %v", err)
 				http.Error(w, "server error", http.StatusInternalServerError)
@@ -469,7 +541,7 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		// update registration
-		err = UpdateRegistration(hash, name, h.DataStore, h.KeyPrefix)
+		err = UpdateRegistration(hash, name, h.DataStore)
 		if err != nil {
 			log.Printf("[error] myaddr.UpdateHandler.ServeHTTP: UpdateRegistration: %v", err)
 			http.Error(w, "server error", http.StatusInternalServerError)

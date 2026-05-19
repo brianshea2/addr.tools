@@ -1,7 +1,6 @@
 package dyn
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
@@ -35,7 +34,7 @@ func IsValidSubdomain(sub string) bool {
 	return true
 }
 
-func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool) {
+func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []dns.RR, validName bool, err error) {
 	sub := q.Name[:len(q.Name)-len(zone)]
 	var ipv4Only, ipv6Only bool
 	switch {
@@ -106,7 +105,11 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 		validName = true
 		switch q.Qtype {
 		case dns.TypeA:
-			if ip := g.DataStore.Get(dnsutil.ToLowerAscii(q.Name) + ":ip4"); ip != nil {
+			ip, err := LoadIPv4(dnsutil.ToLowerAscii(q.Name), g.DataStore)
+			if err != nil {
+				return nil, false, err
+			}
+			if ip != nil {
 				rrs = append(rrs, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -114,11 +117,15 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Class:  dns.ClassINET,
 						Ttl:    300,
 					},
-					A: ip,
+					A: ip.IP,
 				})
 			}
 		case dns.TypeAAAA:
-			if ip := g.DataStore.Get(dnsutil.ToLowerAscii(q.Name) + ":ip6"); ip != nil {
+			ip, err := LoadIPv6(dnsutil.ToLowerAscii(q.Name), g.DataStore)
+			if err != nil {
+				return nil, false, err
+			}
+			if ip != nil {
 				rrs = append(rrs, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -126,25 +133,28 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Class:  dns.ClassINET,
 						Ttl:    300,
 					},
-					AAAA: ip,
+					AAAA: ip.IP,
 				})
 			}
 		case dns.TypeTXT:
-			lowerName := dnsutil.ToLowerAscii(q.Name)
-			if mtime := g.DataStore.Get(lowerName + ":ip4mtime"); mtime != nil {
-				rrs = append(rrs, &dns.TXT{
-					Hdr: dns.RR_Header{
-						Name:   q.Name,
-						Rrtype: dns.TypeTXT,
-						Class:  dns.ClassINET,
-						Ttl:    1,
-					},
-					Txt: dnsutil.SplitForTxt(
-						fmt.Sprintf("ipv4 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()),
-					),
-				})
+			txts := make([]string, 1, 3)
+			txts[0] = "v=spf1 -all"
+			name := dnsutil.ToLowerAscii(q.Name)
+			ip, err := LoadIPv4(name, g.DataStore)
+			if err != nil {
+				return nil, false, err
 			}
-			if mtime := g.DataStore.Get(lowerName + ":ip6mtime"); mtime != nil {
+			if ip != nil {
+				txts = append(txts, fmt.Sprintf("ipv4 last updated %s", time.Unix(int64(ip.Updated), 0).UTC()))
+			}
+			ip, err = LoadIPv6(name, g.DataStore)
+			if err != nil {
+				return nil, false, err
+			}
+			if ip != nil {
+				txts = append(txts, fmt.Sprintf("ipv6 last updated %s", time.Unix(int64(ip.Updated), 0).UTC()))
+			}
+			for _, txt := range txts {
 				rrs = append(rrs, &dns.TXT{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -152,9 +162,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Class:  dns.ClassINET,
 						Ttl:    1,
 					},
-					Txt: dnsutil.SplitForTxt(
-						fmt.Sprintf("ipv6 last updated %s", time.Unix(int64(binary.BigEndian.Uint32(mtime)), 0).UTC()),
-					),
+					Txt: dnsutil.SplitForTxt(txt),
 				})
 			}
 		}
