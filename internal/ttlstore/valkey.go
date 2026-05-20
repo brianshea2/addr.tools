@@ -3,25 +3,41 @@ package ttlstore
 import (
 	"context"
 	"slices"
+	"time"
 	"unsafe"
 
 	"github.com/valkey-io/valkey-go"
 )
 
+const DefaultCommandTimeout = 5 * time.Second
+
 type ValkeyClient struct {
 	valkey.Client
+	CommandTimeout time.Duration
+}
+
+func (c *ValkeyClient) ctx() (context.Context, context.CancelFunc) {
+	timeout := c.CommandTimeout
+	if timeout == 0 {
+		timeout = DefaultCommandTimeout
+	}
+	return context.WithTimeout(context.Background(), timeout)
 }
 
 func (c *ValkeyClient) Add(key string, val []byte, ttl uint32) error {
+	ctx, done := c.ctx()
+	defer done()
 	return c.Do(
-		context.Background(),
+		ctx,
 		c.B().Hsetex().Key(key).Ex(int64(ttl)).Fields().Numfields(1).FieldValue().FieldValue(valkey.BinaryString(val), "").Build(),
 	).Error()
 }
 
 func (c *ValkeyClient) Set(key string, val []byte, ttl uint32) error {
+	ctx, done := c.ctx()
+	defer done()
 	results := c.DoMulti(
-		context.Background(),
+		ctx,
 		c.B().Multi().Build(),
 		c.B().Del().Key(key).Build(),
 		c.B().Hsetex().Key(key).Ex(int64(ttl)).Fields().Numfields(1).FieldValue().FieldValue(valkey.BinaryString(val), "").Build(),
@@ -36,9 +52,10 @@ func (c *ValkeyClient) Set(key string, val []byte, ttl uint32) error {
 }
 
 func (c *ValkeyClient) List(prefix string) (keys []string, err error) {
-	ctx := context.Background()
-	seen := make(map[string]struct{})
+	ctx, done := c.ctx()
+	defer done()
 	var page valkey.ScanEntry
+	seen := make(map[string]struct{})
 	for {
 		page, err = c.Do(ctx, c.B().Scan().Cursor(page.Cursor).Match(prefix+"*").Count(100).Build()).AsScanEntry()
 		if err != nil {
@@ -60,11 +77,15 @@ func (c *ValkeyClient) List(prefix string) (keys []string, err error) {
 }
 
 func (c *ValkeyClient) Exists(key string) (bool, error) {
-	return c.Do(context.Background(), c.B().Exists().Key(key).Build()).AsBool()
+	ctx, done := c.ctx()
+	defer done()
+	return c.Do(ctx, c.B().Exists().Key(key).Build()).AsBool()
 }
 
 func (c *ValkeyClient) Values(key string) ([][]byte, error) {
-	values, err := c.Do(context.Background(), c.B().Hkeys().Key(key).Build()).AsStrSlice()
+	ctx, done := c.ctx()
+	defer done()
+	values, err := c.Do(ctx, c.B().Hkeys().Key(key).Build()).AsStrSlice()
 	if len(values) == 0 || err != nil {
 		return nil, err
 	}
@@ -76,7 +97,9 @@ func (c *ValkeyClient) Values(key string) ([][]byte, error) {
 }
 
 func (c *ValkeyClient) Get(key string) ([]byte, error) {
-	values, err := c.Do(context.Background(), c.B().Hkeys().Key(key).Build()).ToArray()
+	ctx, done := c.ctx()
+	defer done()
+	values, err := c.Do(ctx, c.B().Hkeys().Key(key).Build()).ToArray()
 	if len(values) == 0 || err != nil {
 		return nil, err
 	}
@@ -84,9 +107,13 @@ func (c *ValkeyClient) Get(key string) ([]byte, error) {
 }
 
 func (c *ValkeyClient) Remove(key string, val []byte) error {
-	return c.Do(context.Background(), c.B().Hdel().Key(key).Field(valkey.BinaryString(val)).Build()).Error()
+	ctx, done := c.ctx()
+	defer done()
+	return c.Do(ctx, c.B().Hdel().Key(key).Field(valkey.BinaryString(val)).Build()).Error()
 }
 
 func (c *ValkeyClient) Delete(key string) error {
-	return c.Do(context.Background(), c.B().Del().Key(key).Build()).Error()
+	ctx, done := c.ctx()
+	defer done()
+	return c.Do(ctx, c.B().Del().Key(key).Build()).Error()
 }

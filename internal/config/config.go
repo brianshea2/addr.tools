@@ -153,7 +153,7 @@ func (config *Config) Run() {
 		}
 		persistentStore = simpleStore
 	} else {
-		persistentStore = &ttlstore.ValkeyClient{valkeyClient}
+		persistentStore = &ttlstore.ValkeyClient{Client: valkeyClient}
 	}
 
 	// init temporary challenge record store
@@ -164,7 +164,7 @@ func (config *Config) Run() {
 		challengeStore = simpleStore
 	} else {
 		challengeStore = &ttlstore.Prefixed{
-			Store:  &ttlstore.ValkeyClient{valkeyClient},
+			Store:  &ttlstore.ValkeyClient{Client: valkeyClient},
 			Prefix: "challenge:",
 		}
 	}
