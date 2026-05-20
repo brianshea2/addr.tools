@@ -26,11 +26,11 @@ import (
 	"github.com/brianshea2/addr.tools/internal/zones/dyn"
 	"github.com/brianshea2/addr.tools/internal/zones/myaddr"
 	"github.com/miekg/dns"
+	"github.com/valkey-io/valkey-go"
 	"golang.org/x/time/rate"
 )
 
 const (
-	MaxTemporaryChallenges       = 10000
 	MaxDnscheckWatchers          = 100
 	MaxDnscheckLargeResponseRate = 10 // per second
 )
@@ -39,6 +39,7 @@ type Config struct {
 	HTTPSocketPath        string
 	RequestLogPath        string
 	DatabasePath          string
+	ValkeyURL             string
 	TLSCertPath           string
 	TLSKeyPath            string
 	ResponseAddrs         dnsutil.IPCollection
@@ -97,6 +98,7 @@ func (config *Config) Run() {
 		Ns:              []string{"invalid."}, // not delegated
 		RecordGenerator: statusHandler,
 	}).Init(nil))
+
 	// init dns request logger
 	var requestLogger *log.Logger
 	if len(config.RequestLogPath) > 0 {
@@ -115,50 +117,84 @@ func (config *Config) Run() {
 	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
 		return []status.Status{{Title: "dns requests", Value: strconv.FormatUint(dnsHandler.RequestCount(), 10)}}
 	}))
-	// init persistent data store
-	persistentStore := &ttlstore.SimpleTtlStore{}
-	go persistentStore.PrunePeriodically(time.Hour)
-	if len(config.DatabasePath) > 0 {
-		if err := persistentStore.LoadFile(config.DatabasePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+
+	// init valkey client
+	var valkeyClient valkey.Client
+	if len(config.ValkeyURL) > 0 {
+		opt, err := valkey.ParseURL(config.ValkeyURL)
+		if err == nil {
+			valkeyClient, err = valkey.NewClient(opt)
+		}
+		if err != nil {
 			log.Fatal(err)
 		}
-		defer func() {
-			if err := persistentStore.WriteFile(config.DatabasePath); err != nil {
-				log.Printf("[error] %v", err)
-			}
-		}()
-		go func() {
-			log.Fatal(persistentStore.WriteFilePeriodically(config.DatabasePath, time.Minute))
-		}()
+		defer valkeyClient.Close()
+		log.Printf("[info] connected to %v", config.ValkeyURL)
 	}
+
+	// init persistent data store
+	var persistentStore ttlstore.TtlStore
+	if valkeyClient == nil {
+		simpleStore := &ttlstore.SimpleTtlStore{}
+		go simpleStore.PrunePeriodically(time.Hour)
+		if len(config.DatabasePath) > 0 {
+			if err := simpleStore.LoadFile(config.DatabasePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				log.Fatal(err)
+			}
+			defer func() {
+				if err := simpleStore.WriteFile(config.DatabasePath); err != nil {
+					log.Printf("[error] %v", err)
+				}
+			}()
+			go func() {
+				log.Fatal(simpleStore.WriteFilePeriodically(config.DatabasePath, time.Minute))
+			}()
+			log.Printf("[info] loaded database, size %v", simpleStore.Size())
+		}
+		persistentStore = simpleStore
+	} else {
+		persistentStore = &ttlstore.ValkeyClient{valkeyClient}
+	}
+
 	// init temporary challenge record store
-	challengeStore := &ttlstore.SimpleTtlStore{MaxSize: MaxTemporaryChallenges}
-	go challengeStore.PrunePeriodically(time.Minute)
-	// init dnscheck watcher hub
-	watcherHub := &dnscheck.SimpleWatcherHub{MaxSize: MaxDnscheckWatchers}
-	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
-		return []status.Status{{Title: "watchers", Value: strconv.Itoa(watcherHub.Size())}}
-	}))
-	// init ipinfo client
-	var ipinfoClient *httputil.IPInfoClient
-	if len(config.IPInfoBaseURL) > 0 {
-		ipinfoClient = &httputil.IPInfoClient{
-			BaseURL:    config.IPInfoBaseURL,
-			HttpClient: http.Client{Timeout: time.Second},
+	var challengeStore ttlstore.TtlStore
+	if valkeyClient == nil {
+		simpleStore := &ttlstore.SimpleTtlStore{}
+		go simpleStore.PrunePeriodically(time.Minute)
+		challengeStore = simpleStore
+	} else {
+		challengeStore = &ttlstore.Prefixed{
+			Store:  &ttlstore.ValkeyClient{valkeyClient},
+			Prefix: "challenge:",
 		}
 	}
+
 	// init and set dnscheck handlers
-	largeResponseLimiter := rate.NewLimiter(rate.Limit(MaxDnscheckLargeResponseRate), MaxDnscheckLargeResponseRate)
-	for _, h := range config.DnscheckZones {
-		h.DnscheckHandler.IPv4 = config.ResponseAddrs.IPv4
-		h.DnscheckHandler.IPv6 = config.ResponseAddrs.IPv6
-		h.DnscheckHandler.LargeResponseLimiter = largeResponseLimiter
-		h.DnscheckHandler.Watchers = watcherHub
-		h.DnscheckHandler.IPInfoClient = ipinfoClient
-		h.DnscheckHandler.Init(ParsePrivateKey(h.PrivateKey))
-		dns.Handle(h.DnscheckHandler.Zone, h.DnscheckHandler)
+	if len(config.DnscheckZones) > 0 {
+		var ipinfoClient *httputil.IPInfoClient
+		if len(config.IPInfoBaseURL) > 0 {
+			ipinfoClient = &httputil.IPInfoClient{
+				BaseURL:    config.IPInfoBaseURL,
+				HttpClient: http.Client{Timeout: time.Second},
+			}
+		}
+		largeResponseLimiter := rate.NewLimiter(rate.Limit(MaxDnscheckLargeResponseRate), MaxDnscheckLargeResponseRate)
+		watcherHub := &dnscheck.SimpleWatcherHub{MaxSize: MaxDnscheckWatchers}
+		for _, h := range config.DnscheckZones {
+			h.DnscheckHandler.IPv4 = config.ResponseAddrs.IPv4
+			h.DnscheckHandler.IPv6 = config.ResponseAddrs.IPv6
+			h.DnscheckHandler.IPInfoClient = ipinfoClient
+			h.DnscheckHandler.LargeResponseLimiter = largeResponseLimiter
+			h.DnscheckHandler.Watchers = watcherHub
+			h.DnscheckHandler.Init(ParsePrivateKey(h.PrivateKey))
+			dns.Handle(h.DnscheckHandler.Zone, h.DnscheckHandler)
+		}
+		http.Handle("/watch/{watcher}", dnscheck.NewWebsocketHandler(watcherHub))
+		statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
+			return []status.Status{{Title: "watchers", Value: strconv.Itoa(watcherHub.Size())}}
+		}))
 	}
-	http.Handle("/watch/{watcher}", dnscheck.NewWebsocketHandler(watcherHub))
+
 	// init and set challenges handler
 	if config.ChallengesZone.SimpleHandler != nil {
 		config.ChallengesZone.SimpleHandler.RecordGenerator = &challenges.RecordGenerator{
@@ -173,6 +209,7 @@ func (config *Config) Run() {
 			Zone:           config.ChallengesZone.SimpleHandler.Zone,
 		})
 	}
+
 	// init and set dyn handler
 	if config.DynZone.SimpleHandler != nil {
 		config.DynZone.SimpleHandler.RecordGenerator = &dyn.RecordGenerator{
@@ -187,37 +224,44 @@ func (config *Config) Run() {
 			Zone:      config.DynZone.SimpleHandler.Zone,
 		})
 	}
+
 	// init and set myaddr handlers
-	for _, h := range config.MyaddrZones {
-		h.SimpleHandler.RecordGenerator = &myaddr.RecordGenerator{
-			IPv4:           config.ResponseAddrs.IPv4,
-			IPv6:           config.ResponseAddrs.IPv6,
-			DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
-			ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
+	if len(config.MyaddrZones) > 0 {
+		myaddrDataStore := &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"}
+		myaddrChallengeStore := &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"}
+		for _, h := range config.MyaddrZones {
+			h.SimpleHandler.RecordGenerator = &myaddr.RecordGenerator{
+				IPv4:           config.ResponseAddrs.IPv4,
+				IPv6:           config.ResponseAddrs.IPv6,
+				DataStore:      myaddrDataStore,
+				ChallengeStore: myaddrChallengeStore,
+			}
+			h.SimpleHandler.Init(ParsePrivateKey(h.PrivateKey))
+			dns.Handle(h.SimpleHandler.Zone, h.SimpleHandler)
 		}
-		h.SimpleHandler.Init(ParsePrivateKey(h.PrivateKey))
-		dns.Handle(h.SimpleHandler.Zone, h.SimpleHandler)
+		http.Handle("/admin/myaddr", &myaddr.AdminHandler{
+			DataStore:      myaddrDataStore,
+			ChallengeStore: myaddrChallengeStore,
+		})
+		http.Handle("/myaddr-reg", &myaddr.RegistrationHandler{
+			DataStore:      myaddrDataStore,
+			ChallengeStore: myaddrChallengeStore,
+			TurnstileClient: &httputil.TurnstileClient{
+				Secret:     config.MyaddrTurnstileSecret,
+				HttpClient: http.Client{Timeout: 5 * time.Second},
+			},
+		})
+		http.Handle("/myaddr-update", &myaddr.UpdateHandler{
+			DataStore:      myaddrDataStore,
+			ChallengeStore: myaddrChallengeStore,
+		})
 	}
-	http.Handle("/admin/myaddr", &myaddr.AdminHandler{
-		DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
-		ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
-	})
-	http.Handle("/myaddr-reg", &myaddr.RegistrationHandler{
-		DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
-		ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
-		TurnstileClient: &httputil.TurnstileClient{
-			Secret:     config.MyaddrTurnstileSecret,
-			HttpClient: http.Client{Timeout: 5 * time.Second},
-		},
-	})
-	http.Handle("/myaddr-update", &myaddr.UpdateHandler{
-		DataStore:      &ttlstore.Prefixed{Store: persistentStore, Prefix: "myaddr:"},
-		ChallengeStore: &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"},
-	})
+
 	// set dns lookup handler
 	if len(config.LookupUpstream) > 0 {
 		http.Handle("/dns/{name}/{type}", &dns2json.LookupHandler{Upstream: config.LookupUpstream})
 	}
+
 	// start dns listeners
 	go func() {
 		log.Print("[info] starting dns udp listener")
@@ -254,10 +298,10 @@ func (config *Config) Run() {
 					Certificates: []tls.Certificate{cert},
 					MinVersion:   tls.VersionTLS12,
 					CurvePreferences: []tls.CurveID{
+						tls.X25519MLKEM768,
 						tls.X25519,
 						tls.CurveP256,
 						tls.CurveP384,
-						tls.X25519MLKEM768,
 					},
 					CipherSuites: []uint16{
 						tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
@@ -271,6 +315,7 @@ func (config *Config) Run() {
 			}).ListenAndServe())
 		}()
 	}
+
 	// start http socket listener
 	if len(config.HTTPSocketPath) > 0 {
 		go func() {
@@ -287,6 +332,7 @@ func (config *Config) Run() {
 			log.Fatal(new(http.Server).Serve(ln))
 		}()
 	}
+
 	// goroutines are go-ing, wait
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
