@@ -53,8 +53,6 @@ type DnscheckHandler struct {
 	Zone                 string
 	Ns                   []string
 	HostMasterMbox       string
-	IPv4                 []net.IP
-	IPv6                 []net.IP
 	StaticRecords        dnsutil.StaticRecords
 	LargeResponseLimiter *rate.Limiter
 	Watchers             WatcherHub
@@ -350,8 +348,12 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				},
 				A: net.IPv4zero,
 			})
-		} else {
-			for _, ip := range h.IPv4 {
+		} else if len(q.Name) > len(h.Zone) && h.StaticRecords != nil {
+			rrs, _ := h.StaticRecords.Get(&dns.Question{Name: h.Zone, Qtype: q.Qtype, Qclass: q.Qclass})
+			for _, rr := range rrs {
+				if rr.Header().Rrtype != dns.TypeA {
+					continue
+				}
 				resp.Answer = append(resp.Answer, &dns.A{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -359,7 +361,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 						Class:  dns.ClassINET,
 						Ttl:    1,
 					},
-					A: ip,
+					A: rr.(*dns.A).A,
 				})
 			}
 		}
@@ -374,8 +376,12 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 				},
 				AAAA: net.IPv6zero,
 			})
-		} else {
-			for _, ip := range h.IPv6 {
+		} else if len(q.Name) > len(h.Zone) && h.StaticRecords != nil {
+			rrs, _ := h.StaticRecords.Get(&dns.Question{Name: h.Zone, Qtype: q.Qtype, Qclass: q.Qclass})
+			for _, rr := range rrs {
+				if rr.Header().Rrtype != dns.TypeAAAA {
+					continue
+				}
 				resp.Answer = append(resp.Answer, &dns.AAAA{
 					Hdr: dns.RR_Header{
 						Name:   q.Name,
@@ -383,7 +389,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 						Class:  dns.ClassINET,
 						Ttl:    1,
 					},
-					AAAA: ip,
+					AAAA: rr.(*dns.AAAA).AAAA,
 				})
 			}
 		}
@@ -391,24 +397,26 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		if opts.NullIP {
 			break
 		}
-		https := &dns.HTTPS{dns.SVCB{
-			Hdr: dns.RR_Header{
-				Name:   q.Name,
-				Rrtype: dns.TypeHTTPS,
-				Class:  dns.ClassINET,
-				Ttl:    1,
-			},
-			Priority: 1,
-			Target:   ".",
-			Value:    []dns.SVCBKeyValue{&dns.SVCBAlpn{Alpn: []string{"h3", "h2"}}},
-		}}
-		if len(h.IPv4) > 0 {
-			https.Value = append(https.Value, &dns.SVCBIPv4Hint{Hint: h.IPv4})
+		if len(q.Name) > len(h.Zone) && h.StaticRecords != nil {
+			rrs, _ := h.StaticRecords.Get(&dns.Question{Name: h.Zone, Qtype: q.Qtype, Qclass: q.Qclass})
+			for _, rr := range rrs {
+				if rr.Header().Rrtype == dns.TypeHTTPS {
+					https := rr.(*dns.HTTPS)
+					resp.Answer = append(resp.Answer, &dns.HTTPS{dns.SVCB{
+						Hdr: dns.RR_Header{
+							Name:   q.Name,
+							Rrtype: dns.TypeHTTPS,
+							Class:  dns.ClassINET,
+							Ttl:    1,
+						},
+						Priority: https.Priority,
+						Target:   https.Target,
+						Value:    https.Value,
+					}})
+					break
+				}
+			}
 		}
-		if len(h.IPv6) > 0 {
-			https.Value = append(https.Value, &dns.SVCBIPv6Hint{Hint: h.IPv6})
-		}
-		resp.Answer = append(resp.Answer, https)
 	case dns.TypeTXT:
 		if opts.TxtFill != 0 {
 			if !h.LargeResponseLimiter.Allow() {

@@ -2,45 +2,9 @@ package dnsutil
 
 import (
 	"encoding/json"
-	"net"
 
 	"github.com/miekg/dns"
 )
-
-type IPCollection struct {
-	IPv4 []net.IP
-	IPv6 []net.IP
-}
-
-func (c *IPCollection) Add(ip net.IP) {
-	if ip4 := ip.To4(); ip4 != nil {
-		c.IPv4 = append(c.IPv4, ip4)
-		return
-	}
-	if len(ip) == net.IPv6len {
-		c.IPv6 = append(c.IPv6, ip)
-	}
-}
-
-func (c *IPCollection) MarshalJSON() ([]byte, error) {
-	all := make([]net.IP, len(c.IPv4)+len(c.IPv6))
-	copy(all, c.IPv4)
-	copy(all[len(c.IPv4):], c.IPv6)
-	return json.Marshal(all)
-}
-
-func (c *IPCollection) UnmarshalJSON(data []byte) error {
-	var ips []net.IP
-	err := json.Unmarshal(data, &ips)
-	if err != nil {
-		return err
-	}
-	*c = IPCollection{}
-	for _, ip := range ips {
-		c.Add(ip)
-	}
-	return nil
-}
 
 type StaticRecords []dns.RR
 

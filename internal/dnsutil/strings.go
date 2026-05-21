@@ -20,20 +20,25 @@ var PrintableAscii = &unicode.RangeTable{
 
 // fast, ascii-only, case-insensitive string equality check
 func EqualsAsciiIgnoreCase(s, t string) bool {
-	if len(s) != len(t) {
+	return len(s) == len(t) && HasPrefixAsciiIgnoreCase(s, t)
+}
+
+// fast, ascii-only, case-insensitive string prefix check
+func HasPrefixAsciiIgnoreCase(s, prefix string) bool {
+	if len(s) < len(prefix) {
 		return false
 	}
-	for i := 0; i < len(s); i++ {
-		if s[i] == t[i] {
+	for i := 0; i < len(prefix); i++ {
+		if s[i] == prefix[i] {
 			continue
 		}
-		if s[i] > t[i] {
-			if t[i] >= 'A' && t[i] <= 'Z' && s[i] == t[i]+32 {
+		if s[i] > prefix[i] {
+			if prefix[i] >= 'A' && prefix[i] <= 'Z' && s[i] == prefix[i]+32 {
 				continue
 			}
 			return false
 		}
-		if s[i] >= 'A' && s[i] <= 'Z' && t[i] == s[i]+32 {
+		if s[i] >= 'A' && s[i] <= 'Z' && prefix[i] == s[i]+32 {
 			continue
 		}
 		return false

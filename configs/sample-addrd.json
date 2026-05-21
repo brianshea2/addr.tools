@@ -4,10 +4,6 @@
     "DatabasePath": "/data/addrd/db.json",
     "TLSCertPath": "",
     "TLSKeyPath": "",
-    "ResponseAddrs": [
-        "192.0.2.1",
-        "2001:db8::1"
-    ],
     "LookupUpstream": "[2606:4700:4700::1111]:53",
     "MyaddrTurnstileSecret": "",
     "DnscheckZones": [

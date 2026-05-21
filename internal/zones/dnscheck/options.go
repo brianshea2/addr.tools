@@ -68,7 +68,7 @@ func ParseOptions(sub string) *Options {
 				return nil
 			}
 			o.BadSig = true
-		case len(s) >= 10 && dnsutil.EqualsAsciiIgnoreCase(s[:10], "expiredsig"):
+		case dnsutil.HasPrefixAsciiIgnoreCase(s, "expiredsig"):
 			if o.BadSig || o.ExpiredSig != 0 || o.NoSig {
 				return nil
 			}
@@ -100,7 +100,7 @@ func ParseOptions(sub string) *Options {
 				return nil
 			}
 			o.NullIP = true
-		case len(s) > 7 && dnsutil.EqualsAsciiIgnoreCase(s[:7], "txtfill"):
+		case dnsutil.HasPrefixAsciiIgnoreCase(s, "txtfill"):
 			if o.Rcode != 0 || o.NullIP || o.TxtFill != 0 {
 				return nil
 			}

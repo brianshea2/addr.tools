@@ -42,7 +42,6 @@ type Config struct {
 	ValkeyURL             string
 	TLSCertPath           string
 	TLSKeyPath            string
-	ResponseAddrs         dnsutil.IPCollection
 	LookupUpstream        string
 	IPInfoBaseURL         string
 	MyaddrTurnstileSecret string
@@ -181,8 +180,6 @@ func (config *Config) Run() {
 		largeResponseLimiter := rate.NewLimiter(rate.Limit(MaxDnscheckLargeResponseRate), MaxDnscheckLargeResponseRate)
 		watcherHub := &dnscheck.SimpleWatcherHub{MaxSize: MaxDnscheckWatchers}
 		for _, h := range config.DnscheckZones {
-			h.DnscheckHandler.IPv4 = config.ResponseAddrs.IPv4
-			h.DnscheckHandler.IPv6 = config.ResponseAddrs.IPv6
 			h.DnscheckHandler.IPInfoClient = ipinfoClient
 			h.DnscheckHandler.LargeResponseLimiter = largeResponseLimiter
 			h.DnscheckHandler.Watchers = watcherHub
@@ -198,8 +195,6 @@ func (config *Config) Run() {
 	// init and set challenges handler
 	if config.ChallengesZone.SimpleHandler != nil {
 		config.ChallengesZone.SimpleHandler.RecordGenerator = &challenges.RecordGenerator{
-			IPv4:           config.ResponseAddrs.IPv4,
-			IPv6:           config.ResponseAddrs.IPv6,
 			ChallengeStore: challengeStore,
 		}
 		config.ChallengesZone.SimpleHandler.Init(ParsePrivateKey(config.ChallengesZone.PrivateKey))
@@ -213,8 +208,6 @@ func (config *Config) Run() {
 	// init and set dyn handler
 	if config.DynZone.SimpleHandler != nil {
 		config.DynZone.SimpleHandler.RecordGenerator = &dyn.RecordGenerator{
-			IPv4:      config.ResponseAddrs.IPv4,
-			IPv6:      config.ResponseAddrs.IPv6,
 			DataStore: persistentStore,
 		}
 		config.DynZone.SimpleHandler.Init(ParsePrivateKey(config.DynZone.PrivateKey))
@@ -231,8 +224,6 @@ func (config *Config) Run() {
 		myaddrChallengeStore := &ttlstore.Prefixed{Store: challengeStore, Prefix: "myaddr:"}
 		for _, h := range config.MyaddrZones {
 			h.SimpleHandler.RecordGenerator = &myaddr.RecordGenerator{
-				IPv4:           config.ResponseAddrs.IPv4,
-				IPv6:           config.ResponseAddrs.IPv6,
 				DataStore:      myaddrDataStore,
 				ChallengeStore: myaddrChallengeStore,
 			}
