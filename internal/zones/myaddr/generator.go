@@ -38,7 +38,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Name:   q.Name,
 						Rrtype: dns.TypeA,
 						Class:  dns.ClassINET,
-						Ttl:    300,
+						Ttl:    60,
 					},
 					A: ip.IP,
 				})
@@ -54,7 +54,7 @@ func (g *RecordGenerator) GenerateRecords(q *dns.Question, zone string) (rrs []d
 						Name:   q.Name,
 						Rrtype: dns.TypeAAAA,
 						Class:  dns.ClassINET,
-						Ttl:    300,
+						Ttl:    60,
 					},
 					AAAA: ip.IP,
 				})
