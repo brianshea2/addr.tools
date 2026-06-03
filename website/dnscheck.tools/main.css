@@ -113,6 +113,7 @@ ul.ip-list li > span:nth-child(n+2) {
   }
 }
 .unverified-ptr {
+  opacity: 0.7;
   text-decoration: underline wavy #c00;
 }
 ul.options li > span:nth-child(1) {
@@ -280,6 +281,9 @@ table.dnssec thead th:nth-child(n+2) {
 table.dnssec tbody th {
   text-align: left;
   white-space: nowrap;
+}
+table.dnssec tbody tr:hover :is(th, td) {
+  font-weight: bold;
 }
 @keyframes fade-pulse {
   0%, 100% { opacity: 0; }
