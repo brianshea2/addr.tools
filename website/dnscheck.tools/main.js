@@ -399,7 +399,7 @@ const testIPs = async () => {
   }
   if (stream) {
     // auto stop microphone track
-    setTimeout(() => stream.getTracks().forEach(track => track.stop()), 3000)
+    setTimeout(() => stream.getTracks().forEach(track => track.stop()), 1000)
   } else {
     // show link to ask for microphone permission
     window.askForMicPermission = () => {
@@ -409,13 +409,13 @@ const testIPs = async () => {
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then(stream => {
             connectionDiv.firstElementChild.innerHTML = 'Your IP addresses:'
-            setTimeout(() => stream.getTracks().forEach(track => track.stop()), 3000)
+            setTimeout(() => stream.getTracks().forEach(track => track.stop()), 1000)
             makePeerConn().addTrack(stream.getTracks()[0], stream)
           })
           .catch(() => {})
       }
     }
-    connectionDiv.firstElementChild.innerHTML = 'Your IP addresses (<span class="link" onclick="askForMicPermission()">permission needed</span>):'
+    connectionDiv.firstElementChild.innerHTML = 'Your IP addresses (<span class="link" onclick="askForMicPermission()">show more</span>):'
   }
   // start WebRTC candidate gathering
   const peerConn = makePeerConn()
