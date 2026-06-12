@@ -2,7 +2,7 @@ export default {
   content: r => {
     const out = {
       request: r.variables.request,
-      headers: r.rawHeadersIn.map(hdr => `${hdr[0]}: ${hdr[1]}`),
+      headers: Object.fromEntries(r.rawHeadersIn),
     }
     r.headersOut["Content-Type"] = "application/json"
     r.return(200, JSON.stringify(out, null, 2) + "\n")
