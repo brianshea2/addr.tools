@@ -107,25 +107,16 @@ const getReg = async ipOrRange => {
 }
 
 // returns cached promise of geolocation for given IPAddr or IPRange
-const getGeo = (() => {
-  let fetcher = str => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' } })
-    .catch(() => {
-      fetcher = str => fetchOk(`https://ipinfo.addr.tools/${str}`)
-      return fetcher(str)
-    })
-  return ipOrRange => {
-    // use first IP of range
-    const ip = ipOrRange instanceof IPRange ? ipOrRange.start : ipOrRange
-    // all ipv6 of the same /64 should have the same geolocation
-    const str = `${ip.is4() ? ip : new IPAddr(ip & 0xffffffffffffffff0000000000000000n)}`
-    if (geoLookups[str] === undefined) {
-      geoLookups[str] = fetcher(str)
-        .then(r => r.json())
-        .then(({ city, region, country }) => [ city, region, country ].filter(v => v).join(', '))
-    }
-    return geoLookups[str]
+const getGeo = ipOrRange => {
+  const ip = ipOrRange instanceof IPRange ? ipOrRange.start : ipOrRange
+  const str = `${ip.toRange(ip.is4() ? 24 : 56).start}`
+  if (geoLookups[str] === undefined) {
+    geoLookups[str] = fetchOk(`https://geo.addr.tools/${str}`)
+      .then(r => r.json())
+      .then(o => [ o.city, o.regionName, o.countryCode ].filter(Boolean).join(', '))
   }
-})()
+  return geoLookups[str]
+}
 
 // returns promise of PTR name or SOA NS for given IPAddr
 const getPtr = (() => {

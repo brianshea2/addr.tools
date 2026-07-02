@@ -87,19 +87,9 @@ const drawDns = (records, div) => {
   }).join('')
 }
 
-const geoLookup = (() => {
-  let fetcher = (str, signal) => fetchOk(`https://ipinfo.io/${str}`, { headers: { Accept: 'application/json' }, signal })
-    .catch(() => {
-      fetcher = (str, signal) => fetchOk(`https://ipinfo.addr.tools/${str}`, { signal })
-      return fetcher(str, signal)
-    })
-  return (ip, { signal }) => {
-    const str = `${ip.is4() ? ip : new IPAddr(ip & 0xffffffffffffffff0000000000000000n)}`
-    return fetcher(str, signal)
-      .then(r => r.json())
-      .then(({ city, region, country }) => [ city, region, country ].filter(v => v).join(', '))
-  }
-})()
+const geoLookup = (ip, { signal }) => fetchOk(`https://geo.addr.tools/${ip.toRange(ip.is4() ? 24 : 56).start}`, { signal })
+  .then(r => r.json())
+  .then(o => [ o.city, o.regionName, o.countryCode ].filter(Boolean).join(', '))
 
 let abortController
 const loadInfo = async () => {

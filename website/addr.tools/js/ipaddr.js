@@ -46,6 +46,25 @@ export class IPAddr {
       `${this.#octets().reverse().join('.')}.in-addr.arpa` :
       `${this.#hexString().split('').reverse().join('.')}.ip6.arpa`
   }
+  toRange(prefixLen) {
+    if (prefixLen < 0) {
+      throw new RangeError('prefix length must not be negative')
+    }
+    let hostBits
+    if (this.is4()) {
+      if (prefixLen > 32) {
+        throw new RangeError(`prefix length ${prefixLen} too large for IPv4`)
+      }
+      hostBits = 0x000000000000000000000000ffffffffn
+    } else {
+      if (prefixLen > 128) {
+        throw new RangeError(`prefix length ${prefixLen} too large for IPv6`)
+      }
+      hostBits = 0xffffffffffffffffffffffffffffffffn
+    }
+    hostBits >>= BigInt(prefixLen)
+    return new IPRange(this.value & ~hostBits, this.value | hostBits)
+  }
   toString(short6, force6) {
     if (this.is4() && !force6) {
       return this.#octets().join('.')

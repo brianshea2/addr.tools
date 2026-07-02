@@ -10,8 +10,8 @@ import (
 
 type IPInfo struct {
 	City    string `json:"city"`
-	Region  string `json:"region"`
-	Country string `json:"country"`
+	Region  string `json:"regionName"`
+	Country string `json:"countryCode"`
 	Org     string `json:"org"`
 }
 
@@ -42,16 +42,23 @@ func (c *IPInfoClient) GetIPInfo(ip string) (*IPInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if a.Is6() {
-		// all ipv6 of the same /64 should have the same info
-		p, _ := a.Prefix(64)
+	if a.Is4() {
+		p, _ := a.Prefix(24)
+		a = p.Addr()
+	} else {
+		p, _ := a.Prefix(56)
 		a = p.Addr()
 	}
 	url, err := url.JoinPath(c.BaseURL, a.StringExpanded())
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.HttpClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept-Encoding", "identity")
+	resp, err := c.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
