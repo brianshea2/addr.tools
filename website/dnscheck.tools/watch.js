@@ -10,6 +10,7 @@ document.getElementById('clientid').innerHTML = clientId
 
 // state
 const rdapClient = new RDAPClient()
+const ptrCache   = {}     // PTR name promise cache
 let autoscroll   = true   // toggle for autoscroll on new request
 let count        = 0      // number of requests received
 let countdownId           // countdown timer `setInterval()` id
@@ -32,23 +33,14 @@ contentDiv.addEventListener('scroll', () => {
 })
 
 // returns cached promise of PTR name for given IP string
-const getPtr = (() => {
-  const cache = {}
-  const headers = { Accept: 'application/dns-json' }
-  let fetcher = name => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=ptr`, { headers })
-    .catch(() => {
-      fetcher = name => fetchOk(`https://info.addr.tools/dns/${name}/ptr`)
-      return fetcher(name)
-    })
-  return ip => {
-    if (cache[ip] === undefined) {
-      cache[ip] = fetcher(new IPAddr(ip).reverseZone())
-        .then(r => r.json())
-        .then(({ Answer }) => Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1))
-    }
-    return cache[ip]
+const getPtr = ip => {
+  if (ptrCache[ip] === undefined) {
+    ptrCache[ip] = fetchOk(`https://info.addr.tools/dns/${new IPAddr(ip).reverseZone()}/ptr`)
+      .then(r => r.json())
+      .then(({ Answer }) => Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1))
   }
-})()
+  return ptrCache[ip]
+}
 
 // socket open handler
 const handleOpen = () => {

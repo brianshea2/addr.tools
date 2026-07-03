@@ -119,25 +119,17 @@ const getGeo = ipOrRange => {
 }
 
 // returns promise of PTR name or SOA NS for given IPAddr
-const getPtr = (() => {
-  const headers = { Accept: 'application/dns-json' }
-  let fetcher = (name, type) => fetchOk(`https://cloudflare-dns.com/dns-query?name=${name}&type=${type}`, { headers })
-    .catch(() => {
-      fetcher = (name, type) => fetchOk(`https://info.addr.tools/dns/${name}/${type}`)
-      return fetcher(name, type)
-    })
-  return async ip => {
-    const { Answer, Authority } = await fetcher(ip.reverseZone(), 'ptr').then(r => r.json())
-    const ptr = Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1)
-    const ns = Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1)
-    let ptrFwdOk
-    if (ptr) {
-      const { Answer } = await fetcher(ptr, ip.is4() ? 'a' : 'aaaa').then(r => r.json())
-      ptrFwdOk = Answer?.some(({ type, data }) => [ 1, 28 ].includes(type) && ip.equals(new IPAddr(data)))
-    }
-    return { ptr, ptrFwdOk, ns }
+const getPtr = async ip => {
+  const { Answer, Authority } = await fetchOk(`https://info.addr.tools/dns/${ip.reverseZone()}/ptr`).then(r => r.json())
+  const ptr = Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1)
+  const ns = Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1)
+  let ptrFwdOk
+  if (ptr) {
+    const { Answer } = await fetchOk(`https://info.addr.tools/dns/${ptr}/${ip.is4() ? 'a' : 'aaaa'}`).then(r => r.json())
+    ptrFwdOk = Answer?.some(({ type, data }) => [ 1, 28 ].includes(type) && ip.equals(new IPAddr(data)))
   }
-})()
+  return { ptr, ptrFwdOk, ns }
+}
 
 // returns cached promise of combined geo, ptr, and rdap reg data for given IP or CIDR string
 const getIPData = str => {
