@@ -265,8 +265,6 @@ const drawDNSSEC = (() => {
         t => `<tr><th>${t} signature</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(3)}</tr>`
       ).join('') + '</tbody></table></div>'
     const cols = dnssecDiv.getElementsByTagName('td')
-    const link = '<a href="https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions" ' +
-      'title="Domain Name System Security Extensions">DNSSEC</a>'
     const makeStatus = (text, className) =>
       `<span class="${className}" title="Domain Name System Security Extensions\n\n${text}">DNSSEC</span>`
     f = () => {
@@ -299,19 +297,16 @@ const drawDNSSEC = (() => {
       })
       if (error) {
         // a dnssec-valid domain failed to connect
-        dnssecDiv.firstElementChild.innerHTML = `Hmm... There was a network issue while checking ${link}:`
         dnssecStatusSpan.innerHTML = makeStatus('An error occurred', 'yellow')
         return
       }
       if (fail) {
         // a dnssec-invalid domain connected
-        dnssecDiv.firstElementChild.innerHTML = `Oh no! Your DNS responses are not authenticated with ${link}:`
         dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are not authenticated', 'red')
         return
       }
       if (done) {
         // all tests passed
-        dnssecDiv.firstElementChild.innerHTML = `Great! Your DNS responses are authenticated with ${link}:`
         dnssecStatusSpan.innerHTML = makeStatus('Your DNS responses are authenticated', 'green')
         return
       }

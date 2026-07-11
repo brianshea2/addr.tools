@@ -262,25 +262,25 @@ body:not(:has(> .status)) .content-inner {
   }
 }
 table.dnssec {
-  border-spacing: 0;
+  display: grid;
+  align-items: end;
+  grid-template-columns: max-content repeat(3, 1fr);
+}
+table.dnssec :is(thead, tbody, tr) {
+  display: contents;
 }
 table.dnssec :is(th, td) {
   font-weight: normal;
   padding: 0 0 0 2ch;
   text-align: center;
-  vertical-align: bottom;
 }
 @media (min-width: 768px) {
   table.dnssec :is(th, td) {
     padding-left: 4ch;
   }
 }
-table.dnssec thead th:nth-child(n+2) {
-  max-width: 7ch;
-}
 table.dnssec tbody th {
   text-align: left;
-  white-space: nowrap;
 }
 table.dnssec tbody tr:hover :is(th, td) {
   font-weight: bold;
@@ -289,13 +289,13 @@ table.dnssec tbody tr:hover :is(th, td) {
   0%, 100% { opacity: 0; }
   50% { opacity: 1; }
 }
-table.dnssec .pending > span {
+.pending > span {
   opacity: 0;
   animation: 3s infinite fade-pulse;
 }
-table.dnssec .pending > span:nth-child(2) {
+.pending > span:nth-child(2) {
   animation-delay: 0.5s;
 }
-table.dnssec .pending > span:nth-child(3) {
+.pending > span:nth-child(3) {
   animation-delay: 1s;
 }
