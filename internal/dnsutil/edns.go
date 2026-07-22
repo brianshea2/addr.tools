@@ -102,7 +102,7 @@ func ResizeForTransport(req, resp *dns.Msg, proto string) {
 		if forceCompress {
 			resp.Compress = true
 		}
-	case ProtoTLS:
+	case ProtoTLS, ProtoQUIC:
 		if HasPadding(req) {
 			AddPadding(resp, ResponsePaddingBlockLength)
 		}

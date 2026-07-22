@@ -227,7 +227,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			if opts != nil && opts.Compress {
 				resp.Compress = true
 			}
-		case dnsutil.ProtoTLS:
+		case dnsutil.ProtoTLS, dnsutil.ProtoQUIC:
 			if dnsutil.HasPadding(req) {
 				dnsutil.AddPadding(resp, dnsutil.ResponsePaddingBlockLength)
 			}

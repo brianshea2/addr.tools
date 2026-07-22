@@ -19,6 +19,7 @@ import (
 	"github.com/brianshea2/addr.tools/internal/dns2json"
 	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/brianshea2/addr.tools/internal/httputil"
+	"github.com/brianshea2/addr.tools/internal/netutil"
 	"github.com/brianshea2/addr.tools/internal/status"
 	"github.com/brianshea2/addr.tools/internal/ttlstore"
 	"github.com/brianshea2/addr.tools/internal/zones/challenges"
@@ -26,6 +27,7 @@ import (
 	"github.com/brianshea2/addr.tools/internal/zones/dyn"
 	"github.com/brianshea2/addr.tools/internal/zones/myaddr"
 	"github.com/miekg/dns"
+	"github.com/quic-go/quic-go"
 	"github.com/valkey-io/valkey-go"
 	"golang.org/x/time/rate"
 )
@@ -273,12 +275,12 @@ func (config *Config) Run() {
 		}).ListenAndServe())
 	}()
 	if len(config.TLSCertPath) > 0 && len(config.TLSKeyPath) > 0 {
+		cert, err := tls.LoadX509KeyPair(config.TLSCertPath, config.TLSKeyPath)
+		if err != nil {
+			log.Fatal(err)
+		}
 		go func() {
 			log.Print("[info] starting dns over tls listener")
-			cert, err := tls.LoadX509KeyPair(config.TLSCertPath, config.TLSKeyPath)
-			if err != nil {
-				log.Fatal(err)
-			}
 			log.Fatal((&dns.Server{
 				Addr:          ":853",
 				Net:           "tcp-tls",
@@ -304,6 +306,38 @@ func (config *Config) Run() {
 					},
 				},
 			}).ListenAndServe())
+		}()
+		go func() {
+			log.Print("[info] starting dns over quic listener")
+			udpConn, err := net.ListenUDP("udp", &net.UDPAddr{Port: 853})
+			if err != nil {
+				log.Fatal(err)
+			}
+			quicListener, err := (&quic.Transport{
+				Conn: udpConn,
+			}).Listen(
+				&tls.Config{
+					NextProtos:   []string{"doq"},
+					Certificates: []tls.Certificate{cert},
+					MinVersion:   tls.VersionTLS13,
+					CurvePreferences: []tls.CurveID{
+						tls.X25519MLKEM768,
+						tls.X25519,
+						tls.CurveP256,
+						tls.CurveP384,
+					},
+				},
+				&quic.Config{},
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Fatal((&dns.Server{
+				Listener:      netutil.NewQUICStreamListener(quicListener),
+				MaxTCPQueries: 1, // max requests per quic stream
+				MsgAcceptFunc: dnsutil.MsgAcceptFunc,
+				Handler:       dnsHandler,
+			}).ActivateAndServe())
 		}()
 	}
 
