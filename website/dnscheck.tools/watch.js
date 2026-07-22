@@ -112,11 +112,10 @@ const handleMessage = ({ data }) => {
     }
   })
   // get RDAP, update when available
-  rdapClient.lookupIP(request.remoteIp).then(r => {
-    const reg = r.registrantName || r.data.name || r.data.handle
+  rdapClient.lookupIP(request.remoteIp).catch(() => {}).then(r => {
     const span = document.getElementById(`rdap-${tmpId}`)
-    if (reg) {
-      span.innerHTML = ` (${encode(reg)})`
+    if (r) {
+      span.innerHTML = ` (${encode(r.registrantName || r.data.name || r.data.handle)})`
     } else {
       span.remove()
     }
