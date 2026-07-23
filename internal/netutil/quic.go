@@ -66,7 +66,13 @@ func (l *QUICStreamListener) acceptStreams(conn *quic.Conn) {
 		case <-l.ctx.Done():
 			stream.Close()
 			return
+		default:
+		}
+		select {
 		case l.ch <- &QUICStreamConn{stream, localAddr, remoteAddr, connectionState}:
+		case <-l.ctx.Done():
+			stream.Close()
+			return
 		}
 	}
 }
@@ -75,8 +81,13 @@ func (l *QUICStreamListener) Accept() (net.Conn, error) {
 	select {
 	case <-l.ctx.Done():
 		return nil, context.Cause(l.ctx)
+	default:
+	}
+	select {
 	case streamConn := <-l.ch:
 		return streamConn, nil
+	case <-l.ctx.Done():
+		return nil, context.Cause(l.ctx)
 	}
 }
 

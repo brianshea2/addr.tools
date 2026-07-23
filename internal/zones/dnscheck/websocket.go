@@ -113,18 +113,17 @@ func (ws *WebsocketWatcher) WriteLoop(ctx context.Context) {
 	defer func() {
 		ws.ch = nil
 	}()
-	done := ctx.Done()
 	for {
 		select {
-		case <-done:
+		case <-ctx.Done():
 			return
 		default:
 		}
 		select {
-		case <-done:
-			return
 		case msg := <-ws.ch:
 			ws.conn.WriteJSON(msg)
+		case <-ctx.Done():
+			return
 		}
 	}
 }
