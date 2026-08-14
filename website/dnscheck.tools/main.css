@@ -102,6 +102,7 @@ ul.ip-list li {
   width: var(--ptr-min-width);
 }
 .ip-list-tabular ul.ip-list li > span:nth-child(3) {
+  text-align: right;
   width: var(--geo-min-width);
 }
 ul.ip-list li > span:nth-child(n+2) {

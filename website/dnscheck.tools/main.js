@@ -120,17 +120,25 @@ const getGeo = ipOrRange => {
 }
 
 // returns promise of PTR name or SOA NS for given IPAddr
-const getPtr = async ip => {
-  const { Answer, Authority } = await fetchOk(`https://info.addr.tools/dns/${ip.reverseZone()}/ptr`).then(r => r.json())
-  const ptr = Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1)
-  const ns = Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1)
-  let ptrFwdOk
-  if (ptr) {
-    const { Answer } = await fetchOk(`https://info.addr.tools/dns/${ptr}/${ip.is4() ? 'a' : 'aaaa'}`).then(r => r.json())
-    ptrFwdOk = Answer?.some(({ type, data }) => [ 1, 28 ].includes(type) && ip.equals(new IPAddr(data)))
-  }
-  return { ptr, ptrFwdOk, ns }
-}
+const getPtr = ip => fetchOk(`https://cloudflare-dns.com/dns-query?name=${ip.reverseZone()}&type=ptr`, { headers: {
+    Accept: 'application/dns-json',
+  } })
+  .then(r => r.json())
+  .then(o => {
+    const ptr = o.Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1)
+    if (ptr) {
+      return fetchOk(`https://cloudflare-dns.com/dns-query?name=${ptr}&type=${ip.is4() ? 'a' : 'aaaa'}`, { headers: {
+          Accept: 'application/dns-json',
+        } })
+        .then(r => r.json())
+        .then(o => {
+          const ptrFwdOk = o.Answer?.some(({ type, data }) => [ 1, 28 ].includes(type) && ip.equals(new IPAddr(data)))
+          return { ptr, ptrFwdOk }
+        })
+    }
+    const ns = o.Authority?.find(({ type }) => type === 6)?.data?.split(' ')[0].slice(0, -1)
+    return { ns }
+  })
 
 // returns cached promise of combined geo, ptr, and rdap reg data for given IP or CIDR string
 const getIPData = str => {
@@ -430,20 +438,23 @@ const testDNS = () => new Promise(done => {
     // test DNSSEC validation, ECH
     drawDNSSEC()
     for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
-      for (const [ sigIndex, sigOpt ] of [ '', '-badsig', '-expiredsig', '-nosig' ].entries()) {
-        const fqdn = `${clientId}${sigOpt}.test-${alg}.dnscheck.tools`
-        const { connected, ech } = await makeQuery(fqdn, 30000, abortController.signal)
-        dnssecTests[3 * sigIndex + algIndex] = connected
-        drawDNSSEC()
-        if (connected) {
-          console.log(`ECH: ${fqdn} ${ech}`)
-          echTests.push(ech)
-        }
-        if (sigIndex === 0 && !connected) {
-          // valid signature failed to connect, no point in continuing tests for this signing algorithm
-          break
-        }
+      const fqdn = `${clientId}.test-${alg}.dnscheck.tools`
+      const { connected, ech } = await makeQuery(fqdn, 10000, abortController.signal)
+      dnssecTests[algIndex] = connected
+      drawDNSSEC()
+      if (!connected) {
+        // valid signature failed to connect, no point in continuing tests for this signing algorithm
+        continue
       }
+      console.log(`ECH: ${fqdn} ${ech}`)
+      echTests.push(ech)
+      await Promise.all([ 'badsig', 'expiredsig', 'nosig' ].map((sigOpt, sigIndex) =>
+        makeQuery(`${clientId}-${sigOpt}.test-${alg}.dnscheck.tools`, 30000, abortController.signal)
+          .then(({ connected }) => {
+            dnssecTests[3 + 3 * sigIndex + algIndex] = connected
+            drawDNSSEC()
+          })
+      ))
     }
     // update ECH status
     if (echTests.length) {
