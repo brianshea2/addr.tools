@@ -83,19 +83,10 @@ const handleMessage = ({ data }) => {
   let html = `<div class="dns-request-wrapper"><span>#${count}</span><div class="dns-request">${encode(request.msgText).replace(/\n/g, '<br>')}` +
     `<br>;; CLIENT: ${ipLink}#${request.remotePort}<span id="ptr-${tmpId}">(<i>pending</i>)</span>` +
     `<span id="rdap-${tmpId}"> (<i>pending</i>)</span> (${request.proto})`
-  if (request.tlsVersion) {
-    html += `<br>;; TLS: version: ${request.tlsVersion.replace(/^TLS ?/, '')}, cipherSuite: ${request.tlsCipherSuite}`
-    if (request.tlsNamedGroup) {
-      html += `, namedGroup: ${encode(request.tlsNamedGroup)}`
-    }
+  if (request.tlsCipherSuite) {
+    html += `<br>;; TLS: ${request.tlsCipherSuite} ${request.tlsNamedGroup}`
     if (request.tlsDidResume) {
-      html += ', sessionReuse: true'
-    }
-    if (request.tlsServerName) {
-      html += `, serverName: ${encode(request.tlsServerName)}`
-    }
-    if (request.tlsNegotiatedProtocol) {
-      html += `, alpn: ${encode(request.tlsNegotiatedProtocol)}`
+      html += ' (RESUMED)'
     }
   }
   html += `<br>;; WHEN: ${new Date(request.time * 1000).toLocaleString()}</div></div>`

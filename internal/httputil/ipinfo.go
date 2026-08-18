@@ -4,32 +4,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/netip"
 	"net/url"
+	"slices"
+	"strings"
 )
 
 type IPInfo struct {
 	City    string `json:"city"`
-	Region  string `json:"regionName"`
-	Country string `json:"countryCode"`
+	Region  string `json:"region"`
+	Country string `json:"country"`
 	Org     string `json:"org"`
 }
 
 func (i *IPInfo) GeoString() string {
-	str := i.City
-	if len(i.Region) > 0 {
-		if len(str) > 0 {
-			str += ", "
-		}
-		str += i.Region
-	}
-	if len(i.Country) > 0 {
-		if len(str) > 0 {
-			str += ", "
-		}
-		str += i.Country
-	}
-	return str
+	return strings.Join(
+		slices.DeleteFunc(
+			[]string{
+				i.City,
+				i.Region,
+				i.Country,
+			},
+			func(s string) bool {
+				return len(s) == 0
+			},
+		),
+		", ",
+	)
 }
 
 type IPInfoClient struct {
@@ -38,18 +38,7 @@ type IPInfoClient struct {
 }
 
 func (c *IPInfoClient) GetIPInfo(ip string) (*IPInfo, error) {
-	a, err := netip.ParseAddr(ip)
-	if err != nil {
-		return nil, err
-	}
-	if a.Is4() {
-		p, _ := a.Prefix(24)
-		a = p.Addr()
-	} else {
-		p, _ := a.Prefix(56)
-		a = p.Addr()
-	}
-	url, err := url.JoinPath(c.BaseURL, a.StringExpanded())
+	url, err := url.JoinPath(c.BaseURL, ip)
 	if err != nil {
 		return nil, err
 	}

@@ -112,9 +112,9 @@ const getGeo = ipOrRange => {
   const ip = ipOrRange instanceof IPRange ? ipOrRange.start : ipOrRange
   const str = `${ip.toRange(ip.is4() ? 24 : 56).start}`
   if (geoLookups[str] === undefined) {
-    geoLookups[str] = fetchOk(`https://geo.addr.tools/${str}`)
+    geoLookups[str] = fetchOk(`https://ip.addr.tools/${str}`)
       .then(r => r.json())
-      .then(o => [ o.city, o.regionName, o.countryCode ].filter(Boolean).join(', '))
+      .then(o => [ o.city, o.region, o.country ].filter(Boolean).join(', '))
   }
   return geoLookups[str]
 }
