@@ -1,40 +1,83 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>addr.tools</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="stylesheet" href="https://addr.tools/man.css">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Fast, privacy-conscious tools for IP addresses, DNS, and network diagnostics.">
+  <meta name="referrer" content="no-referrer">
+  <link rel="canonical" href="https://addr.tools/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/man.css">
+  <title>addr.tools — Network tools made clear</title>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="addr.tools home">
+      <span class="brand-mark" aria-hidden="true">&gt;_</span>
+      <span>addr.tools</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="#tools">Tools</a>
+      <a href="#privacy">Privacy</a>
+      <button class="theme-button" type="button" data-theme-toggle aria-label="Switch colour theme">☾</button>
+    </nav>
+  </header>
 
-<header><h1>ADDR.TOOLS.</h1>                       <div>Utilities</div>                  <div>ADDR.TOOLS.</div></header>
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Open network diagnostics</div>
+      <h1 id="hero-title">Understand your network.</h1>
+      <p class="hero-copy">Simple, fast tools for IP addresses, DNS, and connection details. No account required.</p>
+      <form class="lookup" data-lookup-form role="search">
+        <label class="sr-only" for="lookup-input">Enter an IP address, hostname, domain, or CIDR range</label>
+        <input id="lookup-input" name="query" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Try an IP, hostname, domain, or CIDR range" aria-describedby="lookup-help">
+        <button type="submit"><span>Inspect</span><span aria-hidden="true">→</span></button>
+      </form>
+      <p id="lookup-help" class="form-help">Examples: <button type="button" data-example="1.1.1.1">1.1.1.1</button>, <button type="button" data-example="example.com">example.com</button>, <button type="button" data-example="192.168.1.0/24">192.168.1.0/24</button></p>
+      <div class="lookup-message" data-lookup-message role="status" aria-live="polite"></div>
+    </section>
 
-<h2>NAME</h2>
-<p>
-  addr.tools - possibly useful tools for the Internet
+    <section id="tools" class="section" aria-labelledby="tools-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Explore the toolbox</p>
+          <h2 id="tools-title">Useful answers, without the noise.</h2>
+        </div>
+        <p>Choose a focused tool or start with the inspector above.</p>
+      </div>
+      <div class="tool-grid">
+        <a class="tool-card" href="https://myip.addr.tools/">
+          <span class="tool-icon" aria-hidden="true">◎</span>
+          <span><strong>My IP</strong><small>See your public address and connection details.</small></span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="tool-card" href="https://info.addr.tools/">
+          <span class="tool-icon" aria-hidden="true">⌁</span>
+          <span><strong>IP information</strong><small>Explore ownership, location, and network data.</small></span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="tool-card" href="https://dnscheck.tools/">
+          <span class="tool-icon" aria-hidden="true">◇</span>
+          <span><strong>DNS check</strong><small>Inspect records, DNSSEC, TLS, and resolver behaviour.</small></span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="tool-card" href="https://dyn.addr.tools/">
+          <span class="tool-icon" aria-hidden="true">↻</span>
+          <span><strong>Dynamic DNS</strong><small>Keep an address pointing at your changing connection.</small></span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </section>
 
-<h2>INDEX</h2>
-<table class="index">
-  <tr>
-    <th><a href="https://challenges.addr.tools">challenges.addr.tools</a>
-    <td>dns-01 ACME challenge helper zone
-  <tr>
-    <th><a href="https://dyn.addr.tools">dyn.addr.tools</a>
-    <td>dynamic DNS for your own domains, no account required
-  <tr>
-    <th><a href="https://info.addr.tools">info.addr.tools</a>
-    <td>explore identifying information for domain names and IP addresses
-  <tr>
-    <th><a href="https://myip.addr.tools/help">myip.addr.tools</a>
-    <td>get your public IP address
-  <tr>
-    <th><a href="https://dnscheck.tools">dnscheck.tools</a>
-    <td>identify your DNS resolvers, check DNSSEC validation, and perform other DNS tests
-  <tr>
-    <th><a href="https://myaddr.tools">myaddr.tools</a>
-    <td>dynamic DNS with a free custom subdomain, no account required
-</table>
+    <section id="privacy" class="privacy-panel" aria-labelledby="privacy-title">
+      <span class="privacy-icon" aria-hidden="true">✦</span>
+      <div><p class="eyebrow">Privacy by default</p><h2 id="privacy-title">Your network details are yours.</h2><p>addr.tools is designed to answer questions without accounts, advertising profiles, or unnecessary tracking. Review the deployment configuration and privacy policy for logging details.</p></div>
+      <a class="text-link" href="/help/">Learn more <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
 
-<h2>SOURCE</h2>
-<p>
-  See <a href="https://github.com/brianshea2/addr.tools">GitHub</a>.
-  Bug reports and pull requests welcome.
+  <footer class="site-footer"><span>addr.tools</span><span>Fast tools for the internet you use.</span></footer>
+  <script src="/js/ui.js" defer></script>
+</body>
+</html>
