@@ -35,9 +35,7 @@ contentDiv.addEventListener('scroll', () => {
 // returns cached promise of PTR name for given IP string
 const getPtr = ip => {
   if (ptrCache[ip] === undefined) {
-    ptrCache[ip] = fetchOk(`https://cloudflare-dns.com/dns-query?name=${new IPAddr(ip).reverseZone()}&type=ptr`, { headers: {
-        Accept: 'application/dns-json',
-      } })
+    ptrCache[ip] = fetchOk(`https://addr.tools/dns/${new IPAddr(ip).reverseZone()}/ptr`)
       .then(r => r.json())
       .then(o => o.Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1))
   }

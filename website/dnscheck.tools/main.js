@@ -120,16 +120,12 @@ const getGeo = ipOrRange => {
 }
 
 // returns promise of PTR name or SOA NS for given IPAddr
-const getPtr = ip => fetchOk(`https://cloudflare-dns.com/dns-query?name=${ip.reverseZone()}&type=ptr`, { headers: {
-    Accept: 'application/dns-json',
-  } })
+const getPtr = ip => fetchOk(`https://addr.tools/dns/${ip.reverseZone()}/ptr`)
   .then(r => r.json())
   .then(o => {
     const ptr = o.Answer?.find(({ type }) => type === 12)?.data?.slice(0, -1)
     if (ptr) {
-      return fetchOk(`https://cloudflare-dns.com/dns-query?name=${ptr}&type=${ip.is4() ? 'a' : 'aaaa'}`, { headers: {
-          Accept: 'application/dns-json',
-        } })
+      return fetchOk(`https://addr.tools/dns/${ptr}/${ip.is4() ? 'a' : 'aaaa'}`)
         .then(r => r.json())
         .then(o => {
           const ptrFwdOk = o.Answer?.some(({ type, data }) => [ 1, 28 ].includes(type) && ip.equals(new IPAddr(data)))
