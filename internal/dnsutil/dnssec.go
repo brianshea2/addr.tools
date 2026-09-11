@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"encoding/base64"
 	"fmt"
 	"math/big"
@@ -65,6 +66,12 @@ func GenerateDnssecProvider(name string, algo uint8, rrTtl uint32) (*DnssecProvi
 			return nil, err
 		}
 		p.PrivateKey = key.(ed25519.PrivateKey)
+	case dns.MLDSA44:
+		key, err := p.SigningKey.Generate(10496)
+		if err != nil {
+			return nil, err
+		}
+		p.PrivateKey = key.(*mldsa.PrivateKey)
 	default:
 		return nil, fmt.Errorf("unsupported algorithm: %v", algo)
 	}
@@ -76,7 +83,7 @@ func (p *DnssecProvider) DS() (*dns.DS, error) {
 		return nil, fmt.Errorf("missing signing key")
 	}
 	switch p.SigningKey.Algorithm {
-	case dns.ECDSAP256SHA256, dns.ED25519:
+	case dns.ECDSAP256SHA256, dns.ED25519, dns.MLDSA44:
 		return p.SigningKey.ToDS(dns.SHA256), nil
 	case dns.ECDSAP384SHA384:
 		return p.SigningKey.ToDS(dns.SHA384), nil
@@ -94,6 +101,8 @@ func (p *DnssecProvider) PrivKeyBytes() ([]byte, error) {
 		return p.PrivateKey.(*ecdsa.PrivateKey).D.Bytes(), nil
 	case dns.ED25519:
 		return p.PrivateKey.(ed25519.PrivateKey).Seed(), nil
+	case dns.MLDSA44:
+		return p.PrivateKey.(*mldsa.PrivateKey).Bytes(), nil
 	default:
 		return nil, fmt.Errorf("unsupported algorithm: %v", p.SigningKey.Algorithm)
 	}
@@ -132,6 +141,12 @@ func (p *DnssecProvider) SetPrivKeyBytes(b []byte) error {
 		}
 	case dns.ED25519:
 		p.PrivateKey = ed25519.NewKeyFromSeed(b)
+	case dns.MLDSA44:
+		var err error
+		p.PrivateKey, err = mldsa.NewPrivateKey(mldsa.MLDSA44(), b)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported algorithm: %v", p.SigningKey.Algorithm)
 	}
