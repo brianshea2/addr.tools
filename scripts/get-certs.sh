@@ -24,7 +24,8 @@ $CERTBOT certonly                                                               
   -d '*.test.dnscheck.tools'            -d '*.test-ipv4.dnscheck.tools'         -d '*.test-ipv6.dnscheck.tools'         \
   -d '*.test-alg13.dnscheck.tools'      -d '*.test-alg13-ipv4.dnscheck.tools'   -d '*.test-alg13-ipv6.dnscheck.tools'   \
   -d '*.test-alg14.dnscheck.tools'      -d '*.test-alg14-ipv4.dnscheck.tools'   -d '*.test-alg14-ipv6.dnscheck.tools'   \
-  -d '*.test-alg15.dnscheck.tools'      -d '*.test-alg15-ipv4.dnscheck.tools'   -d '*.test-alg15-ipv6.dnscheck.tools'
+  -d '*.test-alg15.dnscheck.tools'      -d '*.test-alg15-ipv4.dnscheck.tools'   -d '*.test-alg15-ipv6.dnscheck.tools'   \
+  -d '*.test-alg18.dnscheck.tools'      -d '*.test-alg18-ipv4.dnscheck.tools'   -d '*.test-alg18-ipv6.dnscheck.tools'
 
 $CERTBOT certonly                                                                                                       \
   --cert-name myaddr.tools                                                                                              \
