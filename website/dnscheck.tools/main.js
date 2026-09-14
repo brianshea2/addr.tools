@@ -10,7 +10,7 @@ const ipData         = {}               // combined IP data promises
 const clientIPs      = {}               // detected HTTP request source and WebRTC ICE candidate IPs
 const clientSubnets  = {}               // EDNS advertised client subnets
 const resolvers      = {}               // detected DNS resolvers
-const dnssecTests    = [ ...Array(12) ] // DNSSEC test results
+const dnssecTests    = [ ...Array(16) ] // DNSSEC test results
 const echTests       = []               // ECH test results
 const rtts           = []               // DNS round trip times
 const udpSizes       = []               // EDNS advertised UDP buffer sizes
@@ -264,11 +264,24 @@ const drawResolvers = () => {
 // draws the DNSSEC test results section
 const drawDNSSEC = (() => {
   let f = () => {
-    dnssecDiv.innerHTML = dnssecDiv.firstElementChild.outerHTML + '<div><table class="dnssec"><thead><tr><th></th>' +
-      '<th>ECDSA <span class="nowrap">P-256</span></th><th>ECDSA <span class="nowrap">P-384</span></th>' +
-      '<th>Ed25519</th></tr></thead><tbody>' + [ 'Valid', 'Invalid', 'Expired', 'Missing' ].map(
-        t => `<tr><th>${t} signature</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(3)}</tr>`
-      ).join('') + '</tbody></table></div>'
+    dnssecDiv.innerHTML = dnssecDiv.firstElementChild.outerHTML +
+      '<div><table class="dnssec">' +
+      '<caption>DNSSEC Validation Tests</caption>' +
+      '<thead><tr>' +
+      '<th>Signature</th>' +
+      '<th>ECDSA <span class="nowrap">P-256</span></th>' +
+      '<th>ECDSA <span class="nowrap">P-384</span></th>' +
+      '<th>Ed25519</th>' +
+      '<th>MLDSA44*</th>' +
+      '</tr></thead>' +
+      '<tbody>' +
+      `<tr><th>Valid</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
+      `<tr><th>Invalid</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
+      `<tr><th>Expired</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
+      `<tr><th>Missing</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
+      '</tbody>' +
+      '</table></div>' +
+      '<div class="padleft-1">*MLDSA44 is a new signature algorithm not yet widely validated.</div>'
     const cols = dnssecDiv.getElementsByTagName('td')
     const makeStatus = (text, className) =>
       `<span class="${className}" title="Domain Name System Security Extensions\n\n${text}">DNSSEC</span>`
@@ -281,22 +294,22 @@ const drawDNSSEC = (() => {
           done = false
           return
         }
-        if (i < 3) {
+        if (i < 4) {
           // the valid signature tests
           cols[i].className = got ? 'green' : 'red'
           cols[i].innerHTML = got ? 'PASS' : 'FAIL'
           if (!got) {
             error = true
-            for (let j = i + 3; j < cols.length; j += 3) {
+            for (let j = i + 4; j < cols.length; j += 4) {
               cols[j].className = 'yellow'
               cols[j].innerHTML = 'ERR'
             }
           }
           return
         }
-        cols[i].className = got ? 'red' : 'green'
+        cols[i].className = got && i % 4 === 3 ? 'yellow' : got ? 'red' : 'green'
         cols[i].innerHTML = got ? 'FAIL' : 'PASS'
-        if (got) {
+        if (got && i % 4 !== 3) {
           fail = true
         }
       })
@@ -433,7 +446,7 @@ const testDNS = () => new Promise(done => {
     }
     // test DNSSEC validation, ECH
     drawDNSSEC()
-    for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15' ].entries()) {
+    for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15', 'alg18' ].entries()) {
       const fqdn = `${clientId}.test-${alg}.dnscheck.tools`
       const { connected, ech } = await makeQuery(fqdn, 10000, abortController.signal)
       dnssecTests[algIndex] = connected
@@ -447,7 +460,7 @@ const testDNS = () => new Promise(done => {
       await Promise.all([ 'badsig', 'expiredsig', 'nosig' ].map((sigOpt, sigIndex) =>
         makeQuery(`${clientId}-${sigOpt}.test-${alg}.dnscheck.tools`, 30000, abortController.signal)
           .then(({ connected }) => {
-            dnssecTests[3 + 3 * sigIndex + algIndex] = connected
+            dnssecTests[4 + 4 * sigIndex + algIndex] = connected
             drawDNSSEC()
           })
       ))

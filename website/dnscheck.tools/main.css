@@ -180,6 +180,7 @@ header {
   left: 0;
   right: 0;
   white-space: nowrap;
+  z-index: 1;
 }
 header > div:last-child {
   text-align: right;
@@ -218,6 +219,7 @@ body:not(:has(> .status)) .content-inner {
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 1;
 }
 .status > div:last-child {
   flex-grow: 1;
@@ -248,14 +250,14 @@ body:not(:has(> .status)) .content-inner {
   margin-bottom: -1.3em;
   white-space: nowrap;
 }
-.section :is(h3, .subtitle) {
+.section :is(h3, .subtitle, .padleft-1) {
   padding-left: 2ch;
 }
 .section > :is(p, ul) {
   padding-left: 4ch;
 }
 @media (min-width: 768px) {
-  .section :is(h3, .subtitle) {
+  .section :is(h3, .subtitle, .padleft-1) {
     padding-left: 4ch;
   }
   .section > :is(p, ul) {
@@ -265,7 +267,17 @@ body:not(:has(> .status)) .content-inner {
 table.dnssec {
   display: grid;
   align-items: end;
-  grid-template-columns: max-content repeat(3, 1fr);
+  grid-template-columns: min-content repeat(4, 1fr);
+  padding-bottom: 1.3em;
+  position: relative;
+}
+table.dnssec caption {
+  font-size: 0.9em;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 0);
+  white-space: nowrap;
 }
 table.dnssec :is(thead, tbody, tr) {
   display: contents;
@@ -281,7 +293,7 @@ table.dnssec :is(th, td) {
   }
 }
 table.dnssec tbody th {
-  text-align: left;
+  text-align: right;
 }
 table.dnssec tbody tr:hover :is(th, td) {
   font-weight: bold;
