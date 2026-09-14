@@ -56,7 +56,9 @@ func (l *QUICStreamListener) acceptConns() {
 func (l *QUICStreamListener) acceptStreams(conn *quic.Conn) {
 	localAddr := conn.LocalAddr()
 	remoteAddr := conn.RemoteAddr()
-	connectionState := conn.ConnectionState().TLS
+	connectionState := conn.ConnectionState()
+	// hack: use TLSUnique, nil for TLS1.3, to store QUIC version
+	connectionState.TLS.TLSUnique = []byte(connectionState.Version.String())
 	for {
 		stream, err := conn.AcceptStream(l.ctx)
 		if err != nil {
@@ -69,7 +71,7 @@ func (l *QUICStreamListener) acceptStreams(conn *quic.Conn) {
 		default:
 		}
 		select {
-		case l.ch <- &QUICStreamConn{stream, localAddr, remoteAddr, connectionState}:
+		case l.ch <- &QUICStreamConn{stream, localAddr, remoteAddr, connectionState.TLS}:
 		case <-l.ctx.Done():
 			stream.Close()
 			return

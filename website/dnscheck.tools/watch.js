@@ -81,10 +81,10 @@ const handleMessage = ({ data }) => {
   let html = `<div class="dns-request-wrapper"><span>#${count}</span><div class="dns-request">${encode(request.msgText).replace(/\n/g, '<br>')}` +
     `<br>;; CLIENT: ${ipLink}#${request.remotePort}<span id="ptr-${tmpId}">(<i>pending</i>)</span>` +
     `<span id="rdap-${tmpId}"> (<i>pending</i>)</span> (${request.proto})`
-  if (request.tlsCipherSuite) {
-    html += `<br>;; TLS: ${request.tlsCipherSuite} ${request.tlsNamedGroup}`
+  if (request.tlsVersion) {
+    html += `<br>;; TLS: (${request.tlsVersion.replaceAll(' ', '')}) (${request.tlsNamedGroup}) (${request.tlsCipherSuite})`
     if (request.tlsDidResume) {
-      html += ' (RESUMED)'
+      html += ' (Resumed)'
     }
   }
   html += `<br>;; WHEN: ${new Date(request.time * 1000).toLocaleString()}</div></div>`

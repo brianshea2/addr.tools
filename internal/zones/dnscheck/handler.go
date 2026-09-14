@@ -158,11 +158,12 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	q := &req.Question[0]
 	sub := q.Name[:len(q.Name)-len(h.Zone)]
 	opts := ParseOptions(sub)
+	proto := dnsutil.GetProtocol(w)
 	// send to watcher
 	if opts != nil && len(opts.Random) > 0 {
 		watcher := h.Watchers.Get(opts.Random)
 		if watcher != nil {
-			watcher.Send(req, dnsutil.GetProtocol(w), w.RemoteAddr(), w.(dns.ConnectionStater).ConnectionState())
+			watcher.Send(req, proto, w.RemoteAddr(), w.(dns.ConnectionStater).ConnectionState())
 		}
 	}
 	// queries only
@@ -211,7 +212,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		if opts != nil && opts.Compress {
 			resp.Compress = true
 		}
-		switch dnsutil.GetProtocol(w) {
+		switch proto {
 		case dnsutil.ProtoUDP:
 			if opts != nil && opts.NoTruncate {
 				break
@@ -450,7 +451,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			ip = a.IP.String()
 			port = a.Port
 		}
-		txts := make([]string, 3, 5)
+		txts := make([]string, 2, 5)
 		txts[0] = fmt.Sprintf("FROM: %s#%d", ip, port)
 		if h.IPInfoClient != nil {
 			info, err := h.IPInfoClient.GetIPInfo(ip)
@@ -459,21 +460,15 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 			if info != nil {
 				if len(info.Org) > 0 {
-					txts[0] += fmt.Sprintf(" %s", dnsutil.ToPrintableAscii(info.Org))
+					txts[0] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(info.Org))
 				}
 				if geo := info.GeoString(); len(geo) > 0 {
 					txts[0] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(geo))
 				}
 			}
 		}
-		txts[1] = fmt.Sprintf("PROTO: %s", dnsutil.GetProtocol(w))
-		if cstate := w.(dns.ConnectionStater).ConnectionState(); cstate != nil {
-			txts[1] += fmt.Sprintf(" %s %s", tls.CipherSuiteName(cstate.CipherSuite), cstate.CurveID)
-			if cstate.DidResume {
-				txts[1] += " (RESUMED)"
-			}
-		}
-		txts[2] = fmt.Sprintf("ID: %d", req.Id)
+		txts[0] += fmt.Sprintf(" (%s)", proto)
+		txts[1] = fmt.Sprintf("ID: %d", req.Id)
 		if opt := req.IsEdns0(); opt != nil {
 			var flags string
 			if opt.Do() {
@@ -482,12 +477,12 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			if opt.Co() {
 				flags += " co"
 			}
-			// txts[3]
-			txts = append(txts, fmt.Sprintf("EDNS: flags:%s; udp: %d", flags, opt.UDPSize()))
+			// txts[2]
+			txts = append(txts, fmt.Sprintf("EDNS: version: %d; flags:%s; udp: %d", opt.Version(), flags, opt.UDPSize()))
 			for _, o := range opt.Option {
 				if o.Option() == dns.EDNS0SUBNET {
 					subnet := o.(*dns.EDNS0_SUBNET)
-					// txts[4]
+					// txts[3]
 					txts = append(txts, fmt.Sprintf("ECS: %s/%d", subnet.Address, subnet.SourceNetmask))
 					if h.IPInfoClient != nil {
 						info, err := h.IPInfoClient.GetIPInfo(subnet.Address.String())
@@ -496,15 +491,27 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 						}
 						if info != nil {
 							if len(info.Org) > 0 {
-								txts[4] += fmt.Sprintf(" %s", dnsutil.ToPrintableAscii(info.Org))
+								txts[3] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(info.Org))
 							}
 							if geo := info.GeoString(); len(geo) > 0 {
-								txts[4] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(geo))
+								txts[3] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(geo))
 							}
 						}
 					}
 					break
 				}
+			}
+		}
+		if cs := w.(dns.ConnectionStater).ConnectionState(); cs != nil {
+			tlsVersion := strings.ReplaceAll(tls.VersionName(cs.Version), " ", "")
+			if proto == dnsutil.ProtoQUIC {
+				// hack: QUIC version stored in TLSUnique by QUICStreamListener
+				txts = append(txts, fmt.Sprintf("QUIC: (%s) (%s) (%s) (%s)", cs.TLSUnique, tlsVersion, cs.CurveID, tls.CipherSuiteName(cs.CipherSuite)))
+			} else {
+				txts = append(txts, fmt.Sprintf("TLS: (%s) (%s) (%s)", tlsVersion, cs.CurveID, tls.CipherSuiteName(cs.CipherSuite)))
+			}
+			if cs.DidResume {
+				txts[len(txts)-1] += " (Resumed)"
 			}
 		}
 		for _, txt := range txts {
