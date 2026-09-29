@@ -33,6 +33,7 @@ const ednsStatusSpan   = document.getElementById('edns-status')
 const dnssecStatusSpan = document.getElementById('dnssec-status')
 const echStatusSpan    = document.getElementById('ech-status')
 const ipv6StatusSpan   = document.getElementById('ipv6-status')
+const adoxStatusSpan   = document.getElementById('adox-status')
 const countSpan        = document.getElementById('count')
 
 // generates some DNS requests from the browser to the given fqdn
@@ -505,7 +506,7 @@ const testDNS = () => new Promise(done => {
   socket.addEventListener('message', ({ data }) => {
     // parse data
     const request = JSON.parse(data)
-    console.log(`DNS: ${request.qname} IN ${request.qtype}`, request)
+    console.log(`DNS (${request.proto}): ${request.qname} IN ${request.qtype}`, request)
     // increment count
     countSpan.innerHTML = ++count
     // add resolver if new
@@ -547,6 +548,11 @@ const testDNS = () => new Promise(done => {
     if (!seenIPv6 && request.remoteIp.includes(':')) {
       seenIPv6 = true
       ipv6StatusSpan.innerHTML = '<span class="green" title="Your DNS resolvers connect to nameservers over IPv6">IPv6</span>'
+    }
+    // discover ADoX support
+    if (request.proto === 'TLS' || request.proto === 'QUIC') {
+      adoxStatusSpan.innerHTML = '<span class="blue" title="Authoritative DoT/DoQ\n\n' +
+        'One or more queries from your DNS resolvers to our authoritative nameservers used an encrypted transport">ADoX</span>'
     }
   })
 
