@@ -276,7 +276,6 @@ const drawDNSSEC = (() => {
       '<th>MLDSA44</th>' +
       '</tr></thead>' +
       '<tbody>' +
-      `<tr><th>Valid</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
       `<tr><th>Invalid</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
       `<tr><th>Expired</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
       `<tr><th>Missing</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
@@ -297,19 +296,18 @@ const drawDNSSEC = (() => {
         }
         if (i < 4) {
           // the valid signature tests
-          cols[i].className = got ? 'green' : 'red'
-          cols[i].innerHTML = got ? 'PASS' : 'FAIL'
           if (!got) {
             error = true
-            for (let j = i + 4; j < cols.length; j += 4) {
+            for (let j = i; j < cols.length; j += 4) {
               cols[j].className = 'yellow'
               cols[j].innerHTML = 'ERR'
             }
           }
           return
         }
-        cols[i].className = got && i % 4 === 3 ? 'yellow' : got ? 'red' : 'green'
-        cols[i].innerHTML = got && i % 4 === 3 ? 'FAIL*' : got ? 'FAIL' : 'PASS'
+        const col = cols[i - 4]
+        col.className = got && i % 4 === 3 ? 'yellow' : got ? 'red' : 'green'
+        col.innerHTML = got && i % 4 === 3 ? 'FAIL*' : got ? 'FAIL' : 'PASS'
         if (got && i % 4 === 3) {
           dnssecDiv.lastElementChild.classList.remove('hidden')
         }
