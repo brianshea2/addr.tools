@@ -272,7 +272,7 @@ const drawDNSSEC = (() => {
       '<th>ECDSA <span class="nowrap">P-256</span></th>' +
       '<th>ECDSA <span class="nowrap">P-384</span></th>' +
       '<th>Ed25519</th>' +
-      '<th>MLDSA44*</th>' +
+      '<th>MLDSA44</th>' +
       '</tr></thead>' +
       '<tbody>' +
       `<tr><th>Valid</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
@@ -281,7 +281,7 @@ const drawDNSSEC = (() => {
       `<tr><th>Missing</th>${`<td class="pending">${'<span>.</span>'.repeat(3)}</td>`.repeat(4)}</tr>` +
       '</tbody>' +
       '</table></div>' +
-      '<div class="padleft-1">*MLDSA44 is a new signature algorithm not yet widely validated.</div>'
+      '<div class="hidden padleft-1">*MLDSA44 is a new signature algorithm not yet widely validated.</div>'
     const cols = dnssecDiv.getElementsByTagName('td')
     const makeStatus = (text, className) =>
       `<span class="${className}" title="Domain Name System Security Extensions\n\n${text}">DNSSEC</span>`
@@ -308,7 +308,10 @@ const drawDNSSEC = (() => {
           return
         }
         cols[i].className = got && i % 4 === 3 ? 'yellow' : got ? 'red' : 'green'
-        cols[i].innerHTML = got ? 'FAIL' : 'PASS'
+        cols[i].innerHTML = got && i % 4 === 3 ? 'FAIL*' : got ? 'FAIL' : 'PASS'
+        if (got && i % 4 === 3) {
+          dnssecDiv.lastElementChild.classList.remove('hidden')
+        }
         if (got && i % 4 !== 3) {
           fail = true
         }

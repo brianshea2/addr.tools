@@ -133,6 +133,9 @@ ul.options li > span:nth-child(2)::before {
     padding-left: 2ch;
   }
 }
+.hidden {
+  display: none !important;
+}
 .bold, strong {
   font-weight: bold;
 }
@@ -242,9 +245,6 @@ body:not(:has(> .status)) .content-inner {
   display: flex;
   flex-direction: column;
   gap: 1.3em;
-}
-.section.hidden {
-  display: none;
 }
 .section :is(h2, h3, .title, .subtitle) {
   margin-bottom: -1.3em;
