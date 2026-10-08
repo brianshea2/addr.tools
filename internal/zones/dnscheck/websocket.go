@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/brianshea2/addr.tools/internal/dnsutil"
 	"github.com/gorilla/websocket"
 	"github.com/miekg/dns"
 )
@@ -49,6 +50,8 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 		TLSServerName         string `json:"tlsServerName,omitempty"`
 		TLSNegotiatedProtocol string `json:"tlsNegotiatedProtocol,omitempty"`
 		TLSDidResume          bool   `json:"tlsDidResume,omitempty"`
+		QUICVersion           string `json:"quicVersion,omitempty"`
+		Used0RTT              bool   `json:"used0RTT,omitempty"`
 	}
 	r.Time = msg.time
 	r.Proto = msg.proto
@@ -84,6 +87,12 @@ func (msg *WebsocketWatcherMessage) MarshalJSON() ([]byte, error) {
 		r.TLSDidResume = msg.cstate.DidResume
 		if msg.cstate.CurveID != 0 {
 			r.TLSNamedGroup = msg.cstate.CurveID.String()
+		}
+		if msg.proto == dnsutil.ProtoQUIC {
+			// hack: QUIC version stored in TLSUnique by QUICStreamListener
+			r.QUICVersion = string(msg.cstate.TLSUnique)
+			// hack: Used0RTT stored in NegotiatedProtocolIsMutual by QUICStreamListener
+			r.Used0RTT = msg.cstate.NegotiatedProtocolIsMutual
 		}
 	}
 	return json.Marshal(r)

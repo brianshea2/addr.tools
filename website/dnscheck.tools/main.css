@@ -126,7 +126,7 @@ ul.options li > span:nth-child(2)::before {
 @media (min-width: 768px) {
   ul.options li {
     display: grid;
-    grid-template-columns: 1fr 4fr;
+    grid-template-columns: 2fr 5fr;
     gap: 4ch;
   }
   ul.options li > span:nth-child(2)::before {

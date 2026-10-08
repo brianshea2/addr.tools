@@ -3,6 +3,7 @@ package myaddr
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -233,7 +234,7 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 			}
 			return
 		}
-		if len(key) != 64 {
+		if len(key) != 43 && len(key) != 64 {
 			http.Error(w, "invalid value for \"key\"", http.StatusBadRequest)
 			return
 		}
@@ -375,13 +376,8 @@ func (h *RegistrationHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		}
 		// add registration
 		keyBytes := make([]byte, 32)
-		_, err = rand.Read(keyBytes)
-		if err != nil {
-			log.Printf("[error] myaddr.RegistrationHandler.ServeHTTP: generate key: %v", err)
-			http.Error(w, "server error", http.StatusInternalServerError)
-			return
-		}
-		key := fmt.Sprintf("%x", keyBytes)
+		rand.Read(keyBytes)
+		key := base64.RawURLEncoding.EncodeToString(keyBytes)
 		hash := fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
 		err = UpdateRegistration(hash, name, h.DataStore)
 		if err != nil {
@@ -436,7 +432,7 @@ func (h *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	}
-	if len(key) != 64 {
+	if len(key) != 43 && len(key) != 64 {
 		http.Error(w, "invalid value for \"key\"", http.StatusBadRequest)
 		return
 	}

@@ -77,12 +77,23 @@
         }).then(handleSuccess, handleError)
       }
     })
+    const showButton = document.getElementById('show-button')
+    showButton.addEventListener('click', () => {
+      const keyInput = document.getElementById('key-input')
+      if (keyInput.type === 'password') {
+        keyInput.type = 'text'
+        showButton.firstElementChild.innerHTML = 'Hide'
+      } else {
+        keyInput.type = 'password'
+        showButton.firstElementChild.innerHTML = 'Show'
+      }
+    })
     const copyButton = document.getElementById('copy-button')
     copyButton.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(document.getElementById('key-input').value)
-        copyButton.innerHTML = 'Copied!'
-        setTimeout(() => { copyButton.innerHTML = 'Copy' }, 800)
+        copyButton.firstElementChild.innerHTML = 'Copied'
+        setTimeout(() => { copyButton.firstElementChild.innerHTML = 'Copy' }, 800)
       } catch (e) {
         console.error(e)
       }
@@ -151,8 +162,13 @@
       <div class="card-body">
         <label for="key-input" class="form-label">Your secret key</label>
         <div class="input-group">
-          <input type="text" class="form-control" id="key-input" readonly>
-          <button class="btn btn-outline-secondary" style="width: 6rem;" type="button" id="copy-button">Copy</button>
+          <input type="password" class="form-control" id="key-input" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="show-button">
+            <span style="display: block; width: 6ch;">Show</span>
+          </button>
+          <button class="btn btn-outline-secondary" type="button" id="copy-button">
+            <span style="display: block; width: 6ch;">Copy</span>
+          </button>
         </div>
         <div class="form-text">
           Save your secret key now. Once you leave this page, it is not possible to recover.

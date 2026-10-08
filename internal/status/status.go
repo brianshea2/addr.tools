@@ -79,5 +79,5 @@ func NewUptimeProvider() *UptimeProvider {
 }
 
 func (p *UptimeProvider) GetStatus() []Status {
-	return []Status{{"uptime", time.Since(p.boot).Truncate(time.Second).String()}}
+	return []Status{{"uptime", time.Since(p.boot).Truncate(time.Millisecond).String()}}
 }

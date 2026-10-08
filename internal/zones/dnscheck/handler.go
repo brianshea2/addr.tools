@@ -452,7 +452,7 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			port = a.Port
 		}
 		txts := make([]string, 2, 5)
-		txts[0] = fmt.Sprintf("FROM: %s#%d", ip, port)
+		txts[0] = fmt.Sprintf("FROM: %s#%d (%s)", ip, port, proto)
 		if h.IPInfoClient != nil {
 			info, err := h.IPInfoClient.GetIPInfo(ip)
 			if err != nil {
@@ -460,14 +460,13 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 			}
 			if info != nil {
 				if len(info.Org) > 0 {
-					txts[0] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(info.Org))
+					txts[0] += fmt.Sprintf(" - %s", dnsutil.ToPrintableAscii(info.Org))
 				}
 				if geo := info.GeoString(); len(geo) > 0 {
-					txts[0] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(geo))
+					txts[0] += fmt.Sprintf(" - %s", dnsutil.ToPrintableAscii(geo))
 				}
 			}
 		}
-		txts[0] += fmt.Sprintf(" (%s)", proto)
 		txts[1] = fmt.Sprintf("ID: %d", req.Id)
 		if opt := req.IsEdns0(); opt != nil {
 			var flags string
@@ -491,10 +490,10 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 						}
 						if info != nil {
 							if len(info.Org) > 0 {
-								txts[3] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(info.Org))
+								txts[3] += fmt.Sprintf(" - %s", dnsutil.ToPrintableAscii(info.Org))
 							}
 							if geo := info.GeoString(); len(geo) > 0 {
-								txts[3] += fmt.Sprintf(" (%s)", dnsutil.ToPrintableAscii(geo))
+								txts[3] += fmt.Sprintf(" - %s", dnsutil.ToPrintableAscii(geo))
 							}
 						}
 					}
@@ -504,14 +503,20 @@ func (h *DnscheckHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		}
 		if cs := w.(dns.ConnectionStater).ConnectionState(); cs != nil {
 			tlsVersion := strings.ReplaceAll(tls.VersionName(cs.Version), " ", "")
+			var used0RTT bool
 			if proto == dnsutil.ProtoQUIC {
 				// hack: QUIC version stored in TLSUnique by QUICStreamListener
-				txts = append(txts, fmt.Sprintf("QUIC: (%s) (%s) (%s) (%s)", cs.TLSUnique, tlsVersion, cs.CurveID, tls.CipherSuiteName(cs.CipherSuite)))
+				txts = append(txts, fmt.Sprintf("QUIC: (%s)-(%s)-(%s)-(%s)", cs.TLSUnique, tlsVersion, cs.CurveID, tls.CipherSuiteName(cs.CipherSuite)))
+				// hack: Used0RTT stored in NegotiatedProtocolIsMutual by QUICStreamListener
+				used0RTT = cs.NegotiatedProtocolIsMutual
 			} else {
-				txts = append(txts, fmt.Sprintf("TLS: (%s) (%s) (%s)", tlsVersion, cs.CurveID, tls.CipherSuiteName(cs.CipherSuite)))
+				txts = append(txts, fmt.Sprintf("TLS: (%s)-(%s)-(%s)", tlsVersion, cs.CurveID, tls.CipherSuiteName(cs.CipherSuite)))
 			}
 			if cs.DidResume {
-				txts[len(txts)-1] += " (Resumed)"
+				txts[len(txts)-1] += " resumed"
+			}
+			if used0RTT {
+				txts[len(txts)-1] += " 0-rtt"
 			}
 		}
 		for _, txt := range txts {

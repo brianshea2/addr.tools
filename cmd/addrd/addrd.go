@@ -38,6 +38,6 @@ func main() {
 		keygen(keygenZone, uint8(keygenAlg))
 	}
 	// load config, go!
-	config := config.ParseConfig(configPath)
-	config.Run()
+	c := config.ParseConfig(configPath)
+	c.Run()
 }

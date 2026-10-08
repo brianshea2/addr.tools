@@ -19,7 +19,7 @@ type HTTPHandler struct {
 }
 
 func IsValidChallenge(s string) bool {
-	if len(s) < 1 || len(s) > 255 {
+	if len(s) != 43 {
 		return false
 	}
 	var c byte

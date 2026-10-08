@@ -2,6 +2,9 @@ package config
 
 import (
 	"bufio"
+	"context"
+	"crypto/hkdf"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -13,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -44,6 +48,8 @@ type Config struct {
 	ValkeyURL             string
 	TLSCertPath           string
 	TLSKeyPath            string
+	TLSTicketKeysPath     string
+	QUICMasterSecret      string
 	LookupUpstream        string
 	IPInfoBaseURL         string
 	MyaddrTurnstileSecret string
@@ -91,6 +97,20 @@ func ParsePrivateKey(s string) []byte {
 }
 
 func (config *Config) Run() {
+	var shutdownWaitGroup sync.WaitGroup
+	defer func() {
+		graceful := make(chan struct{})
+		go func() {
+			shutdownWaitGroup.Wait()
+			close(graceful)
+		}()
+		select {
+		case <-graceful:
+		case <-time.After(3 * time.Second):
+			log.Print("[warn] graceful shutdown timeout")
+		}
+	}()
+
 	// init status handler, uptime
 	statusHandler := new(status.StatusHandler)
 	statusHandler.Add(status.NewUptimeProvider())
@@ -116,7 +136,14 @@ func (config *Config) Run() {
 		Next:   dns.DefaultServeMux,
 	}
 	statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
-		return []status.Status{{Title: "dns requests", Value: strconv.FormatUint(dnsHandler.RequestCount(), 10)}}
+		return []status.Status{
+			{Title: "net.ipv4", Value: strconv.FormatUint(dnsHandler.IP4Count(), 10)},
+			{Title: "net.ipv6", Value: strconv.FormatUint(dnsHandler.IP6Count(), 10)},
+			{Title: "proto.udp", Value: strconv.FormatUint(dnsHandler.UDPCount(), 10)},
+			{Title: "proto.tcp", Value: strconv.FormatUint(dnsHandler.TCPCount(), 10)},
+			{Title: "proto.tls", Value: strconv.FormatUint(dnsHandler.TLSCount(), 10)},
+			{Title: "proto.quic", Value: strconv.FormatUint(dnsHandler.QUICCount(), 10)},
+		}
 	}))
 
 	// init valkey client
@@ -256,93 +283,192 @@ func (config *Config) Run() {
 	}
 
 	// start dns listeners
+	var udpServer *dns.Server
+	defer func() {
+		shutdownWaitGroup.Go(func() {
+			udpServer.Shutdown()
+			log.Print("[info] dns udp server shutdown complete")
+		})
+	}()
 	go func() {
 		log.Print("[info] starting dns udp listener")
-		log.Fatal((&dns.Server{
+		udpServer = &dns.Server{
 			Addr:          ":53",
 			Net:           "udp",
 			MsgAcceptFunc: dnsutil.MsgAcceptFunc,
 			Handler:       dnsHandler,
-		}).ListenAndServe())
+		}
+		err := udpServer.ListenAndServe()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Print("[info] stopped dns udp listener")
+	}()
+	var tcpServer *dns.Server
+	defer func() {
+		shutdownWaitGroup.Go(func() {
+			tcpServer.Shutdown()
+			log.Print("[info] dns tcp server shutdown complete")
+		})
 	}()
 	go func() {
 		log.Print("[info] starting dns tcp listener")
-		log.Fatal((&dns.Server{
+		tcpServer = &dns.Server{
 			Addr:          ":53",
 			Net:           "tcp",
 			MsgAcceptFunc: dnsutil.MsgAcceptFunc,
 			Handler:       dnsHandler,
-		}).ListenAndServe())
+		}
+		err := tcpServer.ListenAndServe()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Print("[info] stopped dns tcp listener")
 	}()
 	if len(config.TLSCertPath) > 0 && len(config.TLSKeyPath) > 0 {
 		cert, err := tls.LoadX509KeyPair(config.TLSCertPath, config.TLSKeyPath)
 		if err != nil {
 			log.Fatal(err)
 		}
+		var ticketKeyMgr *SessionTicketKeyManager
+		if len(config.TLSTicketKeysPath) > 0 {
+			ticketKeyMgr, err = NewSessionTicketKeyManager(config.TLSTicketKeysPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		var dotServer *dns.Server
+		defer func() {
+			shutdownWaitGroup.Go(func() {
+				dotServer.Shutdown()
+				log.Print("[info] dns over tls server shutdown complete")
+			})
+		}()
 		go func() {
 			log.Print("[info] starting dns over tls listener")
-			log.Fatal((&dns.Server{
+			tlsConfig := &tls.Config{
+				NextProtos:   []string{"dot"},
+				Certificates: []tls.Certificate{cert},
+				MinVersion:   tls.VersionTLS12,
+				CurvePreferences: []tls.CurveID{
+					tls.X25519MLKEM768,
+					tls.SecP256r1MLKEM768,
+					tls.SecP384r1MLKEM1024,
+					tls.X25519,
+					tls.CurveP256,
+					tls.CurveP384,
+				},
+				CipherSuites: []uint16{
+					tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+					tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+					tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+					tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+					tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+					tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+				},
+			}
+			if ticketKeyMgr != nil {
+				ticketKeyMgr.AddConfig(tlsConfig, "dot")
+			}
+			dotServer = &dns.Server{
 				Addr:          ":853",
 				Net:           "tcp-tls",
 				MsgAcceptFunc: dnsutil.MsgAcceptFunc,
 				Handler:       dnsHandler,
-				TLSConfig: &tls.Config{
-					NextProtos:   []string{"dot"},
-					Certificates: []tls.Certificate{cert},
-					MinVersion:   tls.VersionTLS12,
-					CurvePreferences: []tls.CurveID{
-						tls.X25519MLKEM768,
-						tls.X25519,
-						tls.CurveP256,
-						tls.CurveP384,
-					},
-					CipherSuites: []uint16{
-						tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-						tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-						tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-						tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-						tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-						tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-					},
-				},
-			}).ListenAndServe())
+				TLSConfig:     tlsConfig,
+			}
+			err := dotServer.ListenAndServe()
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Print("[info] stopped dns over tls listener")
+		}()
+		var doqServer *dns.Server
+		defer func() {
+			shutdownWaitGroup.Go(func() {
+				doqServer.Shutdown()
+				log.Print("[info] dns over quic server shutdown complete")
+			})
 		}()
 		go func() {
 			log.Print("[info] starting dns over quic listener")
+			tlsConfig := &tls.Config{
+				NextProtos:   []string{"doq"},
+				Certificates: []tls.Certificate{cert},
+				MinVersion:   tls.VersionTLS13,
+				CurvePreferences: []tls.CurveID{
+					tls.X25519MLKEM768,
+					tls.SecP256r1MLKEM768,
+					tls.SecP384r1MLKEM1024,
+					tls.X25519,
+					tls.CurveP256,
+					tls.CurveP384,
+				},
+			}
+			if ticketKeyMgr != nil {
+				ticketKeyMgr.AddConfig(tlsConfig, "doq")
+			}
+			quicConfig := &quic.Config{
+				MaxIncomingStreams:    128,
+				MaxIncomingUniStreams: -1, // disabled
+				Allow0RTT:             true,
+			}
+			var statelessResetKey *quic.StatelessResetKey
+			var tokenGeneratorKey *quic.TokenGeneratorKey
+			if len(config.QUICMasterSecret) > 0 {
+				secret, err := base64.StdEncoding.DecodeString(config.QUICMasterSecret)
+				if err != nil {
+					log.Fatal(err)
+				}
+				key1, err := hkdf.Key(sha256.New, secret, nil, "stateless-reset-key", 32)
+				if err != nil {
+					log.Fatal(err)
+				}
+				statelessResetKey = (*quic.StatelessResetKey)(key1)
+				key2, err := hkdf.Key(sha256.New, secret, nil, "token-generator-key", 32)
+				if err != nil {
+					log.Fatal(err)
+				}
+				tokenGeneratorKey = (*quic.TokenGeneratorKey)(key2)
+			}
 			udpConn, err := net.ListenUDP("udp", &net.UDPAddr{Port: 853})
 			if err != nil {
 				log.Fatal(err)
 			}
-			quicListener, err := (&quic.Transport{
-				Conn: udpConn,
-			}).Listen(
-				&tls.Config{
-					NextProtos:   []string{"doq"},
-					Certificates: []tls.Certificate{cert},
-					MinVersion:   tls.VersionTLS13,
-					CurvePreferences: []tls.CurveID{
-						tls.X25519MLKEM768,
-						tls.X25519,
-						tls.CurveP256,
-						tls.CurveP384,
-					},
-				},
-				&quic.Config{},
-			)
+			retryLimiter := rate.NewLimiter(rate.Limit(100), 100)
+			quicTransport := &quic.Transport{
+				Conn:                udpConn,
+				StatelessResetKey:   statelessResetKey,
+				TokenGeneratorKey:   tokenGeneratorKey,
+				VerifySourceAddress: func(_ net.Addr) bool { return !retryLimiter.Allow() },
+			}
+			quicListener, err := quicTransport.ListenEarly(tlsConfig, quicConfig)
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Fatal((&dns.Server{
+			doqServer = &dns.Server{
 				Listener:      netutil.NewQUICStreamListener(quicListener),
 				MaxTCPQueries: 1, // max requests per quic stream
 				MsgAcceptFunc: dnsutil.MsgAcceptFunc,
 				Handler:       dnsHandler,
-			}).ActivateAndServe())
+			}
+			err = doqServer.ActivateAndServe()
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Print("[info] stopped dns over quic listener")
 		}()
 	}
 
 	// start http socket listener
 	if len(config.HTTPSocketPath) > 0 {
+		var httpServer *http.Server
+		defer func() {
+			shutdownWaitGroup.Go(func() {
+				httpServer.Shutdown(context.Background())
+				log.Print("[info] http server shutdown complete")
+			})
+		}()
 		go func() {
 			log.Print("[info] starting http socket listener")
 			os.Remove(config.HTTPSocketPath)
@@ -354,7 +480,12 @@ func (config *Config) Run() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Fatal(new(http.Server).Serve(ln))
+			httpServer = new(http.Server)
+			err = httpServer.Serve(ln)
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Fatal(err)
+			}
+			log.Print("[info] stopped http socket listener")
 		}()
 	}
 
@@ -362,5 +493,4 @@ func (config *Config) Run() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 	<-terminate
-	log.Print("[info] exiting")
 }

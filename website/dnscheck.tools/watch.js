@@ -6,7 +6,7 @@ import { encode, fetchOk }      from 'https://addr.tools/js/util'
 const clientId = window.location.pathname.match(/^\/watch\/([0-9a-f]{1,8})$/)?.[1] ?? Math.floor(Math.random() * 0xffffffff).toString(16)
 history.replaceState(null, '', `/watch/${clientId}`)
 document.title = `watch/${clientId}`
-document.getElementById('clientid').innerHTML = clientId
+document.getElementById('clientid').innerHTML = `/${clientId}`
 
 // state
 const rdapClient = new RDAPClient()
@@ -17,15 +17,14 @@ let countdownId           // countdown timer `setInterval()` id
 let timer                 // current countdown value
 
 // commonly used elements
-const contentDiv   = document.getElementById('content')
 const requestsDiv  = document.getElementById('requests')
 const countSpan    = document.getElementById('count')
 const wsStatusSpan = document.getElementById('ws-status')
 const timerSpan    = document.getElementById('timer')
 
 // toggle autoscroll based on user scroll position
-contentDiv.addEventListener('scroll', () => {
-  if (Math.abs(contentDiv.scrollTop + contentDiv.clientHeight - contentDiv.scrollHeight) < 10) {
+window.addEventListener('scroll', () => {
+  if (Math.abs(window.scrollY + document.documentElement.clientHeight - document.documentElement.scrollHeight) < 10) {
     autoscroll = true
   } else {
     autoscroll = false
@@ -81,17 +80,25 @@ const handleMessage = ({ data }) => {
   let html = `<div class="dns-request-wrapper"><span>#${count}</span><div class="dns-request">${encode(request.msgText).replace(/\n/g, '<br>')}` +
     `<br>;; CLIENT: ${ipLink}#${request.remotePort}<span id="ptr-${tmpId}">(<i>pending</i>)</span>` +
     `<span id="rdap-${tmpId}"> (<i>pending</i>)</span> (${request.proto})`
-  if (request.tlsVersion) {
-    html += `<br>;; TLS: (${request.tlsVersion.replaceAll(' ', '')}) (${request.tlsNamedGroup}) (${request.tlsCipherSuite})`
+  if (request.proto === 'TLS' || request.proto === 'QUIC') {
+    html += `<br>;; ${request.proto}: (${[
+      request.quicVersion,
+      request.tlsVersion.replaceAll(' ', ''),
+      request.tlsNamedGroup,
+      request.tlsCipherSuite,
+    ].filter(Boolean).join(')-(')})`
     if (request.tlsDidResume) {
-      html += ' (Resumed)'
+      html += ' resumed'
+    }
+    if (request.used0RTT) {
+      html += ' 0-rtt'
     }
   }
   html += `<br>;; WHEN: ${new Date(request.time * 1000).toLocaleString()}</div></div>`
   requestsDiv.innerHTML += html
   // autoscroll
   if (autoscroll) {
-    contentDiv.scrollTo(contentDiv.scrollLeft, contentDiv.scrollHeight)
+    window.scroll(window.scrollX, document.documentElement.scrollHeight)
   }
   // get PTR, update when available
   getPtr(request.remoteIp).catch(() => {}).then(ptr => {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"sync"
 
 	"github.com/quic-go/quic-go"
 )
@@ -21,83 +22,130 @@ func (c *QUICStreamConn) LocalAddr() net.Addr                  { return c.localA
 func (c *QUICStreamConn) RemoteAddr() net.Addr                 { return c.remoteAddr }
 func (c *QUICStreamConn) ConnectionState() tls.ConnectionState { return c.connectionState }
 
+var _ QUICListener = (*quic.Listener)(nil)
+var _ QUICListener = (*quic.EarlyListener)(nil)
+
+type QUICListener interface {
+	Accept(ctx context.Context) (*quic.Conn, error)
+	Addr() net.Addr
+	Close() error
+}
+
 var _ net.Listener = (*QUICStreamListener)(nil)
 
 type QUICStreamListener struct {
-	listener *quic.Listener
-	ch       chan *QUICStreamConn
-	ctx      context.Context
-	cancel   context.CancelCauseFunc
+	ql     QUICListener
+	ch     chan *QUICStreamConn
+	ctx    context.Context
+	cancel context.CancelCauseFunc
+	closed chan struct{}
+	conns  map[*quic.Conn]struct{}
+	mu     sync.Mutex
 }
 
-func NewQUICStreamListener(listener *quic.Listener) *QUICStreamListener {
+func NewQUICStreamListener(quicListener QUICListener) *QUICStreamListener {
 	ctx, cancel := context.WithCancelCause(context.Background())
-	l := &QUICStreamListener{
-		listener: listener,
-		ch:       make(chan *QUICStreamConn),
-		ctx:      ctx,
-		cancel:   cancel,
+	sl := &QUICStreamListener{
+		ql:     quicListener,
+		ch:     make(chan *QUICStreamConn),
+		ctx:    ctx,
+		cancel: cancel,
+		closed: make(chan struct{}, 1),
+		conns:  make(map[*quic.Conn]struct{}),
 	}
-	go l.acceptConns()
-	return l
+	go func() {
+		sl.acceptConns()
+		sl.closed <- struct{}{}
+		close(sl.closed)
+	}()
+	return sl
 }
 
-func (l *QUICStreamListener) acceptConns() {
+func (sl *QUICStreamListener) acceptConns() {
 	for {
-		conn, err := l.listener.Accept(l.ctx)
+		conn, err := sl.ql.Accept(context.Background())
 		if err != nil {
-			l.cancel(err)
+			sl.ql.Close()
+			sl.cancel(err)
 			return
 		}
-		go l.acceptStreams(conn)
+		sl.mu.Lock()
+		sl.conns[conn] = struct{}{}
+		sl.mu.Unlock()
+		select {
+		case <-sl.ctx.Done():
+		default:
+			go func() {
+				sl.acceptStreams(conn)
+				sl.mu.Lock()
+				delete(sl.conns, conn)
+				sl.mu.Unlock()
+			}()
+		}
 	}
 }
 
-func (l *QUICStreamListener) acceptStreams(conn *quic.Conn) {
+func (sl *QUICStreamListener) acceptStreams(conn *quic.Conn) {
 	localAddr := conn.LocalAddr()
 	remoteAddr := conn.RemoteAddr()
 	connectionState := conn.ConnectionState()
 	// hack: use TLSUnique, nil for TLS1.3, to store QUIC version
-	connectionState.TLS.TLSUnique = []byte(connectionState.Version.String())
+	switch connectionState.Version {
+	case quic.Version1:
+		connectionState.TLS.TLSUnique = []byte("QUICv1")
+	case quic.Version2:
+		connectionState.TLS.TLSUnique = []byte("QUICv2")
+	default:
+		connectionState.TLS.TLSUnique = []byte(connectionState.Version.String())
+	}
+	// hack: use NegotiatedProtocolIsMutual, deprecated, to store Used0RTT
+	connectionState.TLS.NegotiatedProtocolIsMutual = connectionState.Used0RTT
 	for {
-		stream, err := conn.AcceptStream(l.ctx)
+		stream, err := conn.AcceptStream(context.Background())
 		if err != nil {
 			return
 		}
 		select {
-		case <-l.ctx.Done():
-			stream.Close()
-			return
-		default:
-		}
-		select {
-		case l.ch <- &QUICStreamConn{stream, localAddr, remoteAddr, connectionState.TLS}:
-		case <-l.ctx.Done():
-			stream.Close()
+		case sl.ch <- &QUICStreamConn{stream, localAddr, remoteAddr, connectionState.TLS}:
+		case <-sl.ctx.Done():
 			return
 		}
 	}
 }
 
-func (l *QUICStreamListener) Accept() (net.Conn, error) {
+func (sl *QUICStreamListener) Accept() (net.Conn, error) {
 	select {
-	case <-l.ctx.Done():
-		return nil, context.Cause(l.ctx)
+	case <-sl.ctx.Done():
+		return nil, context.Cause(sl.ctx)
 	default:
 	}
 	select {
-	case streamConn := <-l.ch:
+	case streamConn := <-sl.ch:
 		return streamConn, nil
-	case <-l.ctx.Done():
-		return nil, context.Cause(l.ctx)
+	case <-sl.ctx.Done():
+		return nil, context.Cause(sl.ctx)
 	}
 }
 
-func (l *QUICStreamListener) Close() error {
-	l.cancel(net.ErrClosed)
-	return l.listener.Close()
+func (sl *QUICStreamListener) Close() error {
+	sl.ql.Close()
+	sl.cancel(net.ErrClosed)
+	_, ok := <-sl.closed
+	if ok {
+		var wg sync.WaitGroup
+		sl.mu.Lock()
+		for conn := range sl.conns {
+			wg.Go(func() {
+				conn.CloseWithError(0, "going away")
+			})
+		}
+		clear(sl.conns)
+		sl.mu.Unlock()
+		wg.Wait()
+	}
+	return nil
 }
 
-func (l *QUICStreamListener) Addr() net.Addr {
-	return l.listener.Addr()
+func (sl *QUICStreamListener) Addr() net.Addr {
+	return sl.ql.Addr()
 }

@@ -15,21 +15,16 @@
 <h2>SYNOPSIS</h2>
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl 'https://challenges.addr.tools/?secret=1SuperSecret&amp;txt=foo'</kbd>
+    <i>$</i> <kbd>example="LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564"</kbd>
+    <i>$</i> <kbd>curl -d "secret=1SuperSecret" -d "txt=$example" https://challenges.addr.tools</kbd>
     OK
   </samp>
 
 <p>
   <samp class="pre-line break">
-    <i>$</i> <kbd>curl -d 'secret=1SuperSecret' -d 'txt=foo' https://challenges.addr.tools</kbd>
-    OK
-  </samp>
-
-<p>
-  <samp class="pre-line break">
-    <i>$</i> <kbd>sha224=$(echo -n '1SuperSecret' | shasum -a 224 | cut -c 1-56)</kbd>
+    <i>$</i> <kbd>sha224=$(echo -n "1SuperSecret" | shasum -a 224 | cut -c 1-56)</kbd>
     <i>$</i> <kbd>dig txt +short $sha224.challenges.addr.tools</kbd>
-    "foo"
+    "LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564"
   </samp>
 
 <h2>DESCRIPTION</h2>
@@ -39,13 +34,13 @@
 
 <h2>USAGE</h2>
 <p>
-  Let <var>challenge</var> be a dns-01 ACME challenge validation string, <var>secret</var> be a strong password, and
+  Let <var>txt</var> be a dns-01 ACME challenge validation string, <var>secret</var> be a strong password, and
   <var>sha224</var> be the SHA-224 hash of <var>secret</var>.
 
 <p>
   A GET, POST, or PUT request to <code>https://challenges.addr.tools</code> with <code>secret=<var>secret</var></code>
-  and <code>txt=<var>challenge</var></code> specified as URL query parameters or, alternatively for POST and PUT
-  requests, as form values will temporarily add <var>challenge</var> as a TXT record to the domain
+  and <code>txt=<var>txt</var></code> specified as URL query parameters or, alternatively for POST and PUT requests, as
+  form values will temporarily add <var>txt</var> as a TXT record to the domain
   <code><var>sha224</var>.challenges.addr.tools</code>. Responds with body <code>OK</code> and status code
   <code>201</code> on success.
 
@@ -87,7 +82,7 @@
   <samp class="pre-line break">
     <i>$</i> <kbd>certbot certonly \
     --manual \
-    --manual-auth-hook 'curl -fsS "https://challenges.addr.tools/?secret=1SuperSecret&amp;txt=$CERTBOT_VALIDATION"' \
+    --manual-auth-hook 'curl -fsS -d "secret=1SuperSecret" -d "txt=$CERTBOT_VALIDATION" https://challenges.addr.tools' \
     --preferred-challenges dns \
     -d example.com \
     -d '*.example.com'</kbd>

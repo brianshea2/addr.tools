@@ -50,10 +50,9 @@ footer {
 }
 body > div {
   background-color: inherit;
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  margin-top: 2em;
-  padding: 1em 1em 2em 1em;
+  border-top: 1px solid var(--border-color);
+  margin-top: 2.6em;
+  padding: 0 1em;
 }
 h1 {
   font-size: 1.2em;
@@ -72,7 +71,7 @@ h2 {
   margin: 0;
   padding: 0 3px;
   position: relative;
-  top: -1.65em;
+  top: -0.65em;
   left: -3px;
   white-space: nowrap;
 }

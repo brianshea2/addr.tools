@@ -7,7 +7,6 @@ const domainNamePattern = '(?:[0-9a-z_](?:[0-9a-z_-]*[0-9a-z])?\\.)*[0-9a-z](?:[
 const ipOrCidrPattern = `${IPAddr.v4Pattern}(?:/(?:3[0-2]|[1-2][0-9]|[0-9]))?|${IPAddr.v6Pattern}(?:/(?:12[0-8]|1[0-1][0-9]|[1-9][0-9]|[0-9]))?`
 const domainNameRegex = new RegExp(`^${domainNamePattern}$`, 'i')
 const infoRegex = new RegExp(`(?:(${domainNamePattern})|(^|[^0-9a-z.])(${ipOrCidrPattern})(?=[^0-9a-z.]|$))`, 'gi')
-const footer = `<footer>// <a href="https://info.addr.tools">info.addr.tools</a></footer>`
 
 const jCardFormatter = jCard => jCard[1].reduce((out, prop) => {
   if (prop[0] !== 'version') {
@@ -115,7 +114,7 @@ const loadInfo = async () => {
 
   if (query === null) {
     document.title = 'info.addr.tools'
-    document.body.innerHTML = `<div><h2>Error</h2><div class="error">Invalid address</div></div>${footer}`
+    document.body.innerHTML = `<div><h2>Error</h2><div class="error">Invalid address</div></div>`
     return
   }
 
@@ -124,13 +123,12 @@ const loadInfo = async () => {
   document.body.innerHTML = `<header><h1>${htmlify(name, false)}</h1></header>`
   if (!(query instanceof IPRange)) {
     document.body.innerHTML += `<div id="dns-container">` +
-      `<h2><span title="Domain Name System">DNS</span> records</h2>` +
+      `<h2><span title="Domain Name System">DNS</span></h2>` +
       `<div id="dns-data">loading...</div></div>`
   }
   document.body.innerHTML += `<div id="rdap-container">` +
-    `<h2><span title="Registration Data Access Protocol">RDAP</span> data</h2>` +
+    `<h2><span title="Registration Data Access Protocol">RDAP</span></h2>` +
     `<div id="rdap-data">loading...</div></div>`
-  document.body.innerHTML += footer
 
   if (query instanceof IPAddr) {
     geoLookup(query, { signal }).then(geo => {
