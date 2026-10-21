@@ -279,7 +279,15 @@ func (config *Config) Run() {
 
 	// set dns lookup handler
 	if len(config.LookupUpstream) > 0 {
-		http.Handle("/dns/{name}/{type}", &dns2json.LookupHandler{Upstream: config.LookupUpstream})
+		lookupHandler := &dns2json.LookupHandler{Upstream: config.LookupUpstream}
+		http.Handle("/dns/{name}/{type}", lookupHandler)
+		statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
+			return []status.Status{
+				{Title: "cache.hits", Value: strconv.FormatUint(lookupHandler.HitCount(), 10)},
+				{Title: "cache.fwds", Value: strconv.FormatUint(lookupHandler.MissCount(), 10)},
+				{Title: "cache.size", Value: strconv.Itoa(lookupHandler.CacheSize())},
+			}
+		}))
 	}
 
 	// start dns listeners
