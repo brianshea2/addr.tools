@@ -20,9 +20,8 @@ const (
 	LookupTimeout        = 5 * time.Second
 	LookupResponseMaxTtl = 86400
 	LookupResponseMinTtl = 1
-	MaxCacheLength       = 10000
+	MaxCacheLength       = 100000
 	MaxUdpMsgSize        = 1400
-	PruneInterval        = 61 * time.Second
 )
 
 type Record struct {
@@ -86,7 +85,6 @@ func (h *LookupHandler) Lookup(qname string, qtype uint16) (resp *Response, ttl 
 
 	if h.cache == nil {
 		h.cache = make(map[string]*cacheEntry)
-		go h.pruneLoop()
 	}
 
 	var cached *cacheEntry
@@ -189,21 +187,6 @@ func (h *LookupHandler) lookup(qname string, qtype uint16) (resp *Response, ttl 
 		ttl = LookupResponseMinTtl
 	}
 	return
-}
-
-func (h *LookupHandler) pruneLoop() {
-	for {
-		time.Sleep(PruneInterval)
-		h.mu.Lock()
-		now := time.Now()
-		for k, v := range h.cache {
-			if now.Compare(v.expires) >= 0 {
-				delete(h.cache, k)
-				h.removeFromRecentList(v)
-			}
-		}
-		h.mu.Unlock()
-	}
 }
 
 func (h *LookupHandler) removeFromRecentList(cached *cacheEntry) {
