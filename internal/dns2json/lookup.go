@@ -2,10 +2,13 @@ package dns2json
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
+	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,6 +24,16 @@ const (
 	MaxCacheLength       = 50000
 	MaxUdpMsgSize        = 1400
 )
+
+func isTimeout(err error) bool {
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return true
+	}
+	if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
+		return true
+	}
+	return false
+}
 
 type record struct {
 	Name string `json:"name"`
@@ -131,15 +144,19 @@ func (h *LookupHandler) evict() {
 
 func (h *LookupHandler) getOrAdd(key string) *cacheNode {
 	h.cacheMu.RLock()
-	node, hit := h.cache[key]
-	h.cacheMu.RUnlock()
 
-	if !hit {
-		h.cacheMu.Lock()
-		defer h.cacheMu.Unlock()
-		node, hit = h.cache[key]
+	node, hit := h.cache[key]
+	if hit {
+		defer h.cacheMu.RUnlock()
+		node.visited.Store(true)
+		return node
 	}
 
+	h.cacheMu.RUnlock()
+	h.cacheMu.Lock()
+	defer h.cacheMu.Unlock()
+
+	node, hit = h.cache[key]
 	if hit {
 		node.visited.Store(true)
 		return node
@@ -258,6 +275,10 @@ func (h *LookupHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	resp, hit, err := h.lookup(qname, qtype)
+	if err != nil && isTimeout(err) {
+		http.Error(w, "dns timeout", http.StatusGatewayTimeout)
+		return
+	}
 	if err != nil {
 		log.Printf("[error] dns2json.LookupHandler.ServeHTTP: %v", err)
 		http.Error(w, "server error", http.StatusInternalServerError)
