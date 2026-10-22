@@ -2,12 +2,10 @@ package dns2json
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,155 +18,211 @@ const (
 	LookupTimeout        = 5 * time.Second
 	LookupResponseMaxTtl = 86400
 	LookupResponseMinTtl = 1
-	MaxCacheLength       = 100000
+	MaxCacheLength       = 50000
 	MaxUdpMsgSize        = 1400
 )
 
-type Record struct {
+type record struct {
 	Name string `json:"name"`
 	Type uint16 `json:"type"`
 	Data string `json:"data"`
 }
 
-type Response struct {
+type response struct {
 	Status    int
-	Answer    []Record `json:",omitempty"`
-	Authority []Record `json:",omitempty"`
+	Answer    []record `json:",omitempty"`
+	Authority []record `json:",omitempty"`
+	expires   time.Time
 }
 
-type cacheEntry struct {
-	key     string
-	prev    *cacheEntry
-	next    *cacheEntry
-	expires time.Time
-	ready   chan struct{}
-	resp    *Response
-	err     error
+func (r *response) ok() bool {
+	return r.Status == dns.RcodeSuccess || r.Status == dns.RcodeNameError
 }
 
-func (c *cacheEntry) ttl() uint32 {
-	t := time.Until(c.expires)
+func (r *response) fresh() bool {
+	return time.Now().Before(r.expires)
+}
+
+func (r *response) ttl() uint32 {
+	t := time.Until(r.expires)
 	if t < 0 {
 		return 0
 	}
 	return uint32(math.Ceil(t.Seconds()))
 }
 
-func expires(ttl uint32) time.Time {
-	return time.Now().Add(time.Duration(ttl) * time.Second)
+func (r *response) setTtl(ttl uint32) {
+	r.expires = time.Now().Add(time.Duration(ttl) * time.Second)
+}
+
+type cacheNode struct {
+	key string
+
+	visited atomic.Bool
+	prev    *cacheNode // must hold LookupHandler.cacheMu
+	next    *cacheNode // must hold LookupHandler.cacheMu
+
+	respMu sync.RWMutex
+	resp   *response // must hold respMu
+	err    error     // must hold respMu
 }
 
 type LookupHandler struct {
-	Upstream    string
-	cache       map[string]*cacheEntry
-	leastRecent *cacheEntry
-	mostRecent  *cacheEntry
-	mu          sync.Mutex
-	hitCount    atomic.Uint64
-	missCount   atomic.Uint64
+	Upstream string
+	hitCount atomic.Uint64
+	fwdCount atomic.Uint64
+
+	cacheMu sync.RWMutex
+	cache   map[string]*cacheNode // must hold cacheMu
+	head    *cacheNode            // must hold cacheMu
+	tail    *cacheNode            // must hold cacheMu
+	hand    *cacheNode            // must hold cacheMu
 }
 
-func (h *LookupHandler) HitCount() uint64  { return h.hitCount.Load() }
-func (h *LookupHandler) MissCount() uint64 { return h.missCount.Load() }
+func (h *LookupHandler) HitCount() uint64 { return h.hitCount.Load() }
+func (h *LookupHandler) FwdCount() uint64 { return h.fwdCount.Load() }
 
 func (h *LookupHandler) CacheSize() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.cacheMu.RLock()
+	defer h.cacheMu.RUnlock()
 	return len(h.cache)
 }
 
-func (h *LookupHandler) Lookup(qname string, qtype uint16) (resp *Response, ttl uint32, hit bool, err error) {
-	qname = dns.CanonicalName(qname)
-	key := fmt.Sprintf("%s:%d", qname, qtype)
-
-	h.mu.Lock()
-
+func (h *LookupHandler) add(node *cacheNode) {
 	if h.cache == nil {
-		h.cache = make(map[string]*cacheEntry)
+		h.cache = make(map[string]*cacheNode, MaxCacheLength)
 	}
-
-	var cached *cacheEntry
-	cached, hit = h.cache[key]
-
-	if !hit && len(h.cache) >= MaxCacheLength {
-		log.Printf("[warn] dns2json.LookupHandler.Lookup: at max cache size (%v)", len(h.cache))
-		delete(h.cache, h.leastRecent.key)
-		h.removeFromRecentList(h.leastRecent)
+	node.next = h.head
+	node.prev = nil
+	if h.head != nil {
+		h.head.prev = node
 	}
-
-	now := time.Now()
-	if hit {
-		h.removeFromRecentList(cached)   // to be re-added as mostRecent below
-		hit = now.Before(cached.expires) // check expiration
+	h.head = node
+	if h.tail == nil {
+		h.tail = node
 	}
-	if !hit {
-		cached = &cacheEntry{
-			key:     key,
-			expires: now.Add(LookupTimeout),
-			ready:   make(chan struct{}),
-		}
-		h.cache[key] = cached
-	}
-
-	if h.leastRecent == nil {
-		h.leastRecent = cached
-	}
-	if h.mostRecent != nil {
-		cached.prev = h.mostRecent
-		cached.prev.next = cached
-	}
-	h.mostRecent = cached
-
-	h.mu.Unlock()
-
-	if hit {
-		h.hitCount.Add(1)
-		<-cached.ready
-		resp, ttl, err = cached.resp, cached.ttl(), cached.err
-	} else {
-		h.missCount.Add(1)
-		resp, ttl, err = h.lookup(qname, qtype)
-		cached.resp, cached.expires, cached.err = resp, expires(ttl), err
-		close(cached.ready)
-	}
-
-	return
+	h.cache[node.key] = node
 }
 
-func (h *LookupHandler) lookup(qname string, qtype uint16) (resp *Response, ttl uint32, err error) {
+func (h *LookupHandler) evict() {
+	node := h.hand
+	if node == nil {
+		node = h.tail
+	}
+	for node.visited.CompareAndSwap(true, false) {
+		node = node.prev
+		if node == nil {
+			node = h.tail
+		}
+	}
+	h.hand = node.prev
+	if node.prev == nil {
+		h.head = node.next
+	} else {
+		node.prev.next = node.next
+	}
+	if node.next == nil {
+		h.tail = node.prev
+	} else {
+		node.next.prev = node.prev
+	}
+	delete(h.cache, node.key)
+}
+
+func (h *LookupHandler) getOrAdd(key string) *cacheNode {
+	h.cacheMu.RLock()
+	node, hit := h.cache[key]
+	h.cacheMu.RUnlock()
+
+	if !hit {
+		h.cacheMu.Lock()
+		defer h.cacheMu.Unlock()
+		node, hit = h.cache[key]
+	}
+
+	if hit {
+		node.visited.Store(true)
+		return node
+	}
+
+	if len(h.cache) >= MaxCacheLength {
+		h.evict()
+	}
+
+	node = &cacheNode{key: key}
+	h.add(node)
+	return node
+}
+
+func (h *LookupHandler) lookup(qname string, qtype uint16) (resp *response, hit bool, err error) {
+	defer func() {
+		if hit {
+			h.hitCount.Add(1)
+		} else {
+			h.fwdCount.Add(1)
+		}
+	}()
+
+	qname = dns.CanonicalName(qname)
+	node := h.getOrAdd(fmt.Sprintf("%s:%d", qname, qtype))
+
+	if !node.respMu.TryRLock() {
+		// in-flight
+		node.respMu.RLock()
+		defer node.respMu.RUnlock()
+		return node.resp, true, node.err
+	}
+
+	if node.resp != nil && node.resp.fresh() {
+		defer node.respMu.RUnlock()
+		return node.resp, true, nil
+	}
+
+	node.respMu.RUnlock()
+	node.respMu.Lock()
+	defer node.respMu.Unlock()
+
+	if node.resp != nil && node.resp.fresh() {
+		return node.resp, true, nil
+	}
+
+	node.resp, node.err = h.forward(qname, qtype)
+	return node.resp, false, node.err
+}
+
+func (h *LookupHandler) forward(qname string, qtype uint16) (*response, error) {
 	msg := new(dns.Msg)
 	msg.SetQuestion(qname, qtype)
 	msg.SetEdns0(MaxUdpMsgSize, false)
 
-	var received *dns.Msg
 	client := &dns.Client{Timeout: LookupTimeout}
-	received, _, err = client.Exchange(msg, h.Upstream)
+	received, _, err := client.Exchange(msg, h.Upstream)
 	if err == nil && received.Truncated {
 		client.Net = "tcp"
 		received, _, err = client.Exchange(msg, h.Upstream)
 	}
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	ok := received.Rcode == dns.RcodeSuccess || received.Rcode == dns.RcodeNameError
-	if ok && (len(received.Answer) > 0 || len(received.Ns) > 0) {
+	resp := &response{Status: received.Rcode}
+
+	var ttl uint32
+	if len(received.Answer) > 0 || len(received.Ns) > 0 {
 		ttl = LookupResponseMaxTtl
 	}
-
-	resp = &Response{Status: received.Rcode}
 	if len(received.Answer) > 0 {
-		resp.Answer = make([]Record, len(received.Answer))
+		resp.Answer = make([]record, len(received.Answer))
 		for i, rr := range received.Answer {
 			hdr := rr.Header()
 			if hdr.Ttl < ttl {
 				ttl = hdr.Ttl
 			}
-			resp.Answer[i] = Record{hdr.Name, hdr.Rrtype, rr.String()[len(hdr.String()):]}
+			resp.Answer[i] = record{hdr.Name, hdr.Rrtype, rr.String()[len(hdr.String()):]}
 		}
 	}
 	if len(received.Ns) > 0 {
-		resp.Authority = make([]Record, len(received.Ns))
+		resp.Authority = make([]record, len(received.Ns))
 		for i, rr := range received.Ns {
 			hdr := rr.Header()
 			if hdr.Ttl < ttl {
@@ -179,29 +233,16 @@ func (h *LookupHandler) lookup(qname string, qtype uint16) (resp *Response, ttl 
 					ttl = rr.(*dns.SOA).Minttl
 				}
 			}
-			resp.Authority[i] = Record{hdr.Name, hdr.Rrtype, rr.String()[len(hdr.String()):]}
+			resp.Authority[i] = record{hdr.Name, hdr.Rrtype, rr.String()[len(hdr.String()):]}
 		}
 	}
 
-	if ok && ttl < LookupResponseMinTtl {
+	if !resp.ok() || ttl < LookupResponseMinTtl {
 		ttl = LookupResponseMinTtl
 	}
-	return
-}
+	resp.setTtl(ttl)
 
-func (h *LookupHandler) removeFromRecentList(cached *cacheEntry) {
-	if cached.prev == nil {
-		h.leastRecent = cached.next
-	} else {
-		cached.prev.next = cached.next
-	}
-	if cached.next == nil {
-		h.mostRecent = cached.prev
-	} else {
-		cached.next.prev = cached.prev
-	}
-	cached.prev = nil
-	cached.next = nil
+	return resp, nil
 }
 
 func (h *LookupHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -216,19 +257,15 @@ func (h *LookupHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resp, ttl, hit, err := h.Lookup(qname, qtype)
+	resp, hit, err := h.lookup(qname, qtype)
 	if err != nil {
-		if errors.Is(err, os.ErrDeadlineExceeded) {
-			http.Error(w, "dns timeout", http.StatusGatewayTimeout)
-		} else {
-			log.Printf("[error] dns2json.LookupHandler.ServeHTTP: %v", err)
-			http.Error(w, "server error", http.StatusInternalServerError)
-		}
+		log.Printf("[error] dns2json.LookupHandler.ServeHTTP: %v", err)
+		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if ttl > 0 {
+	if ttl := resp.ttl(); ttl > 0 {
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", ttl))
 	}
 	if hit {

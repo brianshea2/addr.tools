@@ -284,7 +284,7 @@ func (config *Config) Run() {
 		statusHandler.Add(status.StatusProviderFunc(func() []status.Status {
 			return []status.Status{
 				{Title: "cache.hits", Value: strconv.FormatUint(lookupHandler.HitCount(), 10)},
-				{Title: "cache.fwds", Value: strconv.FormatUint(lookupHandler.MissCount(), 10)},
+				{Title: "cache.fwds", Value: strconv.FormatUint(lookupHandler.FwdCount(), 10)},
 				{Title: "cache.size", Value: strconv.Itoa(lookupHandler.CacheSize())},
 			}
 		}))
