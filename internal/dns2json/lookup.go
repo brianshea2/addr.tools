@@ -21,7 +21,7 @@ const (
 	LookupTimeout        = 5 * time.Second
 	LookupResponseMaxTtl = 86400
 	LookupResponseMinTtl = 1
-	MaxCacheLength       = 50000
+	MaxCacheLength       = 80000
 	MaxUdpMsgSize        = 1400
 )
 
