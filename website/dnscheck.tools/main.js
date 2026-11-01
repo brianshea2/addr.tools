@@ -267,7 +267,6 @@ const drawDNSSEC = (() => {
   let f = () => {
     dnssecDiv.innerHTML = dnssecDiv.firstElementChild.outerHTML +
       '<div><table class="dnssec">' +
-      '<caption>DNSSEC Validation Tests</caption>' +
       '<thead><tr>' +
       '<th>Signature</th>' +
       '<th>ECDSA <span class="nowrap">P-256</span></th>' +

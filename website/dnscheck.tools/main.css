@@ -268,16 +268,6 @@ table.dnssec {
   display: grid;
   align-items: end;
   grid-template-columns: min-content repeat(4, 1fr);
-  padding-bottom: 1.3em;
-  position: relative;
-}
-table.dnssec caption {
-  font-size: 0.9em;
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translate(-50%, 0);
-  white-space: nowrap;
 }
 table.dnssec :is(thead, tbody, tr) {
   display: contents;
