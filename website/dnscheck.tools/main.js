@@ -11,7 +11,6 @@ const clientIPs      = {}               // detected HTTP request source and WebR
 const clientSubnets  = {}               // EDNS advertised client subnets
 const resolvers      = {}               // detected DNS resolvers
 const dnssecTests    = [ ...Array(16) ] // DNSSEC test results
-const echTests       = []               // ECH test results
 const rtts           = []               // DNS round trip times
 const udpSizes       = []               // EDNS advertised UDP buffer sizes
 let count            = 0                // number of DNS requests received
@@ -31,7 +30,6 @@ const doneMsgDiv       = document.getElementById('done-msg')
 const rttStatusSpan    = document.getElementById('rtt-status')
 const ednsStatusSpan   = document.getElementById('edns-status')
 const dnssecStatusSpan = document.getElementById('dnssec-status')
-const echStatusSpan    = document.getElementById('ech-status')
 const ipv6StatusSpan   = document.getElementById('ipv6-status')
 const adoxStatusSpan   = document.getElementById('adox-status')
 const countSpan        = document.getElementById('count')
@@ -46,7 +44,7 @@ const makeQuery = async (fqdn, timeout, abortSignal) => {
   const timeoutID = setTimeout(abortFn, timeout)
   abortSignal.addEventListener('abort', abortFn)
   return fetch(`https://${fqdn}/`, { signal: controller.signal })
-    .then(r => ({ connected: r.ok, ech: r.headers.get('X-ECH-Status') }), () => ({ connected: false }))
+    .then(r => r.ok, () => false)
     .finally(() => {
       clearTimeout(timeoutID)
       abortSignal.removeEventListener('abort', abortFn)
@@ -445,45 +443,24 @@ const testDNS = () => new Promise(done => {
     if (!seenIPv6) {
       ipv6StatusSpan.innerHTML = '<span class="red" title="Your DNS resolvers cannot reach nameservers over IPv6">IPv6</span>'
     }
-    // test DNSSEC validation, ECH
+    // test DNSSEC validation
     drawDNSSEC()
     for (const [ algIndex, alg ] of [ 'alg13', 'alg14', 'alg15', 'alg18' ].entries()) {
       const fqdn = `${clientId}.test-${alg}.dnscheck.tools`
-      const { connected, ech } = await makeQuery(fqdn, 10000, abortController.signal)
+      const connected = await makeQuery(fqdn, 10000, abortController.signal)
       dnssecTests[algIndex] = connected
       drawDNSSEC()
       if (!connected) {
         // valid signature failed to connect, no point in continuing tests for this signing algorithm
         continue
       }
-      console.log(`ECH: ${fqdn} ${ech}`)
-      echTests.push(ech)
       await Promise.all([ 'badsig', 'expiredsig', 'nosig' ].map((sigOpt, sigIndex) =>
         makeQuery(`${clientId}-${sigOpt}.test-${alg}.dnscheck.tools`, 30000, abortController.signal)
-          .then(({ connected }) => {
+          .then(connected => {
             dnssecTests[4 + 4 * sigIndex + algIndex] = connected
             drawDNSSEC()
           })
       ))
-    }
-    // update ECH status
-    if (echTests.length) {
-      let className, msg
-      if (echTests.every(v => v === 'SUCCESS')) {
-        className = 'green'
-        msg = 'ECH related DNS records were retrieved, and the HTTPS server name was encrypted'
-      } else if (echTests.some(v => v === 'GREASE')) {
-        className = 'yellow'
-        msg = 'ECH is supported, but the HTTPS server name was not encrypted (GREASE)\n\n' +
-          'Possible reasons:\n' +
-          '- filtering of ECH related DNS records\n' +
-          '- insecure DNS transport\n' +
-          '- something else'
-      } else {
-        className = 'yellow'
-        msg = 'Your browser does not support ECH, or an error occurred'
-      }
-      echStatusSpan.innerHTML = `<span class="${className}" title="Encrypted Client Hello\n\n${msg}">ECH</span>`
     }
     // finished
     countSpan.classList.remove('light')
